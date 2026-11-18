@@ -7,7 +7,7 @@ import 'package:instagram_clone/features/feed/presentation/bloc/feed_bloc.dart';
 import 'package:instagram_clone/features/explore/presentation/bloc/explore_bloc.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:instagram_clone/features/notifications/presentation/bloc/notification_bloc.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

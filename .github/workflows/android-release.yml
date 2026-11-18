@@ -3,6 +3,7 @@ name: Android release
 on:
   workflow_dispatch:
   push:
+    branches: [arena/26108c72-instagram-colne]
     tags:
       - "v*"
 

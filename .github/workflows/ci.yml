@@ -121,6 +121,42 @@ jobs:
           }
           tail -n 1 "$RUNNER_TEMP/veyro-smoke.log" | sed 's/^/::notice::/'
 
+      - name: Smoke-test the compiled website in Chrome
+        run: |
+          npm install --quiet --no-audit --no-fund --no-save --prefix "$RUNNER_TEMP/veyro-browser" playwright-core
+          python3 -m http.server 3000 --bind 127.0.0.1 --directory build/web > "$RUNNER_TEMP/veyro-http.log" 2>&1 &
+          trap 'kill $!' EXIT
+          node <<'JS'
+          const fs = require('node:fs');
+          const { chromium } = require(`${process.env.RUNNER_TEMP}/veyro-browser/node_modules/playwright-core`);
+          const config = fs.readFileSync('lib/core/constants/supabase_constants.dart', 'utf8');
+          const url = config.match(/supabaseUrl\s*=\s*'([^']+)'/)[1];
+          const key = config.match(/supabasePublishableKey\s*=\s*'(sb_publishable_[^']+)'/)[1];
+          (async () => {
+            const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] });
+            try {
+              const page = await browser.newPage();
+              const errors = [];
+              page.on('pageerror', error => errors.push(error.message));
+              await page.goto('http://localhost:3000/');
+              await page.locator('flutter-view').waitFor({ timeout: 30000 });
+              const status = await page.evaluate(async ({ url, key }) => {
+                const response = await fetch(`${url}/auth/v1/settings`, {
+                  headers: { apikey: key, Authorization: `Bearer ${key}` },
+                });
+                return response.status;
+              }, { url, key });
+              if (status !== 200 || errors.length) throw Error(`Compiled page: Veyro HTTP ${status}; ${errors.join('; ')}`);
+              console.log('::notice::Flutter Web booted in Chrome and reached Veyro Auth from the browser.');
+            } finally {
+              await browser.close();
+            }
+          })().catch(error => {
+            console.error(`::error::${error.message}`);
+            process.exitCode = 1;
+          });
+          JS
+
       - name: Upload web build
         uses: actions/upload-artifact@v6
         with:
