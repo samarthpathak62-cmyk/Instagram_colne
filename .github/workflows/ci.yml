@@ -119,10 +119,9 @@ jobs:
       - name: Smoke-test Veyro in desktop and mobile Chrome
         env:
           VEYRO_SCREENSHOTS: ${{ runner.temp }}/veyro-web-screenshots
-          VEYRO_TEST_REEL: ${{ runner.temp }}/veyro-test-reel.webm
+          VEYRO_TEST_REEL: test/fixtures/veyro-synthetic-reel.webm
         run: |
           npm install --quiet --no-audit --no-fund --no-save --prefix "$RUNNER_TEMP/veyro-browser" playwright-core@1.61.1
-          ffmpeg -loglevel error -f lavfi -i color=c=0x7036E5:s=144x256:r=12:d=3 -c:v libvpx-vp9 -an "$VEYRO_TEST_REEL"
           python3 -m http.server 3000 --bind 127.0.0.1 --directory build/web > "$RUNNER_TEMP/veyro-http.log" 2>&1 &
           server=$!
           trap 'kill "$server"' EXIT

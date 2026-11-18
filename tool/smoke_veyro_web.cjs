@@ -225,7 +225,8 @@ function controls(page) {
   // Flutter emits a role for most controls and labelled containers for some
   // navigation/InkWell destinations. Both support a semantics tap.
   const control = (name) => page.getByRole('button', { name, exact: typeof name === 'string' })
-    .or(page.getByLabel(name, { exact: typeof name === 'string' })).first();
+    .or(page.getByLabel(name, { exact: typeof name === 'string' }))
+    .or(page.getByTitle(name, { exact: typeof name === 'string' })).first();
   async function press(name, physical = false) {
     const element = control(name);
     await element.waitFor({ state: 'attached', timeout });
