@@ -33,13 +33,11 @@ void main() {
     expect(_contrast(Colors.white, VeyroTheme.violet), greaterThan(4.5));
   });
 
-  for (final size in [const Size(360, 740), const Size(1360, 860)]) {
-    testWidgets('branded auth is usable at ${size.width.toInt()}px',
-        (tester) async {
-      tester.view.devicePixelRatio = 1;
-      tester.view.physicalSize = size;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  group('Veyro entry screens', () {
+    late AuthBloc auth;
+
+    // Set up and close the SDK outside the fake clock used for widget frames.
+    setUp(() async {
       final client = supabase.SupabaseClient(
         'https://example.invalid',
         'test-key',
@@ -50,49 +48,62 @@ void main() {
       final repository = AuthRepositoryImpl(
         remoteDataSource: AuthRemoteDataSourceImpl(supabaseClient: client),
       );
-      final auth = AuthBloc(
+      auth = AuthBloc(
         loginUser: LoginUser(repository),
         signupUser: SignupUser(repository),
         getCurrentUser: GetCurrentUser(repository),
         supabaseClient: client,
       );
       addTearDown(auth.close);
-
-      await tester
-          .pumpWidget(BlocProvider.value(value: auth, child: const AppView()));
-      await tester.pumpAndSettle();
-      expect(
-          tester.widget<MaterialApp>(find.byType(MaterialApp)).title, 'Veyro');
-      expect(find.byType(VeyroMark), findsOneWidget);
-      expect(find.text('Welcome back'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-
-      await tester.tap(find.widgetWithText(FilledButton, 'Log in'));
-      await tester.pumpAndSettle();
-      expect(find.text('Enter your email address.'), findsOneWidget);
-      expect(find.text('Enter your password.'), findsOneWidget);
-
-      final signup = find.text('Create an account');
-      await tester.ensureVisible(signup);
-      await tester.tap(signup);
-      await tester.pumpAndSettle();
-      expect(find.text('Join Veyro'), findsOneWidget);
-      expect(find.byType(TextFormField), findsNWidgets(4));
-      expect(tester.takeException(), isNull);
-
-      final showPassword = find.byTooltip('Show password');
-      await tester.ensureVisible(showPassword);
-      await tester.tap(showPassword);
-      await tester.pump();
-      expect(find.byTooltip('Hide password'), findsOneWidget);
-      final back = find.text('Log in');
-      await tester.ensureVisible(back);
-      await tester.tap(back);
-      await tester.pumpAndSettle();
-      expect(find.text('Welcome back'), findsOneWidget);
-      expect(tester.takeException(), isNull);
+      if (auth.state is! Unauthenticated) {
+        await auth.stream.firstWhere((state) => state is Unauthenticated);
+      }
     });
-  }
+
+    for (final size in [const Size(360, 740), const Size(1360, 860)]) {
+      testWidgets('branded auth is usable at ${size.width.toInt()}px',
+          (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = size;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(
+            BlocProvider.value(value: auth, child: const AppView()));
+        await tester.pumpAndSettle();
+        expect(tester.widget<MaterialApp>(find.byType(MaterialApp)).title,
+            'Veyro');
+        expect(find.byType(VeyroMark), findsOneWidget);
+        expect(find.text('Welcome back'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+
+        await tester.tap(find.widgetWithText(FilledButton, 'Log in'));
+        await tester.pumpAndSettle();
+        expect(find.text('Enter your email address.'), findsOneWidget);
+        expect(find.text('Enter your password.'), findsOneWidget);
+
+        final signup = find.text('Create an account');
+        await tester.ensureVisible(signup);
+        await tester.tap(signup);
+        await tester.pumpAndSettle();
+        expect(find.text('Join Veyro'), findsOneWidget);
+        expect(find.byType(TextFormField), findsNWidgets(4));
+        expect(tester.takeException(), isNull);
+
+        final showPassword = find.byTooltip('Show password');
+        await tester.ensureVisible(showPassword);
+        await tester.tap(showPassword);
+        await tester.pump();
+        expect(find.byTooltip('Hide password'), findsOneWidget);
+        final back = find.text('Log in');
+        await tester.ensureVisible(back);
+        await tester.tap(back);
+        await tester.pumpAndSettle();
+        expect(find.text('Welcome back'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+    }
+  });
 }
 
 double _contrast(Color a, Color b) {

@@ -98,6 +98,25 @@ jobs:
       - name: Build web release
         run: flutter build web --release --no-pub
 
+      - name: Smoke-test Veyro in desktop and mobile Chrome
+        env:
+          VEYRO_SCREENSHOTS: ${{ runner.temp }}/veyro-web-screenshots
+        run: |
+          npm install --quiet --no-audit --no-fund --no-save --prefix "$RUNNER_TEMP/veyro-browser" playwright-core@1.61.1
+          python3 -m http.server 3000 --bind 127.0.0.1 --directory build/web > "$RUNNER_TEMP/veyro-http.log" 2>&1 &
+          server=$!
+          trap 'kill "$server"' EXIT
+          curl --fail --silent --show-error --retry 5 --retry-connrefused http://127.0.0.1:3000/ -o /dev/null
+          NODE_PATH="$RUNNER_TEMP/veyro-browser/node_modules" node tool/smoke_veyro_web.cjs
+
+      - name: Upload browser screenshots
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: veyro-browser-screenshots
+          path: ${{ runner.temp }}/veyro-web-screenshots
+          if-no-files-found: ignore
+
       - name: Upload web build
         uses: actions/upload-artifact@v6
         with:
