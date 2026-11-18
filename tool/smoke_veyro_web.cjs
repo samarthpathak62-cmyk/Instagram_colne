@@ -71,7 +71,7 @@ async function mockSignedIn(page, theme) {
     return {
       ...post, caption: null, source: withOriginal && original ? postProjection(original, false) : null, author: people.find((person) => person.id === post.author_id),
       group: groups.find((group) => group.id === post.group_id) || null,
-      reaction_counts: liked.has(post.id) ? { [liked.get(post.id)]: 1 } : {},
+      reaction_counts: liked.has(post.id) ? [{ reaction: liked.get(post.id), total: 1 }] : [],
       comments: [{ count: comments.filter((comment) => comment.post_id === post.id).length }],
       liked_by_user: liked.has(post.id) ? [{ user_id: viewerId, reaction: liked.get(post.id) }] : [],
       saved_by_user: saved.has(post.id) ? [{ id: saved.get(post.id) }] : [],
@@ -501,7 +501,7 @@ async function testCommunity(page, state, name) {
   assert.ok(state.memberships.get(otherGroup).has(viewerId));
   await press('Write a post');
   await waitFor('Publish');
-  await enter(`A group update from ${name}.`);
+  await enter(`A group update from ${name}.`, /Post text/);
   await changed('Publish', 'posts', 'POST');
   const update = state.posts[0];
   assert.equal(update.group_id, otherGroup);

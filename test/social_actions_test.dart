@@ -291,7 +291,10 @@ void main() {
       ..._row(),
       'group_id': 'community-id',
       'group': {'name': 'Aperture Club'},
-      'reaction_counts': {'like': 2, 'love': 1},
+      'reaction_counts': [
+        {'reaction': 'like', 'total': 2},
+        {'reaction': 'love', 'total': 1},
+      ],
       'liked_by_user': [
         {'user_id': _viewer, 'reaction': 'love'}
       ],

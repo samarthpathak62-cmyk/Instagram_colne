@@ -57,11 +57,12 @@ async function testCommunity() {
   const group = (await request('/veyro_groups', groupQuery())).data[0];
   assert.deepEqual(group.members, [{ count: 1 }]);
   assert.deepEqual(group.membership, []);
-  const groupPostSelect = `${modernSelect},group_id,group:veyro_groups(name),reaction_counts:veyro_reaction_counts,liked_by_user:likes(user_id,reaction),saved_by_user:saved_posts(id)`;
+  const groupPostSelect = `${modernSelect},group_id,group:veyro_groups(name),reaction_counts:veyro_reaction_counts(reaction,total),liked_by_user:likes(user_id,reaction),saved_by_user:saved_posts(id)`;
   const publish = () => request('/posts', new URLSearchParams({ select: groupPostSelect }), {
     method: 'POST', value: { author_id: viewer, group_id: groupId, type: 'text', description: 'Hello to Aperture Club', media_urls: [] },
   });
-  assert.equal((await publish()).status, 403, 'Posting requires membership');
+  const refused = await publish();
+  assert.equal(refused.status, 403, `Posting requires membership: ${JSON.stringify(refused.data)}`);
   const join = (user_id) => request('/veyro_group_members', 'select=group_id,user_id', {
     method: 'POST', value: { group_id: groupId, user_id },
   });
@@ -92,11 +93,11 @@ async function testCommunity() {
     assert.equal(listing.status, 200, `${route}: ${JSON.stringify(listing.data)}`);
     assert.equal(listing.data.length, 1);
     assert.equal(listing.data[0].group.name, 'Aperture Club');
-    assert.deepEqual(listing.data[0].reaction_counts, { like: 1, wow: 1 });
+    assert.deepEqual(Object.fromEntries(listing.data[0].reaction_counts.map(({ reaction, total }) => [reaction, total])), { like: 1, wow: 1 });
     assert.deepEqual(listing.data[0].liked_by_user, [{ user_id: viewer, reaction: 'wow' }]);
   }
   assert.equal((await request('/likes', new URLSearchParams({ post_id: `eq.${id}`, user_id: `eq.${viewer}` }), { method: 'DELETE' })).status, 204);
-  assert.deepEqual((await request('/posts', postQuery)).data[0].reaction_counts, { like: 1 });
+  assert.deepEqual((await request('/posts', postQuery)).data[0].reaction_counts, [{ reaction: 'like', total: 1 }]);
   assert.equal((await request('/veyro_group_members', new URLSearchParams({ group_id: `eq.${groupId}`, user_id: `eq.${viewer}` }), { method: 'DELETE' })).status, 204);
   assert.deepEqual((await request('/veyro_groups', myGroups)).data, []);
   assert.equal((await publish()).status, 403);

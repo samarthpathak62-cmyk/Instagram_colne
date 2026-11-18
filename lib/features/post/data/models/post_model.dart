@@ -10,7 +10,7 @@ class PostModel extends Post {
       'author:users!posts_author_id_fkey(${SupabaseConstants.publicUserColumns})';
   static const columns =
       '$_previewColumns,group_id,group:veyro_groups(name),shared_post_id,source:veyro_shared_post($_previewColumns),'
-      'reaction_counts:veyro_reaction_counts,comments(count)';
+      'reaction_counts:veyro_reaction_counts(reaction,total),comments(count)';
   static const columnsWithViewer =
       '$columns,liked_by_user:likes(user_id,reaction),saved_by_user:saved_posts(id)';
 
@@ -57,10 +57,12 @@ class PostModel extends Post {
 
     final reactionCounts = <PostReaction, int>{};
     final totals = json['reaction_counts'];
-    if (totals is Map) {
-      for (final entry in totals.entries) {
-        final count = parseInt(entry.value);
-        if (count > 0) reactionCounts[PostReaction.parse(entry.key)] = count;
+    if (totals is List) {
+      for (final row in totals) {
+        if (row is! Map) continue;
+        final count = parseInt(row['total']);
+        if (count > 0)
+          reactionCounts[PostReaction.parse(row['reaction'])] = count;
       }
     } else {
       final legacy = parseInt(likeData?.firstOrNull?['count']);

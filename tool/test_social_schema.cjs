@@ -97,7 +97,7 @@ async function main() {
   await db.query("select public.veyro_react($1, 'love')", [groupPost]);
   await db.query("select public.veyro_react($1, 'wow')", [groupPost]);
   await assert.rejects(db.query("select public.veyro_react($1, 'nope')", [groupPost]), /check constraint/);
-  const tally = 'select public.veyro_reaction_counts(p) as counts from public.posts p where id = $1';
+  const tally = 'select jsonb_object_agg(r.reaction, r.total) as counts from public.posts p, lateral public.veyro_reaction_counts(p) r where p.id = $1';
   assert.deepEqual((await db.query(tally, [groupPost])).rows[0].counts, { like: 1, wow: 1 });
   await db.exec("reset role; set role anon; select set_config('request.jwt.claim.sub', '', false)");
   await assert.rejects(db.query(members, [group]), /permission denied/);

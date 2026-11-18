@@ -99,28 +99,24 @@ revoke update on public.likes from public, anon, authenticated;
 grant insert (reaction), update (reaction) on public.likes to authenticated;
 create policy veyro_update_own_reaction on public.likes for update to authenticated
   using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
--- Computed fields keep the payload bounded to six totals and don't depend
--- on enabling new PostgREST aggregate syntax for the entire deployment.
-create function public.veyro_reaction_counts(p public.posts) returns jsonb
+-- A bounded aggregate through a computed relationship works for both
+-- ordinary GETs and INSERT return representations in PostgREST 14.
+create view public.veyro_post_reaction_summary with (security_invoker = true) as
+  select l.post_id, l.reaction, count(*) as total
+  from public.likes l group by l.post_id, l.reaction;
+revoke all on public.veyro_post_reaction_summary from public, anon, authenticated;
+grant select on public.veyro_post_reaction_summary to anon, authenticated;
+
+create function public.veyro_reaction_counts(p public.posts)
+  returns setof public.veyro_post_reaction_summary rows 6
   language sql stable security invoker set search_path = ''
-as $$
-  select coalesce(jsonb_object_agg(t.reaction, t.total), '{}'::jsonb)
-  from (
-    select l.reaction, count(*) as total
-    from public.likes l where l.post_id = p.id group by l.reaction
-  ) t;
-$$;
-create function public.veyro_reaction_counts(p public.veyro_following_feed) returns jsonb
+as $$ select s.* from public.veyro_post_reaction_summary s where s.post_id = p.id; $$;
+create function public.veyro_reaction_counts(p public.veyro_following_feed)
+  returns setof public.veyro_post_reaction_summary rows 6
   language sql stable security invoker set search_path = ''
-as $$
-  select coalesce(jsonb_object_agg(t.reaction, t.total), '{}'::jsonb)
-  from (
-    select l.reaction, count(*) as total
-    from public.likes l where l.post_id = p.id group by l.reaction
-  ) t;
-$$;
+as $$ select s.* from public.veyro_post_reaction_summary s where s.post_id = p.id; $$;
 revoke all on function public.veyro_reaction_counts(public.posts),
-  public.veyro_reaction_counts(public.veyro_following_feed) from public;
+  public.veyro_reaction_counts(public.veyro_following_feed) from public, anon, authenticated;
 grant execute on function public.veyro_reaction_counts(public.posts) to anon, authenticated;
 grant execute on function public.veyro_reaction_counts(public.veyro_following_feed) to authenticated;
 
