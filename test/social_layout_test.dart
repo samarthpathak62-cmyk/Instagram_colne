@@ -41,6 +41,8 @@ void main() {
                           onCompose: () => creates++,
                           onMessages: () => messages++,
                           onNotifications: () {},
+                          unreadNotifications: 3,
+                          unreadChats: 1,
                           onSaved: () {},
                           name: 'A long display name for accessibility',
                           username: 'test_user'),
@@ -49,7 +51,9 @@ void main() {
                     SocialNavigationHeader(
                         onGroups: () => choose(SocialSection.groups),
                         onMessages: () => messages++,
-                        onNotifications: () {}),
+                        onNotifications: () {},
+                        unreadNotifications: 3,
+                        unreadChats: 1),
                   ]),
             bottomNavigationBar: desktop
                 ? null
@@ -61,6 +65,9 @@ void main() {
           );
         }),
       ));
+      expect(find.byType(Badge), findsNWidgets(2));
+      expect(find.text('3'), findsOneWidget);
+      expect(find.text('1'), findsOneWidget);
       await tester
           .tap(desktop ? find.text('Groups') : find.byTooltip('Groups'));
       await tester.pumpAndSettle();

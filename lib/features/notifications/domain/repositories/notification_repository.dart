@@ -15,7 +15,6 @@ abstract class NotificationRepository {
   /// Delete a notification
   Future<Either<Failure, void>> deleteNotification(String notificationId);
 
-  /// Subscribe to real-time notifications
-  Future<Either<Failure, Stream<Notification>>> subscribeToNotifications(
-      String userId);
+  /// Signals changes to the signed-in recipient’s activity.
+  Stream<void> watchChanges(String userId);
 }

@@ -1,188 +1,200 @@
-import 'package:dartz/dartz.dart' show Either;
 import 'package:flutter/material.dart' hide Notification;
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:instagram_clone/core/di/injection_container.dart';
 import 'package:instagram_clone/core/theme/veyro_theme.dart';
-import 'package:instagram_clone/features/common_widgets/veyro_brand.dart';
-import 'package:instagram_clone/features/common_widgets/veyro_empty_state.dart';
-import 'package:instagram_clone/core/error/failures.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:instagram_clone/features/common_widgets/error_widget.dart';
 import 'package:instagram_clone/features/common_widgets/user_avatar.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_empty_state.dart';
 import 'package:instagram_clone/features/notifications/domain/entities/notification.dart';
-import 'package:instagram_clone/features/notifications/domain/repositories/notification_repository.dart';
+import 'package:instagram_clone/features/notifications/presentation/bloc/activity_cubit.dart';
 import 'package:instagram_clone/features/post/presentation/screens/post_detail_screen.dart';
 import 'package:instagram_clone/features/profile/presentation/screens/profile_screen.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final auth = context.watch<AuthBloc>().state;
-    return auth is Authenticated
-        ? _Activity(userId: auth.user.id)
-        : Scaffold(
-            appBar: AppBar(title: const Text('Notifications')),
-            body:
-                const Center(child: Text('Log in to see your notifications.')));
-  }
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-class _Activity extends StatefulWidget {
-  final String userId;
-  const _Activity({required this.userId});
-
-  @override
-  State<_Activity> createState() => _ActivityState();
-}
-
-class _ActivityState extends State<_Activity> {
-  final _repo = sl<NotificationRepository>();
-  bool _busy = false;
-  String? _error;
-  List<Notification> _rows = const [];
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  bool _opening = false;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    if (context.read<AuthBloc>().state is Authenticated) {
+      context.read<ActivityCubit>().refresh(quiet: true);
+    }
   }
 
-  Future<void> _load() async {
-    if (_busy) return;
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    final result = await _repo.getNotifications(widget.userId);
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      result.fold(
-          (failure) => _error = failure.message, (rows) => _rows = rows);
-    });
-  }
-
-  Future<bool> _mutate(Future<Either<Failure, void>> action,
-      List<Notification> Function() update) async {
-    setState(() => _busy = true);
-    final result = await action;
-    if (!mounted) return false;
-    setState(() => _busy = false);
-    return result.fold((failure) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(failure.message)));
-      return false;
-    }, (_) {
-      setState(() => _rows = update());
-      return true;
-    });
+  Future<void> _perform(Future<bool> action) async {
+    if (!await action && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Couldn’t update notifications. Try again.')));
+    }
   }
 
   Future<void> _open(Notification item) async {
-    if (_busy) return;
-    if (!item.isRead) {
-      await _mutate(
-          _repo.markAsRead(item.id),
-          () => _rows
-              .map(
-                  (row) => row.id == item.id ? row.copyWith(isRead: true) : row)
-              .toList());
-    }
-    if (!mounted) return;
-    if (item.type == NotificationType.follow && item.actorId != null) {
-      Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (_) => ProfileScreen.withProviders(item.actorId!)));
-    } else if ((item.type == NotificationType.like ||
-            item.type == NotificationType.comment) &&
-        item.resourceId != null) {
-      Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (_) => PostDetailScreen(postId: item.resourceId!)));
+    if (_opening) return;
+    _opening = true;
+    try {
+      if (!item.isRead)
+        await _perform(context.read<ActivityCubit>().markRead(item.id));
+      if (!mounted || ModalRoute.isCurrentOf(context) != true) return;
+      if (item.type == NotificationType.follow && item.actorId != null) {
+        await Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => ProfileScreen.withProviders(item.actorId!)));
+      } else if ((item.type == NotificationType.like ||
+              item.type == NotificationType.comment) &&
+          item.resourceId != null) {
+        await Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => PostDetailScreen(postId: item.resourceId!)));
+      }
+    } finally {
+      _opening = false;
     }
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Notifications'), actions: [
-          IconButton(
-              tooltip: 'Refresh notifications',
-              onPressed: _busy ? null : _load,
-              icon: const Icon(Icons.refresh_rounded)),
-          IconButton(
-              tooltip: 'Mark all as read',
-              onPressed: _busy || !_rows.any((row) => !row.isRead)
-                  ? null
-                  : () => _mutate(
-                      _repo.markAllAsRead(widget.userId),
-                      () => _rows
-                          .map((row) => row.copyWith(isRead: true))
-                          .toList()),
-              icon: const Icon(Icons.done_all_rounded)),
+  Widget build(BuildContext context) {
+    if (context.watch<AuthBloc>().state is! Authenticated) {
+      return const Scaffold(
+          body: Center(child: Text('Log in to see your notifications.')));
+    }
+    final state = context.watch<ActivityCubit>().state;
+    final activity = context.read<ActivityCubit>();
+    final newItems = state.items.where((item) => !item.isRead).toList();
+    final earlier = state.items.where((item) => item.isRead).toList();
+    return Scaffold(
+      appBar: AppBar(title: const Text('Notifications'), actions: [
+        IconButton(
+            tooltip: 'Refresh notifications',
+            onPressed:
+                state.loading || state.updating ? null : activity.refresh,
+            icon: const Icon(Icons.refresh_rounded)),
+      ]),
+      body: Center(
+          child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 680),
+        child: state.items.isEmpty && state.loading
+            ? const Center(child: CircularProgressIndicator())
+            : state.items.isEmpty && state.error != null
+                ? VeyroEmptyState(
+                    icon: Icons.cloud_off_outlined,
+                    title: 'Notifications unavailable',
+                    description: state.error!,
+                    action: FilledButton(
+                        onPressed: activity.refresh,
+                        child: const Text('Retry')))
+                : state.items.isEmpty
+                    ? const VeyroEmptyState(
+                        icon: Icons.favorite_border_rounded,
+                        title: 'You’re all caught up',
+                        description:
+                            'Follows, reactions and comments will show up here.')
+                    : RefreshIndicator(
+                        onRefresh: activity.refresh,
+                        child: CustomScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          slivers: [
+                            if (state.loading)
+                              const SliverToBoxAdapter(
+                                  child: LinearProgressIndicator(minHeight: 2)),
+                            if (newItems.isNotEmpty) ...[
+                              SliverToBoxAdapter(
+                                  child: _heading('New',
+                                      action: TextButton(
+                                          onPressed: state.updating
+                                              ? null
+                                              : () => _perform(
+                                                  activity.markAllRead()),
+                                          child:
+                                              const Text('Mark all as read')))),
+                              SliverList.builder(
+                                  itemCount: newItems.length,
+                                  itemBuilder: (context, index) =>
+                                      _tile(newItems[index], state.updating)),
+                            ],
+                            if (earlier.isNotEmpty) ...[
+                              SliverToBoxAdapter(child: _heading('Earlier')),
+                              SliverList.builder(
+                                  itemCount: earlier.length,
+                                  itemBuilder: (context, index) =>
+                                      _tile(earlier[index], state.updating)),
+                            ],
+                            const SliverToBoxAdapter(
+                                child: SizedBox(height: 20)),
+                          ],
+                        )),
+      )),
+    );
+  }
+
+  Widget _heading(String label, {Widget? action}) => Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 12, 3),
+        child: Row(children: [
+          Expanded(child: Text(label, style: context.veyroText.titleMedium)),
+          if (action != null)
+            Flexible(
+                flex: 2,
+                child: Align(
+                    alignment: AlignmentDirectional.centerEnd, child: action)),
         ]),
-        body: Center(
-            child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 750),
-          child: _rows.isEmpty && _busy
-              ? const Center(child: CircularProgressIndicator())
-              : _error != null
-                  ? CustomErrorWidget(message: _error!, onRetry: _load)
-                  : _rows.isEmpty
-                      ? const VeyroEmptyState(
-                          icon: Icons.favorite_border_rounded,
-                          title: 'You’re all caught up',
-                          description:
-                              'New follows, reactions and comments will appear here.')
-                      : RefreshIndicator(
-                          onRefresh: _load,
-                          child: ListView.builder(
-                            padding: const EdgeInsets.all(12),
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            itemCount: _rows.length + 1,
-                            itemBuilder: (context, index) => index == 0
-                                ? const Padding(
-                                    padding: EdgeInsets.fromLTRB(10, 7, 10, 9),
-                                    child: VeyroEyebrow('Recent activity'))
-                                : _tile(_rows[index - 1]),
-                          )),
-        )),
       );
 
-  Widget _tile(Notification item) {
-    final colors = Theme.of(context).colorScheme;
-    return Card(
+  Widget _tile(Notification item, bool updating) {
+    final colors = context.veyroColors;
+    final event = switch (item.type) {
+      NotificationType.follow => Icons.person_add_alt_1_outlined,
+      NotificationType.like => Icons.favorite_rounded,
+      NotificationType.comment => Icons.chat_bubble_outline_rounded,
+      _ => Icons.notifications_none_rounded,
+    };
+    return Material(
       key: ValueKey(item.id),
-      color: item.isRead ? null : colors.surfaceContainerHigh,
+      color: item.isRead ? colors.surface : colors.surfaceContainer,
       child: ListTile(
-        leading: VeyroOrbitRing(
-            glowing: !item.isRead,
-            surface: item.isRead
-                ? colors.surfaceContainerLow
-                : colors.surfaceContainerHigh,
+        contentPadding: const EdgeInsetsDirectional.fromSTEB(16, 4, 7, 4),
+        leading: Badge(
+            alignment: AlignmentDirectional.bottomEnd,
+            offset: const Offset(4, 3),
+            backgroundColor: colors.primaryContainer,
+            padding: const EdgeInsets.all(3),
+            label: Icon(event, size: 13, color: colors.onPrimaryContainer),
             child: UserAvatar(
                 name: item.senderUsername,
                 imageUrl: item.senderProfilePictureUrl,
-                radius: 17)),
-        title: Text(
-            [
-              if (item.senderUsername != null) '@${item.senderUsername}',
-              item.message.isEmpty ? 'New activity' : item.message
-            ].join(' '),
-            style: context.veyroText.bodyMedium?.copyWith(
-                fontWeight: item.isRead ? FontWeight.w600 : FontWeight.w800)),
-        subtitle: Text(timeago.format(item.createdAt)),
-        onTap: _busy ||
+                radius: 21)),
+        title: Text.rich(
+            TextSpan(children: [
+              if (item.senderUsername != null)
+                TextSpan(
+                    text: '@${item.senderUsername} ',
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
+              TextSpan(
+                  text: item.message.isEmpty ? 'New activity' : item.message),
+            ]),
+            style: context.veyroText.bodyMedium),
+        subtitle: Text(timeago.format(item.createdAt),
+            style: context.veyroText.bodySmall),
+        onTap: updating ||
                 (item.isRead && item.resourceId == null && item.actorId == null)
             ? null
             : () => _open(item),
-        trailing: IconButton(
-            tooltip: 'Dismiss notification',
-            icon: const Icon(Icons.close_rounded, size: 20),
-            onPressed: _busy
-                ? null
-                : () => _mutate(_repo.deleteNotification(item.id),
-                    () => _rows.where((row) => row.id != item.id).toList())),
+        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+          if (!item.isRead)
+            Semantics(
+                label: 'Unread',
+                child: Icon(Icons.circle, size: 7, color: colors.primary)),
+          IconButton(
+              tooltip: 'Dismiss notification',
+              icon: const Icon(Icons.close_rounded, size: 19),
+              onPressed: updating
+                  ? null
+                  : () =>
+                      _perform(context.read<ActivityCubit>().dismiss(item.id))),
+        ]),
       ),
     );
   }

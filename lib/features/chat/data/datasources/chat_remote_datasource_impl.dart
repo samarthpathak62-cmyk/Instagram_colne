@@ -47,15 +47,19 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
     try {
       final rows = await supabaseClient
           .from('chats')
-          .select('$_chatColumns,unread:messages(count)')
+          .select(
+              '$_chatColumns,unread:messages(id),last_message:messages(content)')
           .or('user1_id.eq.$userId,user2_id.eq.$userId')
           .eq('unread.receiver_id', userId)
           .eq('unread.is_read', false)
+          .limit(1, referencedTable: 'unread')
+          .order('timestamp', ascending: false, referencedTable: 'last_message')
+          .order('id', ascending: false, referencedTable: 'last_message')
+          .limit(1, referencedTable: 'last_message')
           .order('last_message_time', ascending: false);
       return rows.map((row) {
-        final counts = row['unread'] as List;
         row['has_unread_messages'] =
-            counts.isNotEmpty && (counts.first['count'] as int) > 0;
+            (row['unread'] as List?)?.isNotEmpty ?? false;
         return _readChat(row, userId);
       }).toList();
     } on PostgrestException catch (error) {
@@ -110,7 +114,8 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
           .from('messages')
           .select()
           .eq('chat_id', chatId)
-          .order('timestamp', ascending: true);
+          .order('timestamp', ascending: false)
+          .order('id', ascending: false);
       return rows.map(MessageModel.fromJson).toList();
     } on PostgrestException catch (error) {
       throw ServerException(

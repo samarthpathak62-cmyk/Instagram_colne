@@ -1,10 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:instagram_clone/core/di/injection_container.dart' as di;
+import 'package:instagram_clone/core/error/exceptions.dart';
 import 'package:instagram_clone/core/media/picked_media_preview.dart';
+import 'package:instagram_clone/core/media/supabase_media_upload.dart';
 import 'package:instagram_clone/core/theme/veyro_theme.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:instagram_clone/features/common_widgets/draft_pop_scope.dart';
 import 'package:instagram_clone/features/common_widgets/user_avatar.dart';
 import 'package:instagram_clone/features/common_widgets/veyro_brand.dart';
 import 'package:instagram_clone/features/feed/presentation/bloc/feed_bloc.dart';
@@ -14,8 +19,6 @@ import 'package:video_player/video_player.dart';
 
 class CreatePostScreen extends StatelessWidget {
   final ValueChanged<Post>? onCreated;
-  final VoidCallback? onClose;
-  final bool reelMode;
   final bool photoMode;
   final String? groupId;
   final String? groupName;
@@ -23,37 +26,28 @@ class CreatePostScreen extends StatelessWidget {
   const CreatePostScreen(
       {super.key,
       this.onCreated,
-      this.onClose,
-      this.reelMode = false,
       this.photoMode = false,
       this.groupId,
       this.groupName});
 
   @override
   Widget build(BuildContext context) => BlocProvider<PostBloc>(
-        create: (_) => di.sl<PostBloc>(),
-        child: _Composer(
-            onCreated: onCreated,
-            onClose: onClose,
-            reelMode: reelMode,
-            photoMode: photoMode,
-            groupId: groupId,
-            groupName: groupName),
-      );
+      create: (_) => di.sl<PostBloc>(),
+      child: _Composer(
+          onCreated: onCreated,
+          photoMode: photoMode,
+          groupId: groupId,
+          groupName: groupName));
 }
 
 class _Composer extends StatefulWidget {
   final ValueChanged<Post>? onCreated;
-  final VoidCallback? onClose;
-  final bool reelMode;
   final bool photoMode;
   final String? groupId;
   final String? groupName;
 
   const _Composer(
       {required this.onCreated,
-      required this.onClose,
-      required this.reelMode,
       required this.photoMode,
       this.groupId,
       this.groupName});
@@ -73,6 +67,8 @@ class _ComposerState extends State<_Composer> {
   bool _sending = false;
   String? _error;
 
+  bool get _busy => _picking || _sending;
+
   @override
   void dispose() {
     _text.dispose();
@@ -81,7 +77,7 @@ class _ComposerState extends State<_Composer> {
   }
 
   Future<void> _pick({bool video = false}) async {
-    if (_picking || _sending) return;
+    if (_busy) return;
     FocusScope.of(context).unfocus();
     setState(() {
       _picking = true;
@@ -96,24 +92,23 @@ class _ComposerState extends State<_Composer> {
       if (files.length > 8)
         throw const FormatException('Select up to eight photos.');
       for (final file in files) {
-        final size = await file.length();
-        if (size == 0 || size > 50 * 1024 * 1024)
-          throw const FormatException(
-              'Each file needs to be between 1 byte and 50 MB.');
+        await validateMediaFile(file, isVideo: video);
       }
       if (!mounted) return;
-      _clearMedia();
       setState(() {
+        _clearMedia();
         _media = files;
         _type = video ? PostType.video : PostType.image;
       });
-      if (video) _previewVideo(files.single);
+      if (video) unawaited(_previewVideo(files.single));
     } on FormatException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } on FileUploadException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } catch (_) {
       if (mounted)
         setState(
-            () => _error = 'Could not pick this media. Try a different file.');
+            () => _error = 'Couldn’t pick this media. Try a different file.');
     } finally {
       if (mounted) setState(() => _picking = false);
     }
@@ -136,52 +131,42 @@ class _ComposerState extends State<_Composer> {
     _videoFailed = false;
     _media = const [];
     _type = PostType.text;
+    _error = null;
   }
 
   bool _canPublish(String text) =>
-      !_sending &&
-      !_picking &&
-      (widget.reelMode
-          ? _type == PostType.video
-          : widget.photoMode
-              ? _type == PostType.image
-              : _media.isNotEmpty || text.trim().isNotEmpty);
+      !_busy &&
+      (widget.photoMode
+          ? _type == PostType.image
+          : _media.isNotEmpty || text.trim().isNotEmpty);
 
   void _publish() {
-    if (!_canPublish(_text.text)) return;
     final auth = context.read<AuthBloc>().state;
-    if (auth is! Authenticated) return;
+    if (!_canPublish(_text.text) || auth is! Authenticated) return;
     FocusScope.of(context).unfocus();
     setState(() {
       _sending = true;
       _error = null;
     });
     context.read<PostBloc>().add(CreateNewPost(
-          authorId: auth.user.id,
-          type: _type,
-          mediaFiles: List.of(_media),
-          description: _text.text.trim(),
-          groupId: widget.groupId,
-        ));
+        authorId: auth.user.id,
+        type: _type,
+        mediaFiles: List.of(_media),
+        description: _text.text.trim(),
+        groupId: widget.groupId));
   }
 
   @override
   Widget build(BuildContext context) => BlocListener<PostBloc, PostState>(
         listener: (context, state) {
           if (state is PostUploadSuccess) {
-            final wasReel = widget.reelMode;
-            setState(() {
-              _clearMedia();
-              _sending = false;
-              _text.clear();
-            });
-            context.read<FeedCubit>().refresh();
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(wasReel ? 'Reel published' : 'Post published')));
+            unawaited(context.read<FeedCubit>().refresh());
+            ScaffoldMessenger.of(context)
+                .showSnackBar(const SnackBar(content: Text('Post published')));
             if (widget.onCreated != null) {
               widget.onCreated!(state.newPost);
             } else {
-              Navigator.of(context).maybePop();
+              Navigator.of(context).pop(state.newPost);
             }
           } else if (state is PostOperationFailure) {
             setState(() {
@@ -190,108 +175,97 @@ class _ComposerState extends State<_Composer> {
             });
           }
         },
-        child: Scaffold(
-          appBar: AppBar(
-            leading: IconButton(
-                tooltip: 'Close composer',
-                icon: const Icon(Icons.close_rounded),
-                onPressed: _sending
-                    ? null
-                    : widget.onClose ?? () => Navigator.of(context).maybePop()),
-            title: Text(widget.groupId != null
-                ? 'New group post'
-                : widget.reelMode
-                    ? 'New reel'
+        child: ValueListenableBuilder<TextEditingValue>(
+          valueListenable: _text,
+          child: _body(),
+          builder: (context, value, body) => DraftPopScope(
+            hasDraft: value.text.trim().isNotEmpty || _media.isNotEmpty,
+            uploading: _sending,
+            child: Scaffold(
+              appBar: AppBar(
+                leading: IconButton(
+                    tooltip: 'Close composer',
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: _sending
+                        ? null
+                        : () => Navigator.of(context).maybePop()),
+                title: Text(widget.groupId != null
+                    ? 'New group post'
                     : widget.photoMode
                         ? 'New photo post'
                         : 'New post'),
-            actions: [
-              Padding(
-                  padding: const EdgeInsetsDirectional.only(end: 12),
-                  child: ValueListenableBuilder<TextEditingValue>(
-                    valueListenable: _text,
-                    builder: (context, value, _) => FilledButton(
-                        onPressed: _canPublish(value.text) ? _publish : null,
-                        child: const Text('Publish')),
-                  ))
-            ],
+                actions: [
+                  Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 12),
+                      child: FilledButton(
+                          onPressed: _canPublish(value.text) ? _publish : null,
+                          child: const Text('Publish')))
+                ],
+              ),
+              body: body,
+            ),
           ),
-          body: Center(
-              child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 638),
-            child: ListView(
-                padding: const EdgeInsets.fromLTRB(13, 16, 13, 30),
-                children: [
-                  _author(),
-                  const SizedBox(height: 10),
-                  Card(
-                      margin: EdgeInsets.zero,
-                      clipBehavior: Clip.antiAlias,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              VeyroEyebrow(widget.reelMode
-                                  ? 'In motion'
-                                  : widget.photoMode
-                                      ? 'Photo post'
-                                      : 'A new moment'),
-                              const SizedBox(height: 6),
-                              Text(
-                                  widget.reelMode
-                                      ? 'Make it move'
-                                      : widget.photoMode
-                                          ? 'Share your photos'
-                                          : 'What’s on your mind?',
-                                  style: context.veyroText.headlineSmall),
-                              const SizedBox(height: 13),
-                              if (!(widget.reelMode || widget.photoMode)) ...[
-                                _captionField(),
-                                const SizedBox(height: 6)
-                              ],
-                              _mediaArea(),
-                              if (widget.reelMode || widget.photoMode) ...[
-                                const SizedBox(height: 14),
-                                _captionField()
-                              ],
-                              if (_error != null)
-                                Padding(
-                                    padding: const EdgeInsets.only(top: 12),
-                                    child: Text(_error!,
-                                        style: TextStyle(
-                                            color: context.veyroColors.error))),
-                              if (_sending || _picking) ...[
-                                const SizedBox(height: 14),
-                                const LinearProgressIndicator(),
-                                const SizedBox(height: 7),
-                                Text(
-                                    _sending
-                                        ? 'Publishing…'
-                                        : 'Preparing media…',
-                                    style: context.veyroText.bodySmall),
-                              ],
-                            ]),
-                      )),
-                ]),
-          )),
         ),
       );
+
+  Widget _body() => SafeArea(
+      top: false,
+      child: Center(
+          child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 638),
+        child: ListView(
+            padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 16, 26),
+            children: [
+              _author(),
+              const SizedBox(height: 12),
+              if (widget.photoMode) ...[
+                _mediaArea(),
+                const SizedBox(height: 14)
+              ],
+              TextField(
+                  controller: _text,
+                  enabled: !_sending,
+                  decoration: InputDecoration(
+                      labelText: _media.isEmpty && !widget.photoMode
+                          ? 'Post text'
+                          : 'Caption (optional)',
+                      alignLabelWithHint: true),
+                  minLines: 3,
+                  maxLines: 7,
+                  maxLength: Post.maxDescriptionLength,
+                  textCapitalization: TextCapitalization.sentences),
+              if (!widget.photoMode) _mediaArea(),
+              if (_error != null)
+                Padding(
+                    padding: const EdgeInsetsDirectional.only(top: 12),
+                    child: Semantics(
+                        liveRegion: true,
+                        child: Text(_error!,
+                            style:
+                                TextStyle(color: context.veyroColors.error)))),
+              if (_busy) ...[
+                const SizedBox(height: 14),
+                const LinearProgressIndicator(),
+                const SizedBox(height: 7),
+                Text(_sending ? 'Publishing…' : 'Preparing media…',
+                    style: context.veyroText.bodySmall),
+              ],
+            ]),
+      )));
 
   Widget _author() {
     final auth = context.watch<AuthBloc>().state;
     final user = auth is Authenticated ? auth.user : null;
+    final name = user?.name ?? user?.username;
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 6),
-      leading: UserAvatar(
-          imageUrl: user?.profilePictureUrl,
-          name: user?.name ?? user?.username,
-          radius: 20),
-      title: Text(user?.name ?? user?.username ?? 'Your post',
+      contentPadding: EdgeInsets.zero,
+      leading: ExcludeSemantics(
+          child: UserAvatar(
+              imageUrl: user?.profileImageUrl, name: name, radius: 21)),
+      title: Text(name ?? 'Your post',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: context.veyroText.titleSmall
-              ?.copyWith(fontWeight: FontWeight.w800)),
+          style: context.veyroText.titleSmall),
       subtitle: Text(
           widget.groupName == null
               ? 'Public post'
@@ -308,125 +282,94 @@ class _ComposerState extends State<_Composer> {
     );
   }
 
-  Widget _captionField() => TextField(
-        controller: _text,
-        enabled: !_sending,
-        decoration: InputDecoration(
-          labelText: _media.isEmpty && !widget.reelMode && !widget.photoMode
-              ? 'Post text'
-              : 'Caption (optional)',
-          hintText: 'Write something…',
-          alignLabelWithHint: true,
-        ),
-        minLines: 3,
-        maxLines: 7,
-        maxLength: Post.maxDescriptionLength,
-        textCapitalization: TextCapitalization.sentences,
-      );
-
   Widget _mediaArea() {
     final colors = context.veyroColors;
-    final mediaOnly = widget.reelMode || widget.photoMode;
-    final disabled = _picking || _sending;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-          color: colors.surfaceContainer,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.outlineVariant)),
-      child: Padding(
-          padding: const EdgeInsets.all(11),
-          child: Column(
-            crossAxisAlignment: mediaOnly
-                ? CrossAxisAlignment.center
-                : CrossAxisAlignment.start,
-            children: [
-              if (_media.isNotEmpty) ...[
-                _preview(),
-                const SizedBox(height: 10)
-              ] else if (mediaOnly) ...[
-                const SizedBox(height: 12),
-                VeyroOrbitRing(
-                    glowing: false,
-                    surface: colors.surfaceContainer,
-                    child: CircleAvatar(
-                        radius: 24,
-                        backgroundColor: colors.primaryContainer,
-                        foregroundColor: colors.onPrimaryContainer,
-                        child: Icon(
-                            widget.reelMode
-                                ? Icons.movie_outlined
-                                : Icons.photo_library_outlined,
-                            size: 23))),
-                const SizedBox(height: 7),
-                Text(
-                    widget.reelMode
-                        ? 'Choose a video up to 50 MB'
-                        : 'Choose up to eight photos',
-                    textAlign: TextAlign.center,
-                    style: context.veyroText.bodySmall),
+    final buttons = Wrap(
+        alignment:
+            widget.photoMode ? WrapAlignment.center : WrapAlignment.start,
+        spacing: 8,
+        runSpacing: 5,
+        children: [
+          FilledButton.tonalIcon(
+              onPressed: _busy ? null : () => _pick(),
+              icon: const Icon(Icons.photo_library_outlined, size: 18),
+              label: const Text('Add photos')),
+          if (!widget.photoMode)
+            FilledButton.tonalIcon(
+                onPressed: _busy ? null : () => _pick(video: true),
+                icon: const Icon(Icons.videocam_outlined, size: 18),
+                label: const Text('Add video')),
+          if (_media.isNotEmpty)
+            TextButton(
+                onPressed: _busy ? null : () => setState(_clearMedia),
+                child: const Text('Remove media')),
+        ]);
+    if (_media.isEmpty && !widget.photoMode) return buttons;
+    return Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+            padding: const EdgeInsets.all(13),
+            child: Column(
+              crossAxisAlignment: widget.photoMode
+                  ? CrossAxisAlignment.center
+                  : CrossAxisAlignment.start,
+              children: [
+                if (_media.isNotEmpty)
+                  _preview()
+                else ...[
+                  const SizedBox(height: 10),
+                  VeyroOrbitRing(
+                      glowing: false,
+                      surface: colors.surfaceContainer,
+                      child: CircleAvatar(
+                          radius: 24,
+                          backgroundColor: colors.primaryContainer,
+                          foregroundColor: colors.onPrimaryContainer,
+                          child: const Icon(Icons.photo_library_outlined))),
+                  const SizedBox(height: 9),
+                  Text('Choose up to eight photos',
+                      textAlign: TextAlign.center,
+                      style: context.veyroText.bodySmall),
+                ],
                 const SizedBox(height: 10),
+                buttons,
               ],
-              Wrap(
-                  alignment:
-                      mediaOnly ? WrapAlignment.center : WrapAlignment.start,
-                  spacing: 6,
-                  runSpacing: 5,
-                  children: [
-                    if (!widget.reelMode)
-                      FilledButton.tonalIcon(
-                          onPressed: disabled ? null : () => _pick(),
-                          icon: const Icon(Icons.photo_library_outlined,
-                              size: 18),
-                          label: const Text('Add photos')),
-                    if (!widget.photoMode)
-                      FilledButton.tonalIcon(
-                          onPressed: disabled ? null : () => _pick(video: true),
-                          icon: const Icon(Icons.videocam_outlined, size: 18),
-                          label: const Text('Add video')),
-                    if (_media.isNotEmpty)
-                      TextButton.icon(
-                          onPressed:
-                              disabled ? null : () => setState(_clearMedia),
-                          icon: const Icon(Icons.close_rounded, size: 18),
-                          label: const Text('Remove media')),
-                  ]),
-            ],
-          )),
-    );
+            )));
   }
 
   Widget _preview() {
-    if (_type == PostType.image) {
+    if (_type == PostType.image)
       return Wrap(spacing: 6, runSpacing: 6, children: [
         for (final file in _media)
           ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: Image(
-                image: pickedImageProvider(file),
-                width: 100,
-                height: 100,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox.square(
-                    dimension: 100, child: Icon(Icons.broken_image_outlined)),
-              )),
+                  image: pickedImageProvider(file),
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const SizedBox.square(
+                      dimension: 100,
+                      child: Icon(Icons.broken_image_outlined)))),
       ]);
-    }
     final video = _video;
-    return Card(
-        margin: EdgeInsets.zero,
-        clipBehavior: Clip.antiAlias,
+    return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
         child: AspectRatio(
           aspectRatio: 16 / 9,
-          child: _videoFailed
-              ? const Center(
-                  child: Text(
-                      'Preview unavailable. MP4 works best across devices.'))
-              : video?.value.isInitialized == true
-                  ? Center(
-                      child: AspectRatio(
-                          aspectRatio: video!.value.aspectRatio,
-                          child: VideoPlayer(video)))
-                  : const Center(child: CircularProgressIndicator()),
+          child: ColoredBox(
+              color: context.veyroColors.surfaceContainerHigh,
+              child: _videoFailed
+                  ? const Center(
+                      child: Text(
+                          'Preview unavailable. MP4 works best across devices.',
+                          textAlign: TextAlign.center))
+                  : video?.value.isInitialized == true
+                      ? Center(
+                          child: AspectRatio(
+                              aspectRatio: video!.value.aspectRatio,
+                              child: VideoPlayer(video)))
+                      : const Center(child: CircularProgressIndicator())),
         ));
   }
 }

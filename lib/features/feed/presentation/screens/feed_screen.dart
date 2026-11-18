@@ -14,7 +14,7 @@ import 'package:instagram_clone/features/feed/presentation/widgets/feed_stories_
 import 'package:instagram_clone/features/post/presentation/bloc/post_interactions_cubit.dart';
 import 'package:instagram_clone/features/post/presentation/widgets/post_card.dart';
 
-enum FeedComposeMode { post, photo, reel }
+enum FeedComposeMode { post, photo, reel, story }
 
 class FeedScreen extends StatefulWidget {
   final ValueChanged<FeedComposeMode> onCompose;

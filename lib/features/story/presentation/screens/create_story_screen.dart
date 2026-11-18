@@ -2,12 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:instagram_clone/core/media/picked_media_preview.dart';
+import 'package:instagram_clone/core/di/injection_container.dart';
+import 'package:instagram_clone/features/common_widgets/draft_pop_scope.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:instagram_clone/features/story/domain/entities/story.dart';
 import 'package:instagram_clone/features/story/presentation/bloc/story_bloc.dart';
 
 class CreateStoryScreen extends StatefulWidget {
   const CreateStoryScreen({super.key});
+
+  static Future<bool?> open(BuildContext context) =>
+      Navigator.of(context).push<bool>(MaterialPageRoute(
+        builder: (_) => BlocProvider<StoryBloc>(
+            create: (_) => sl<StoryBloc>(), child: const CreateStoryScreen()),
+      ));
 
   @override
   State<CreateStoryScreen> createState() => _CreateStoryScreenState();
@@ -77,107 +85,124 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
             });
           }
         },
-        child: Scaffold(
-          appBar: AppBar(title: const Text('New story'), actions: [
-            Padding(
-                padding: const EdgeInsetsDirectional.only(end: 12),
-                child: FilledButton(
-                  onPressed:
-                      _file == null || _picking || _uploading ? null : _publish,
-                  child: const Text('Publish story'),
-                )),
-          ]),
-          body: Center(
-              child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 585),
-                  child: ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      Card(
-                          margin: EdgeInsets.zero,
-                          child: Padding(
-                              padding: const EdgeInsets.all(18),
-                              child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Share a moment',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .headlineSmall),
-                                    const SizedBox(height: 7),
-                                    const Text(
-                                        'Choose a photo or video. Stories are visible for 24 hours.'),
-                                    const SizedBox(height: 15),
-                                    Wrap(spacing: 8, runSpacing: 8, children: [
-                                      OutlinedButton.icon(
-                                          onPressed: _picking || _uploading
-                                              ? null
-                                              : () =>
-                                                  _pick(StoryMediaType.image),
-                                          icon:
-                                              const Icon(Icons.image_outlined),
-                                          label: const Text('Add photo')),
-                                      OutlinedButton.icon(
-                                          onPressed: _picking || _uploading
-                                              ? null
-                                              : () =>
-                                                  _pick(StoryMediaType.video),
-                                          icon: const Icon(
-                                              Icons.videocam_outlined),
-                                          label: const Text('Add video')),
-                                      if (_file != null)
-                                        TextButton(
-                                            onPressed: _picking || _uploading
-                                                ? null
-                                                : () => setState(() {
-                                                      _file = null;
-                                                      _error = null;
-                                                    }),
-                                            child: const Text('Remove media')),
-                                    ]),
-                                    if (_file != null) ...[
-                                      const SizedBox(height: 14),
-                                      if (_type == StoryMediaType.image)
-                                        ConstrainedBox(
-                                            constraints: const BoxConstraints(
-                                                maxHeight: 260),
-                                            child: ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                              child: Image(
-                                                  image: pickedImageProvider(
-                                                      _file!),
-                                                  fit: BoxFit.contain,
-                                                  errorBuilder: (_, __, ___) =>
-                                                      const Text(
-                                                          'Photo preview unavailable.')),
-                                            ))
-                                      else
-                                        ListTile(
-                                            contentPadding: EdgeInsets.zero,
-                                            leading: const Icon(Icons
-                                                .play_circle_outline_rounded),
-                                            title: Text(_file!.name,
-                                                maxLines: 2,
-                                                overflow:
-                                                    TextOverflow.ellipsis)),
-                                    ],
-                                    if (_error != null)
-                                      Padding(
-                                          padding:
-                                              const EdgeInsets.only(top: 12),
-                                          child: Text(_error!,
-                                              style: TextStyle(
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .error))),
-                                    if (_picking || _uploading) ...[
-                                      const SizedBox(height: 16),
-                                      const LinearProgressIndicator()
-                                    ],
-                                  ]))),
-                    ],
-                  ))),
-        ),
+        child: DraftPopScope(
+            hasDraft: _file != null,
+            uploading: _uploading,
+            child: Scaffold(
+              appBar: AppBar(title: const Text('New story'), actions: [
+                Padding(
+                    padding: const EdgeInsetsDirectional.only(end: 12),
+                    child: FilledButton(
+                      onPressed: _file == null || _picking || _uploading
+                          ? null
+                          : _publish,
+                      child: const Text('Publish story'),
+                    )),
+              ]),
+              body: Center(
+                  child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 585),
+                      child: ListView(
+                        padding: const EdgeInsets.all(16),
+                        children: [
+                          Card(
+                              margin: EdgeInsets.zero,
+                              child: Padding(
+                                  padding: const EdgeInsets.all(18),
+                                  child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Share a moment',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .headlineSmall),
+                                        const SizedBox(height: 7),
+                                        const Text(
+                                            'Choose a photo or video. Stories are visible for 24 hours.'),
+                                        const SizedBox(height: 15),
+                                        Wrap(
+                                            spacing: 8,
+                                            runSpacing: 8,
+                                            children: [
+                                              OutlinedButton.icon(
+                                                  onPressed: _picking ||
+                                                          _uploading
+                                                      ? null
+                                                      : () => _pick(
+                                                          StoryMediaType.image),
+                                                  icon: const Icon(
+                                                      Icons.image_outlined),
+                                                  label:
+                                                      const Text('Add photo')),
+                                              OutlinedButton.icon(
+                                                  onPressed: _picking ||
+                                                          _uploading
+                                                      ? null
+                                                      : () => _pick(
+                                                          StoryMediaType.video),
+                                                  icon: const Icon(
+                                                      Icons.videocam_outlined),
+                                                  label:
+                                                      const Text('Add video')),
+                                              if (_file != null)
+                                                TextButton(
+                                                    onPressed: _picking ||
+                                                            _uploading
+                                                        ? null
+                                                        : () => setState(() {
+                                                              _file = null;
+                                                              _error = null;
+                                                            }),
+                                                    child: const Text(
+                                                        'Remove media')),
+                                            ]),
+                                        if (_file != null) ...[
+                                          const SizedBox(height: 14),
+                                          if (_type == StoryMediaType.image)
+                                            ConstrainedBox(
+                                                constraints:
+                                                    const BoxConstraints(
+                                                        maxHeight: 260),
+                                                child: ClipRRect(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  child: Image(
+                                                      image:
+                                                          pickedImageProvider(
+                                                              _file!),
+                                                      fit: BoxFit.contain,
+                                                      errorBuilder: (_, __,
+                                                              ___) =>
+                                                          const Text(
+                                                              'Photo preview unavailable.')),
+                                                ))
+                                          else
+                                            ListTile(
+                                                contentPadding: EdgeInsets.zero,
+                                                leading: const Icon(Icons
+                                                    .play_circle_outline_rounded),
+                                                title: Text(_file!.name,
+                                                    maxLines: 2,
+                                                    overflow:
+                                                        TextOverflow.ellipsis)),
+                                        ],
+                                        if (_error != null)
+                                          Padding(
+                                              padding: const EdgeInsets.only(
+                                                  top: 12),
+                                              child: Text(_error!,
+                                                  style: TextStyle(
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .error))),
+                                        if (_picking || _uploading) ...[
+                                          const SizedBox(height: 16),
+                                          const LinearProgressIndicator()
+                                        ],
+                                      ]))),
+                        ],
+                      ))),
+            )),
       );
 }

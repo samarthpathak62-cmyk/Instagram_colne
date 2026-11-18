@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:instagram_clone/features/chat/presentation/screens/new_message_screen.dart';
+import 'package:instagram_clone/features/chat/presentation/screens/chats_list_screen.dart';
 import 'package:instagram_clone/features/post/presentation/post_links.dart';
 
 Future<void> showSharePost(BuildContext context, String postId) async {
@@ -62,7 +62,7 @@ Future<void> showSharePost(BuildContext context, String postId) async {
         .showSnackBar(const SnackBar(content: Text('Post link copied')));
   } else if (direct == true && auth is Authenticated) {
     Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => NewMessageScreen(
+        builder: (_) => ChatsListScreen(
               currentUser: auth.user,
               draft: PostLinks.link(postId, portable: true).toString(),
             )));

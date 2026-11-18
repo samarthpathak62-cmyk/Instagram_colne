@@ -8,7 +8,7 @@ class Chat extends Equatable {
   final DateTime lastMessageTime;
   final bool hasUnreadMessages;
   final User? otherUser; // The user that is not the current user
-  final String? lastMessageContent; // Added for compatibility
+  final String? lastMessageContent;
 
   const Chat({
     required this.id,

@@ -13,6 +13,5 @@ abstract class NotificationRemoteDataSource {
   /// Delete a notification
   Future<void> deleteNotification(String notificationId);
 
-  /// Subscribe to real-time notifications
-  Future<Stream<NotificationModel>> subscribeToNotifications(String userId);
+  Stream<void> watchChanges(String userId);
 }

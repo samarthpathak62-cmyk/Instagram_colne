@@ -51,13 +51,7 @@ class _FeedStoriesBarState extends State<FeedStoriesBar> {
               seenItems: _seenItems,
               onDiscover: state is StoriesLoaded ? widget.onDiscover : null,
               onAddStoryTap: () async {
-                final created =
-                    await Navigator.of(context).push<bool>(MaterialPageRoute(
-                  builder: (_) => BlocProvider<StoryBloc>(
-                    create: (_) => di.sl<StoryBloc>(),
-                    child: const CreateStoryScreen(),
-                  ),
-                ));
+                final created = await CreateStoryScreen.open(context);
                 if (created == true && context.mounted) {
                   context
                       .read<StoryBloc>()

@@ -7,6 +7,8 @@ import 'package:instagram_clone/core/constants/supabase_constants.dart';
 import 'package:instagram_clone/core/di/injection_container.dart' as di;
 import 'package:instagram_clone/features/feed/presentation/bloc/feed_bloc.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:instagram_clone/features/chat/presentation/bloc/chat_bloc.dart';
+import 'package:instagram_clone/features/notifications/presentation/bloc/activity_cubit.dart';
 import 'package:instagram_clone/features/settings/presentation/bloc/settings_bloc.dart';
 import 'package:instagram_clone/features/post/presentation/bloc/post_interactions_cubit.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
@@ -44,6 +46,14 @@ class MyApp extends StatelessWidget {
           return MultiBlocProvider(
             key: ValueKey(userId),
             providers: [
+              BlocProvider<ChatBloc>(
+                  create: (_) => di.sl<ChatBloc>()
+                    ..add(LoadChatsEvent(userId: userId))
+                    ..add(SubscribeToChatsEvent(userId: userId))),
+              BlocProvider<ActivityCubit>(
+                  create: (_) =>
+                      ActivityCubit(repository: di.sl(), userId: userId)
+                        ..start()),
               BlocProvider<PostInteractionsCubit>(
                 create: (_) =>
                     PostInteractionsCubit(repository: di.sl(), userId: userId),

@@ -2,194 +2,328 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:instagram_clone/core/di/injection_container.dart';
 import 'package:instagram_clone/core/theme/veyro_theme.dart';
-import 'package:instagram_clone/core/di/injection_container.dart' as di;
-import 'package:instagram_clone/generated/app_localizations.dart';
 import 'package:instagram_clone/features/auth/domain/entities/user.dart';
-import 'package:instagram_clone/features/common_widgets/user_avatar.dart';
-import 'package:instagram_clone/features/common_widgets/veyro_empty_state.dart';
 import 'package:instagram_clone/features/chat/domain/entities/chat.dart';
+import 'package:instagram_clone/features/chat/domain/usecases/get_or_create_chat.dart';
 import 'package:instagram_clone/features/chat/presentation/bloc/chat_bloc.dart';
 import 'package:instagram_clone/features/chat/presentation/screens/chat_detail_screen.dart';
-import 'package:instagram_clone/features/chat/presentation/screens/new_message_screen.dart';
+import 'package:instagram_clone/features/common_widgets/user_avatar.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_empty_state.dart';
+import 'package:instagram_clone/features/explore/domain/usecases/search_users.dart';
+import 'package:instagram_clone/features/post/presentation/post_links.dart';
+import 'package:instagram_clone/generated/app_localizations.dart';
+import 'package:timeago/timeago.dart' as timeago;
 
 class ChatsListScreen extends StatefulWidget {
   final User currentUser;
+  final String? draft;
 
-  const ChatsListScreen({
-    Key? key,
-    required this.currentUser,
-  }) : super(key: key);
+  const ChatsListScreen({super.key, required this.currentUser, this.draft});
 
   @override
   State<ChatsListScreen> createState() => _ChatsListScreenState();
 }
 
 class _ChatsListScreenState extends State<ChatsListScreen> {
-  Timer? _refreshTimer;
+  final _search = TextEditingController();
+  final _searchFocus = FocusNode();
+  Timer? _debounce;
+  int _generation = 0;
+  String _query = '';
+  String? _opening;
+  List<User> _people = const [];
+  bool _searching = false;
+  bool _searchFailed = false;
 
   @override
   void initState() {
     super.initState();
     _loadChats();
-    _subscribeToChats();
-    // Push updates are preferred; periodically refresh while visible so direct
-    // messages still arrive when a Realtime connection is unavailable.
-    _refreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
-      final lifecycle = WidgetsBinding.instance.lifecycleState;
-      if (mounted &&
-          (lifecycle == null || lifecycle == AppLifecycleState.resumed) &&
-          ModalRoute.isCurrentOf(context) == true) {
-        _loadChats(quiet: true);
-      }
-    });
   }
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
+    _debounce?.cancel();
+    _search.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
-  void _loadChats({bool quiet = false}) {
-    context
-        .read<ChatBloc>()
-        .add(LoadChatsEvent(userId: widget.currentUser.id, quiet: quiet));
+  void _loadChats() => context
+      .read<ChatBloc>()
+      .add(LoadChatsEvent(userId: widget.currentUser.id));
+
+  void _queueSearch(String value) {
+    _debounce?.cancel();
+    final query = value.trim().replaceFirst(RegExp(r'^@'), '').trim();
+    final generation = ++_generation;
+    setState(() {
+      _query = query.toLowerCase();
+      _people = const [];
+      _searchFailed = false;
+      _searching = query.isNotEmpty;
+    });
+    if (query.isEmpty) return;
+    _debounce = Timer(const Duration(milliseconds: 250), () async {
+      final result = await sl<SearchUsers>()(SearchUsersParams(query: query));
+      if (!mounted || generation != _generation) return;
+      setState(() {
+        _searching = false;
+        result.fold(
+            (_) => _searchFailed = true,
+            (users) => _people = users
+                .where((user) => user.id != widget.currentUser.id)
+                .toList());
+      });
+    });
   }
 
-  void _subscribeToChats() {
-    context
-        .read<ChatBloc>()
-        .add(SubscribeToChatsEvent(userId: widget.currentUser.id));
+  Future<void> _open({Chat? chat, User? person}) async {
+    if (_opening != null) return;
+    _searchFocus.unfocus();
+    setState(() => _opening = chat?.id ?? person!.id);
+    try {
+      if (chat == null) {
+        final result = await sl<GetOrCreateChat>()(GetOrCreateChatParams(
+            currentUserId: widget.currentUser.id, otherUserId: person!.id));
+        if (!mounted || ModalRoute.isCurrentOf(context) != true) return;
+        chat = result.fold((_) => null, (value) => value);
+        if (chat == null) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Couldn’t open this conversation. Try again.')));
+          return;
+        }
+      }
+      final sent = await ChatDetailScreen.open(context,
+          chat: chat,
+          currentUser: widget.currentUser,
+          initialMessage: widget.draft);
+      if (!mounted) return;
+      if (widget.draft != null && sent) {
+        Navigator.of(context).pop();
+      } else {
+        _loadChats();
+      }
+    } finally {
+      if (mounted) setState(() => _opening = null);
+    }
   }
 
-  Future<void> _newMessage() async {
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => NewMessageScreen(currentUser: widget.currentUser)));
-    if (mounted) _loadChats();
-  }
+  bool _matches(Chat chat) =>
+      _query.isEmpty ||
+      (chat.otherUser?.username?.toLowerCase().contains(_query) ?? false) ||
+      (chat.otherUser?.name?.toLowerCase().contains(_query) ?? false);
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
+    final state = context.watch<ChatBloc>().state;
+    final chats = state is ChatsLoaded ? state.chats : const <Chat>[];
+    final visible = chats
+        .where((chat) =>
+            (chat.lastMessageContent != null || chat.hasUnreadMessages) &&
+            _matches(chat))
+        .toList();
+    final visibleIds = visible.map((chat) => chat.otherUser?.id).toSet();
+    final matches =
+        _people.where((person) => !visibleIds.contains(person.id)).toList();
+    final share = widget.draft != null;
+    final colors = context.veyroColors;
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n?.messages ?? 'Messages'),
+        title: Text(share
+            ? 'Send post to…'
+            : AppLocalizations.of(context)?.messages ?? 'Messages'),
         actions: [
-          IconButton(
-              tooltip: 'Refresh messages',
-              onPressed: _loadChats,
-              icon: const Icon(Icons.refresh_rounded)),
-          IconButton(
-              tooltip: 'New message',
-              onPressed: _newMessage,
-              icon: const Icon(Icons.edit_square)),
+          if (!share)
+            IconButton(
+                tooltip: 'New message',
+                onPressed: () => _searchFocus.requestFocus(),
+                icon: const Icon(Icons.edit_square)),
         ],
       ),
       body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: BlocConsumer<ChatBloc, ChatState>(
-            listener: (context, state) {
-              if (state is ChatError) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(state.message)),
-                );
-              }
-            },
-            builder: (context, state) {
-              if (state is ChatsLoading) {
-                return const Center(child: CircularProgressIndicator());
-              } else if (state is ChatsLoaded) {
-                return _buildChatsList(state.chats, l10n);
-              } else if (state is ChatError) {
-                return Center(
-                    child: TextButton(
-                        onPressed: _loadChats,
-                        child: const Text('Could not load chats. Retry')));
-              } else {
-                return _buildChatsList([], l10n);
-              }
-            },
+          child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 680),
+        child: Column(children: [
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(16, 8, 16, 12),
+            child: TextField(
+              controller: _search,
+              focusNode: _searchFocus,
+              textInputAction: TextInputAction.search,
+              onChanged: _queueSearch,
+              autocorrect: false,
+              enableSuggestions: false,
+              maxLength: 50,
+              decoration: InputDecoration(
+                hintText: 'Search by username',
+                labelText: 'Search by username',
+                counterText: '',
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: _search.text.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Clear search',
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () {
+                          _search.clear();
+                          _queueSearch('');
+                          _searchFocus.requestFocus();
+                        }),
+              ),
+            ),
           ),
-        ),
-      ),
+          Expanded(
+              child: CustomScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            slivers: [
+              if (visible.isNotEmpty) ...[
+                SliverToBoxAdapter(
+                    child: _heading(
+                        share && _query.isEmpty ? 'Recent' : 'Conversations')),
+                SliverList.builder(
+                    itemCount: visible.length,
+                    itemBuilder: (context, i) => _chatRow(visible[i])),
+              ],
+              if (_query.isNotEmpty) ...[
+                if (matches.isNotEmpty) ...[
+                  SliverToBoxAdapter(child: _heading('People')),
+                  SliverList.builder(
+                      itemCount: matches.length,
+                      itemBuilder: (context, i) => _personRow(matches[i])),
+                ],
+                if (_searching)
+                  const SliverToBoxAdapter(
+                      child: LinearProgressIndicator(minHeight: 2)),
+                if (_searchFailed)
+                  SliverToBoxAdapter(
+                      child: Center(
+                          child: TextButton(
+                              onPressed: () => _queueSearch(_search.text),
+                              child: const Text('Couldn’t search. Retry')))),
+                if (visible.isEmpty &&
+                    matches.isEmpty &&
+                    !_searching &&
+                    !_searchFailed)
+                  const SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: VeyroEmptyState(
+                          icon: Icons.person_search_outlined,
+                          title: 'No people found',
+                          description:
+                              'Check the username or try a shorter search.')),
+              ] else if (visible.isEmpty)
+                SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: switch (state) {
+                      ChatsLoading() ||
+                      ChatInitial() =>
+                        const Center(child: CircularProgressIndicator()),
+                      ChatError() => VeyroEmptyState(
+                          icon: Icons.cloud_off_outlined,
+                          title: 'Couldn’t load messages',
+                          description:
+                              'Check your connection or search for a person.',
+                          action: TextButton(
+                              onPressed: _loadChats,
+                              child: const Text('Retry'))),
+                      _ => VeyroEmptyState(
+                          icon: Icons.send_outlined,
+                          title: share
+                              ? 'Choose who to send to'
+                              : 'Start a conversation',
+                          description: share
+                              ? 'Search for the person you want to share this post with.'
+                              : 'Search for someone to say hello or share a post.',
+                          action: FilledButton.tonalIcon(
+                              onPressed: () => _searchFocus.requestFocus(),
+                              icon: const Icon(Icons.search_rounded),
+                              label: const Text('Find someone'))),
+                    }),
+              const SliverToBoxAdapter(child: SizedBox(height: 14)),
+            ],
+          )),
+          SafeArea(
+              top: false,
+              child: Divider(height: 1, color: colors.outlineVariant)),
+        ]),
+      )),
     );
   }
 
-  Widget _buildChatsList(List<Chat> chats, AppLocalizations? l10n) {
-    if (chats.isEmpty) {
-      return VeyroEmptyState(
-        icon: Icons.send_outlined,
-        title: l10n?.noMessages ?? 'No messages',
-        description: 'Say hello or share a post with someone on Veyro.',
-        action: FilledButton.icon(
-            onPressed: _newMessage,
-            icon: const Icon(Icons.edit_outlined, size: 18),
-            label: const Text('Start a conversation')),
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(12, 9, 12, 18),
-      itemCount: chats.length,
-      itemBuilder: (context, index) {
-        final chat = chats[index];
-        final otherUser = chat.otherUser;
-        if (otherUser == null) {
-          return ListTile(
-            leading:
-                Icon(Icons.error_outline, color: context.veyroColors.error),
-            title: const Text('Unknown user'),
-            subtitle: const Text('User data is missing'),
-          );
-        }
-        return ListTile(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          tileColor: chat.hasUnreadMessages
-              ? context.veyroColors.primaryContainer
-              : null,
-          leading: UserAvatar(
-              imageUrl: otherUser.profileImageUrl,
-              name: otherUser.name ?? otherUser.username,
-              radius: 22),
-          title: Text(otherUser.username ?? 'Veyro user',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: context.veyroText.titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w800)),
-          subtitle: Text(
-            chat.hasUnreadMessages ? 'New messages' : 'No new messages',
-            style: TextStyle(
-              fontWeight:
-                  chat.hasUnreadMessages ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-          trailing: chat.hasUnreadMessages
-              ? Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: context.veyroColors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                )
-              : null,
-          onTap: () async {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => BlocProvider<ChatBloc>(
-                  create: (_) => di.sl<ChatBloc>(),
-                  child: ChatDetailScreen(
-                      chat: chat, currentUser: widget.currentUser),
-                ),
-              ),
-            );
-            if (mounted) _loadChats();
-          },
-        );
-      },
+  Widget _heading(String label) => Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(16, 4, 16, 6),
+      child: Text(label, style: context.veyroText.titleMedium));
+
+  Widget _chatRow(Chat chat) {
+    final person = chat.otherUser;
+    final name = person?.name ?? person?.username ?? 'Veyro user';
+    final unread = chat.hasUnreadMessages;
+    final colors = context.veyroColors;
+    final content = chat.lastMessageContent;
+    final subtitle = content == null
+        ? 'New message'
+        : PostLinks.inMessage(content) == null
+            ? content
+            : 'Shared a post';
+    return ListTile(
+      key: ValueKey(chat.id),
+      contentPadding: const EdgeInsetsDirectional.fromSTEB(16, 5, 16, 5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      tileColor: unread ? colors.surfaceContainer : null,
+      leading: ExcludeSemantics(
+          child: UserAvatar(
+              name: name, imageUrl: person?.profileImageUrl, radius: 23)),
+      title: Text(name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: context.veyroText.titleSmall?.copyWith(
+              fontWeight: unread ? FontWeight.w900 : FontWeight.w700)),
+      subtitle: Text(subtitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: context.veyroText.bodySmall?.copyWith(
+              color: unread ? colors.onSurface : colors.onSurfaceVariant,
+              fontWeight: unread ? FontWeight.w700 : FontWeight.normal)),
+      trailing: _opening == chat.id
+          ? _progress()
+          : Row(mainAxisSize: MainAxisSize.min, children: [
+              Text(timeago.format(chat.lastMessageTime, locale: 'en_short'),
+                  style: context.veyroText.labelSmall
+                      ?.copyWith(color: colors.onSurfaceVariant)),
+              if (unread) ...[
+                const SizedBox(width: 8),
+                Semantics(
+                    label: 'Unread',
+                    child: Icon(Icons.circle, size: 8, color: colors.primary)),
+              ],
+            ]),
+      onTap: _opening == null ? () => _open(chat: chat) : null,
     );
   }
+
+  Widget _personRow(User user) => ListTile(
+        key: ValueKey(user.id),
+        contentPadding: const EdgeInsetsDirectional.fromSTEB(16, 3, 16, 3),
+        leading: ExcludeSemantics(
+            child: UserAvatar(
+                imageUrl: user.profilePictureUrl,
+                name: user.name ?? user.username,
+                radius: 22)),
+        title: Text(user.name ?? user.username ?? 'Veyro user',
+            maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: user.username == null
+            ? null
+            : Text('@${user.username}',
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+        trailing: _opening == user.id
+            ? _progress()
+            : const Icon(Icons.chevron_right_rounded),
+        onTap: _opening == null ? () => _open(person: user) : null,
+      );
+
+  Widget _progress() => const SizedBox.square(
+      dimension: 18, child: CircularProgressIndicator(strokeWidth: 2));
 }

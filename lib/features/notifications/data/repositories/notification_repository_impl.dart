@@ -55,9 +55,6 @@ class NotificationRepositoryImpl implements NotificationRepository {
   }
 
   @override
-  Future<Either<Failure, Stream<Notification>>> subscribeToNotifications(
-      String userId) async {
-    return await _handleOperation<Stream<Notification>>(
-        () => remoteDataSource.subscribeToNotifications(userId));
-  }
+  Stream<void> watchChanges(String userId) =>
+      remoteDataSource.watchChanges(userId);
 }

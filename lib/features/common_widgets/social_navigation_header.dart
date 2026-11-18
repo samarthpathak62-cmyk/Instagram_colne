@@ -21,12 +21,16 @@ class SocialNavigationHeader extends StatelessWidget {
   final VoidCallback onGroups;
   final VoidCallback onMessages;
   final VoidCallback onNotifications;
+  final int unreadNotifications;
+  final int unreadChats;
 
   const SocialNavigationHeader(
       {super.key,
       required this.onGroups,
       required this.onMessages,
-      required this.onNotifications});
+      required this.onNotifications,
+      this.unreadNotifications = 0,
+      this.unreadChats = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -47,8 +51,10 @@ class SocialNavigationHeader extends StatelessWidget {
                           child: VeyroWordmark(size: 27))),
                   _action('Groups', Icons.groups_outlined, onGroups),
                   _action('Notifications', Icons.favorite_border_rounded,
-                      onNotifications),
-                  _action('Messages', Icons.send_outlined, onMessages),
+                      onNotifications,
+                      unread: unreadNotifications),
+                  _action('Messages', Icons.send_outlined, onMessages,
+                      unread: unreadChats),
                 ]),
               )),
           const Divider(),
@@ -57,10 +63,21 @@ class SocialNavigationHeader extends StatelessWidget {
     );
   }
 
-  Widget _action(String label, IconData icon, VoidCallback tap) => IconButton(
-        tooltip: label,
-        onPressed: tap,
-        icon: Icon(icon, size: 24),
+  Widget _action(String label, IconData icon, VoidCallback tap,
+          {int unread = 0}) =>
+      Semantics(
+        label: label,
+        button: true,
+        onTap: tap,
+        value: unread > 0 ? '$unread unread' : null,
+        excludeSemantics: true,
+        child: IconButton(
+            tooltip: label,
+            onPressed: tap,
+            icon: unread == 0
+                ? Icon(icon, size: 24)
+                : Badge.count(
+                    count: unread, maxCount: 99, child: Icon(icon, size: 24))),
       );
 }
 
@@ -185,6 +202,8 @@ class SocialDesktopRail extends StatelessWidget {
   final VoidCallback onCompose;
   final VoidCallback onMessages;
   final VoidCallback onNotifications;
+  final int unreadNotifications;
+  final int unreadChats;
   final VoidCallback onSaved;
   final String? avatar;
   final String? name;
@@ -200,7 +219,9 @@ class SocialDesktopRail extends StatelessWidget {
       required this.onSaved,
       this.avatar,
       this.name,
-      this.username});
+      this.username,
+      this.unreadNotifications = 0,
+      this.unreadChats = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -231,9 +252,11 @@ class SocialDesktopRail extends StatelessWidget {
                       section == selected ? section.activeIcon : section.icon,
                       () => onSelect(section),
                       active: section == selected),
-                _item(context, 'Messages', Icons.send_outlined, onMessages),
+                _item(context, 'Messages', Icons.send_outlined, onMessages,
+                    unread: unreadChats),
                 _item(context, 'Notifications', Icons.favorite_border_rounded,
-                    onNotifications),
+                    onNotifications,
+                    unread: unreadNotifications),
                 _item(context, 'Saved posts', Icons.bookmark_border_rounded,
                     onSaved),
                 const SizedBox(height: 10),
@@ -279,13 +302,14 @@ class SocialDesktopRail extends StatelessWidget {
 
   Widget _item(
       BuildContext context, String label, IconData icon, VoidCallback tap,
-      {bool active = false}) {
+      {bool active = false, int unread = 0}) {
     final colors = context.veyroColors;
     final foreground = active ? colors.onPrimaryContainer : colors.onSurface;
     return Padding(
         padding: const EdgeInsets.only(bottom: 3),
         child: Semantics(
           label: label,
+          value: unread > 0 ? '$unread unread' : null,
           button: true,
           selected: active,
           onTap: tap,
@@ -308,6 +332,8 @@ class SocialDesktopRail extends StatelessWidget {
                 style: context.veyroText.labelLarge?.copyWith(
                     color: foreground,
                     fontWeight: active ? FontWeight.w800 : FontWeight.w700)),
+            trailing:
+                unread == 0 ? null : Badge.count(count: unread, maxCount: 99),
             onTap: tap,
           ),
         ));

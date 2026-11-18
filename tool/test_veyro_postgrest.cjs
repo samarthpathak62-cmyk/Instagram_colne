@@ -106,6 +106,67 @@ async function testCommunity() {
   console.log('Group create/join/post/leave, moderator removal, nonmember denial, and one reaction per viewer passed real PostgREST.');
 }
 
+async function testMessagingAndActivity() {
+  const outsider = '00000000-0000-4000-8000-000000000003';
+  const chat = await request('/chats', 'select=id', {
+    method: 'POST', value: { user1_id: originalAuthor, user2_id: viewer },
+  });
+  assert.equal(chat.status, 201, JSON.stringify(chat.data));
+  const chat_id = chat.data.id;
+  const send = (sender_id, receiver_id, content, timestamp) => request('/messages', 'select=id,content,is_read', {
+    sub: sender_id, method: 'POST', value: { chat_id, sender_id, receiver_id, content, timestamp },
+  });
+  const first = await send(originalAuthor, viewer, 'First incoming DM', '2026-11-18T08:40:00Z');
+  assert.equal(first.status, 201);
+  const second = await send(originalAuthor, viewer, 'Second incoming DM', '2026-11-18T08:41:00Z');
+  assert.equal(second.status, 201);
+  const reply = await send(viewer, originalAuthor, 'The latest private reply', '2026-11-18T08:42:00Z');
+  assert.equal(reply.status, 201);
+  const embed = new URLSearchParams({
+    select: 'id,user1_id,user2_id,last_message_time,has_unread_messages,' +
+      'first_user:users!chats_user1_id_fkey(id,username,full_name,profile_picture_url),' +
+      'second_user:users!chats_user2_id_fkey(id,username,full_name,profile_picture_url),' +
+      'unread:messages(id),last_message:messages(content)',
+    or: `(user1_id.eq.${viewer},user2_id.eq.${viewer})`,
+    'unread.receiver_id': `eq.${viewer}`, 'unread.is_read': 'eq.false', 'unread.limit': '1',
+    'last_message.order': 'timestamp.desc.nullslast,id.desc.nullslast', 'last_message.limit': '1',
+    order: 'last_message_time.desc.nullslast',
+  });
+  const inbox = await request('/chats', embed);
+  assert.equal(inbox.status, 200, JSON.stringify(inbox.data));
+  assert.equal(inbox.data[0].first_user.username, 'alice');
+  assert.deepEqual(inbox.data[0].last_message, [{ content: 'The latest private reply' }]);
+  assert.equal(inbox.data[0].unread.length, 1, 'Only one row is needed to indicate an unread thread');
+  assert.deepEqual((await request('/chats', embed, { sub: outsider })).data, []);
+  const messages = await request('/messages', `select=id&chat_id=eq.${chat_id}`, { sub: outsider });
+  assert.deepEqual(messages.data, []);
+  const read = await request('/messages', `id=eq.${first.data.id}&select=id,is_read`, { method: 'PATCH', value: { is_read: true } });
+  assert.equal(read.status, 200, JSON.stringify(read.data));
+  assert.equal(read.data.is_read, true);
+  const readSecond = await request('/messages', `id=eq.${second.data.id}&select=id,is_read`, { method: 'PATCH', value: { is_read: true } });
+  assert.equal(readSecond.status, 200, JSON.stringify(readSecond.data));
+  assert.deepEqual((await request('/chats', embed)).data[0].unread, [], 'Outgoing unread replies must not badge the sender');
+
+  const comment = await request('/comments', 'select=id', { method: 'POST', value: {
+    post_id: followedPost, user_id: viewer, content: 'A fixture activity alert',
+  } });
+  assert.equal(comment.status, 201, JSON.stringify(comment.data));
+  const activityQuery = new URLSearchParams({
+    select: 'id,user_id,actor_id,type,resource_id,is_read,actor:users!notifications_actor_id_fkey(id,username)',
+    user_id: `eq.${originalAuthor}`, resource_id: `eq.${followedPost}`, type: 'eq.comment',
+  });
+  const activity = await request('/notifications', activityQuery, { sub: originalAuthor });
+  assert.equal(activity.status, 200, JSON.stringify(activity.data));
+  assert.equal(activity.data[0].actor.username, 'bob');
+  assert.equal(activity.data[0].is_read, false);
+  assert.deepEqual((await request('/notifications', activityQuery, { sub: outsider })).data, []);
+  const mark = await request('/notifications', `id=eq.${activity.data[0].id}&select=id,is_read`, {
+    sub: originalAuthor, method: 'PATCH', value: { is_read: true },
+  });
+  assert.equal(mark.status, 200, JSON.stringify(mark.data));
+  assert.equal(mark.data.is_read, true);
+}
+
 async function main() {
   // Deliberately use the installed APK's exact shape, including its embedded
   // filters, as well as the replacement table-shaped endpoint in new builds.
@@ -163,6 +224,7 @@ async function main() {
   console.log('Quote, repost, ownership, undo and original deletion passed real PostgREST.');
   console.log('Private viewer flags, pagination and both Following endpoints passed real PostgREST.');
   await testCommunity();
+  await testMessagingAndActivity();
 }
 
 main().catch((error) => {

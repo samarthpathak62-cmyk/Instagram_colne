@@ -5,7 +5,6 @@ import 'package:instagram_clone/core/theme/veyro_theme.dart';
 import 'package:instagram_clone/features/auth/domain/entities/user.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:instagram_clone/features/chat/domain/usecases/get_or_create_chat.dart';
-import 'package:instagram_clone/features/chat/presentation/bloc/chat_bloc.dart';
 import 'package:instagram_clone/features/chat/presentation/screens/chat_detail_screen.dart';
 import 'package:instagram_clone/features/common_widgets/app_bar.dart';
 import 'package:instagram_clone/features/common_widgets/error_widget.dart';
@@ -57,14 +56,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         currentUserId: viewer.id, otherUserId: widget.userId));
     if (!mounted) return;
     setState(() => _openingChat = false);
-    result.fold(
-      (failure) => ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(failure.message))),
-      (chat) => Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (_) => BlocProvider(
-                create: (_) => sl<ChatBloc>(),
-                child: ChatDetailScreen(chat: chat, currentUser: viewer),
-              ))),
+    if (ModalRoute.isCurrentOf(context) != true) return;
+    await result.fold<Future<void>>(
+      (_) async {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Couldn’t open this conversation. Try again.')));
+      },
+      (chat) async {
+        await ChatDetailScreen.open(context, chat: chat, currentUser: viewer);
+      },
     );
   }
 

@@ -17,6 +17,7 @@ const firstPost = '00000000-0000-4000-8000-000000000010';
 const firstText = 'A first update from the Veyro community.';
 const viewerId = '00000000-0000-4000-8000-000000000001';
 const otherId = '00000000-0000-4000-8000-000000000002';
+const lexId = '00000000-0000-4000-8000-000000000003';
 const reelFile = process.env.VEYRO_TEST_REEL;
 const photoFixture = 'test/fixtures/veyro-synthetic-photo.webp';
 const otherGroup = '00000000-0000-4000-8000-000000000700';
@@ -39,6 +40,7 @@ async function mockSignedIn(page, theme, showcase = false) {
   const people = [
     { id: viewerId, username: 'veyro_preview', full_name: 'Veyro Preview' },
     { id: otherId, username: 'veyro_friend', full_name: 'Veyro Friend' },
+    { id: lexId, username: 'veyro_lex', full_name: 'Lex' },
   ];
   const nextId = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
   const mediaUrl = new URL('veyro-browser-test-reel.webm', url).href;
@@ -63,8 +65,50 @@ async function mockSignedIn(page, theme, showcase = false) {
   const saved = new Map();
   const comments = [];
   const follows = new Set(showcase ? [otherId] : []);
-  const messages = [];
-  const chats = [];
+  const sockets = new Map();
+  let bindingId = 0;
+  let rejectVideoPost = false;
+  const chats = [{ id: nextId(300), user1_id: viewerId, user2_id: otherId,
+    first_user: people[0], second_user: people[1], last_message_time: timestamp, has_unread_messages: true }];
+  const messages = [{ id: nextId(320), chat_id: chats[0].id, sender_id: otherId, receiver_id: viewerId,
+    content: 'Welcome to Veyro!', is_read: false, timestamp }];
+  function projectChat(chat) {
+    const history = messages.filter((message) => message.chat_id === chat.id)
+      .sort((left, right) => right.timestamp.localeCompare(left.timestamp) || right.id.localeCompare(left.id));
+    return { ...chat,
+      unread: history.filter((message) => message.receiver_id === viewerId && !message.is_read).slice(0, 1).map(({ id }) => ({ id })),
+      last_message: history.slice(0, 1).map(({ content }) => ({ content })),
+    };
+  }
+  function postgresChange(table, type, record) {
+    for (const [socket, topics] of sockets) {
+      for (const [topic, filters] of topics) {
+        const ids = filters.filter((binding) => {
+          if (binding.table !== table || !['*', type].includes(binding.event)) return false;
+          const [column, value] = (binding.filter || '').split('=eq.');
+          return !column || record[column] === value;
+        }).map((binding) => binding.id);
+        if (ids.length) socket.send(JSON.stringify({ topic, event: 'postgres_changes', ref: null,
+          payload: { ids, data: { schema: 'public', table, type, record, old_record: {},
+            commit_timestamp: new Date().toISOString(), columns: [], errors: null } } }));
+      }
+    }
+  }
+  function updateChat(id) {
+    const chat = chats.find((value) => value.id === id);
+    if (!chat) return;
+    const history = messages.filter((message) => message.chat_id === id);
+    chat.has_unread_messages = history.some((message) => !message.is_read);
+    chat.last_message_time = history.map((message) => message.timestamp).sort().at(-1) || chat.last_message_time;
+    postgresChange('chats', 'UPDATE', chat);
+  }
+  function insertMessage(value) {
+    const message = { ...value, id: nextId(320 + messages.length), timestamp: new Date().toISOString(), is_read: false };
+    messages.push(message);
+    updateChat(message.chat_id);
+    postgresChange('messages', 'INSERT', message);
+    return message;
+  }
   const notifications = [{
     id: nextId(400), user_id: viewerId, actor_id: otherId, type: 'follow', resource_id: otherId,
     actor: people[1], message: 'followed you.', is_read: false, created_at: timestamp,
@@ -83,7 +127,7 @@ async function mockSignedIn(page, theme, showcase = false) {
     };
   }
   // Use the existing client's REST path, query, auth and CORS contracts. This is
-  // deliberately an in-memory fixture, not a test against production data or Realtime.
+  // deliberately an in-memory fixture with a synthetic Realtime socket.
   await page.route(`${backend.origin}/**`, async (route) => {
     const request = route.request();
     const resourceUrl = new URL(request.url());
@@ -102,13 +146,14 @@ async function mockSignedIn(page, theme, showcase = false) {
     if (method === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
     if (resource === '/auth/v1/user') return json(session.user);
     if (resource.startsWith('/storage/v1/object/public/post-media/') && method === 'GET') {
+      if (reelFile && resource.endsWith('.webm')) return route.fulfill({ status: 200, contentType: 'video/webm', path: reelFile, headers: cors });
       return route.fulfill({ status: 200, contentType: 'image/webp', body: publicPhoto, headers: cors });
     }
     if (resource.startsWith('/storage/v1/object/public/story-media/') && method === 'GET') {
       return route.fulfill({ status: 200, contentType: 'image/webp', body: publicStory, headers: cors });
     }
     if (/^\/storage\/v1\/object\/(post|story)-media\//.test(resource) && method === 'POST') {
-      writes.push({ resource: 'media', method });
+      writes.push({ resource: 'media', method, resourcePath: resource, contentType: request.headers()['content-type'], bytes: request.postDataBuffer()?.length });
       return json({ Key: resource.split('/object/')[1] });
     }
     let rows = [];
@@ -163,8 +208,14 @@ async function mockSignedIn(page, theme, showcase = false) {
         case 'followers':
           rows = [...follows].filter((id) => !eq('following_id') || id === eq('following_id')).map((id) => ({ id: nextId(500), follower_id: viewerId, following_id: id, person: people.find((person) => person.id === id) }));
           break;
-        case 'notifications': rows = notifications; break;
-        case 'chats': rows = chats; break;
+        case 'notifications': rows = [...notifications].sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id)); break;
+        case 'chats': {
+          const pair = resourceUrl.searchParams.get('or')?.match(/and\(user1_id\.eq\.([^,]+),user2_id\.eq\.([^)]+)\)/);
+          rows = chats.filter((chat) => !pair || (chat.user1_id === pair[1] && chat.user2_id === pair[2]) ||
+            (chat.user2_id === pair[1] && chat.user1_id === pair[2])).map(projectChat)
+            .sort((a, b) => b.last_message_time.localeCompare(a.last_message_time));
+          break;
+        }
         case 'messages': rows = messages.filter((message) => message.chat_id === eq('chat_id')); break;
         case 'stories': break;
         default: return json({ message: `Unexpected fixture GET ${resource}` }, 404);
@@ -180,6 +231,10 @@ async function mockSignedIn(page, theme, showcase = false) {
     if (method === 'POST') {
       switch (resource) {
         case 'posts': {
+          if (body.type === 'video' && rejectVideoPost) {
+            rejectVideoPost = false;
+            return json({ message: 'Fixture transient publish failure' }, 503);
+          }
           if (body.group_id && !memberships.get(body.group_id)?.has(viewerId)) return json({ message: 'Membership required' }, 403);
           const post = { ...body, id: nextId(12 + posts.length + writes.length), created_at: new Date().toISOString() };
           posts.unshift(post);
@@ -204,16 +259,15 @@ async function mockSignedIn(page, theme, showcase = false) {
         }
         case 'followers': follows.add(body.following_id); return json({}, 201);
         case 'chats': {
-          const chat = { ...body, id: nextId(300), first_user: people[0], second_user: people[1], last_message_time: timestamp,
-            has_unread_messages: false, unread: [{ count: 0 }] };
+          const chat = { ...body, id: nextId(300 + chats.length),
+            first_user: people.find((person) => person.id === body.user1_id),
+            second_user: people.find((person) => person.id === body.user2_id),
+            last_message_time: timestamp, has_unread_messages: false };
           chats.push(chat);
+          postgresChange('chats', 'INSERT', chat);
           return json(chat, 201);
         }
-        case 'messages': {
-          const sent = { ...body, id: nextId(301 + messages.length), is_read: false, timestamp: new Date().toISOString() };
-          messages.push(sent);
-          return json(sent, 201);
-        }
+        case 'messages': return json(insertMessage(body), 201);
       }
     } else if (method === 'DELETE') {
       if (resource === 'likes') liked.delete(eq('post_id'));
@@ -225,7 +279,19 @@ async function mockSignedIn(page, theme, showcase = false) {
       if (index >= 0) return json(list.splice(index, 1));
       return json([]);
     } else if (method === 'PATCH') {
-      if (resource === 'notifications') notifications.filter((item) => !eq('id') || item.id === eq('id')).forEach((item) => Object.assign(item, body));
+      if (resource === 'notifications') {
+        for (const item of notifications.filter((item) => (!eq('id') || item.id === eq('id')) && !item.is_read)) {
+          Object.assign(item, body);
+          postgresChange('notifications', 'UPDATE', item);
+        }
+      }
+      if (resource === 'messages') {
+        for (const item of messages.filter((item) => item.chat_id === eq('chat_id') && item.receiver_id === eq('receiver_id') && !item.is_read)) {
+          Object.assign(item, body);
+          postgresChange('messages', 'UPDATE', item);
+        }
+        updateChat(eq('chat_id'));
+      }
       if (resource === 'posts') {
         const post = posts.find((item) => item.id === eq('id'));
         return json(post ? [Object.assign(post, body)] : []);
@@ -235,16 +301,36 @@ async function mockSignedIn(page, theme, showcase = false) {
     return json({ message: `Unexpected fixture ${method} ${resource}` }, 404);
   });
   await page.routeWebSocket(`wss://${backend.host}/realtime/v1/websocket**`, (socket) => {
+    const topics = new Map();
+    sockets.set(socket, topics);
+    socket.onClose(() => sockets.delete(socket));
     socket.onMessage((message) => {
       const event = JSON.parse(message);
+      const response = {};
+      if (event.event === 'phx_join') {
+        response.postgres_changes = (event.payload.config?.postgres_changes || []).map((filter) => ({ ...filter, id: ++bindingId }));
+        topics.set(event.topic, response.postgres_changes);
+      } else if (event.event === 'phx_leave') {
+        topics.delete(event.topic);
+      }
       socket.send(JSON.stringify({ topic: event.topic, event: 'phx_reply', ref: event.ref,
-        payload: { status: 'ok', response: {} } }));
+        payload: { status: 'ok', response } }));
     });
   });
   await page.addInitScript(({ origin, key, value }) => {
     if (location.origin === origin) localStorage.setItem(key, value);
   }, { origin: url.origin, key: `sb-${backend.hostname.split('.')[0]}-auth-token`, value: JSON.stringify(session) });
-  return { posts, saved, liked, comments, follows, messages, notifications, writes, topicSearches, groups, memberships, storyItems };
+  return { posts, saved, liked, comments, follows, messages, chats, notifications, writes, topicSearches, groups, memberships, storyItems,
+    failNextReel() { rejectVideoPost = true; },
+    receiveMessage(content) { return insertMessage({ chat_id: chats[0].id, sender_id: otherId, receiver_id: viewerId, content }); },
+    receiveActivity() {
+      const item = { id: nextId(410), user_id: viewerId, actor_id: otherId, type: 'comment', resource_id: firstPost,
+        actor: people[1], message: 'commented on your post.', is_read: false, created_at: new Date().toISOString() };
+      notifications.unshift(item);
+      postgresChange('notifications', 'INSERT', item);
+      return item;
+    },
+  };
 }
 
 async function openApp(page, address = url.href) {
@@ -402,10 +488,10 @@ async function testSocial(page, state, name) {
     await waitFor(/^Unlike post\b/);
     await press('Share post');
     await press('Send in message');
-    await enter('veyro_friend', /Search by username/);
-    await press(/@veyro_friend/);
+    await waitFor(/Veyro Friend.*Welcome to Veyro/s);
+    await press(/Veyro Friend.*Welcome to Veyro/s);
     await changed('Send message', 'messages', 'POST');
-    assert.equal(new URL(state.messages[0].content).searchParams.get('post'), firstPost);
+    assert.equal(new URL(state.messages.at(-1).content).searchParams.get('post'), firstPost);
     await press('View shared post');
     await waitFor(/^Unlike post\b/);
     await capture(page, 'desktop-shared-post');
@@ -560,7 +646,12 @@ async function testCommunity(page, state, name) {
   await waitFor(new RegExp(`^Open ${name} Lens Lab`));
   await press(/^Home\b/);
   await waitFor('Refresh feed');
-  await press('Add story');
+  if (name === 'desktop') {
+    await press('Create');
+    await press(/Story.*Share for 24 hours/s);
+  } else {
+    await press('Add story');
+  }
   const [chooser] = await Promise.all([
     page.waitForEvent('filechooser', { timeout }),
     press('Add photo', true),
@@ -574,6 +665,94 @@ async function testCommunity(page, state, name) {
   await waitFor('Close story');
   await press('Close story');
   await waitFor('Viewed story by veyro_preview');
+}
+
+async function testQuickFlows(page, state, name) {
+  const { press, enter, waitFor, changed } = controls(page);
+  const responseFor = (resource, method) => (response) => new URL(response.url()).pathname === `/rest/v1/${resource}` &&
+    response.request().method() === method;
+
+  // A second browser/device action updates the badge via the shared live state
+  // without opening the notifications screen to fetch it manually.
+  const nextActivity = page.waitForResponse(responseFor('notifications', 'GET'), { timeout: 6500 });
+  const activity = state.receiveActivity();
+  assert.ok((await nextActivity).ok(), 'activity socket prompted a refresh');
+  await capture(page, `${name}-unread-badges`);
+  await press('Notifications');
+  await waitFor('Mark all as read');
+  await capture(page, `${name}-activity`);
+  await changed(/veyro_friend commented on your post/, 'notifications', 'PATCH');
+  assert.equal(activity.is_read, true, 'Opening the row marks it read');
+  await waitFor('Post options');
+  await press('Back');
+  if (name === 'mobile') await changed('Mark all as read', 'notifications', 'PATCH');
+  await changed('Dismiss notification', 'notifications', 'DELETE');
+  assert.ok(!state.notifications.some((item) => item.id === activity.id), 'Dismiss removes the activity');
+  await press('Back');
+  await waitFor('Refresh feed');
+
+  const incoming = state.receiveMessage('A fresh DM from the other account.');
+  await press('Messages');
+  await waitFor(/A fresh DM from the other account/);
+  await capture(page, `${name}-inbox`);
+  await changed(/A fresh DM from the other account/, 'messages', 'PATCH');
+  assert.equal(incoming.is_read, true, 'Opening a conversation clears its received unread messages');
+  await capture(page, `${name}-thread`);
+  await press('Back');
+  await waitFor('New message');
+  await enter('@veyro_lex', /Search by username/);
+  await changed(/@veyro_lex/, 'chats', 'POST');
+  const text = `Hello from the ${name} inbox!`;
+  await enter(text, /Type a message/);
+  await changed('Send message', 'messages', 'POST');
+  assert.deepEqual([state.messages.at(-1).receiver_id, state.messages.at(-1).content], [lexId, text]);
+  await press('Back');
+  await press('Clear search');
+  await waitFor(new RegExp(text));
+  await press('Back');
+  await waitFor('Refresh feed');
+
+  if (!reelFile) return;
+  await press('Create');
+  await capture(page, `${name}-create-menu`);
+  await press(/Reel.*Share a video/s);
+  const uploadCount = state.writes.filter((write) => write.resource === 'media').length;
+  async function chooseVideo(file) {
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser', { timeout }), press('Choose video', true)]);
+    await chooser.setFiles(file);
+  }
+  if (name === 'mobile') {
+    await chooseVideo({ name: 'not_a_video.txt', mimeType: 'text/plain', buffer: Buffer.from('Invalid media fixture') });
+    await waitFor(/This media format is not supported/);
+    assert.equal(state.writes.filter((write) => write.resource === 'media').length, uploadCount);
+  }
+  await chooseVideo(reelFile);
+  await waitFor('Play preview');
+  const preview = page.locator('video[src^="blob:"]').first();
+  await preview.waitFor({ state: 'attached', timeout });
+  assert.ok(await preview.evaluate((element) => element.duration > 0), 'Selected clip has a local preview');
+  await press('Play preview', true);
+  await waitFor('Pause preview');
+  await press('Pause preview');
+  const caption = `A ${name} reel, previewed before sharing.`;
+  await enter(caption, /Caption/);
+  await capture(page, `${name}-reel-composer`);
+  await press('Close reel composer');
+  await press('Keep editing');
+  if (name === 'desktop') {
+    state.failNextReel();
+    const [failed] = await Promise.all([page.waitForResponse(responseFor('posts', 'POST'), { timeout }), press('Share')]);
+    assert.equal(failed.status(), 503, 'Fixture exercises upload retry');
+    await waitFor('Play preview');
+  }
+  await changed('Share', 'posts', 'POST');
+  assert.equal(state.posts[0].type, 'video');
+  assert.equal(state.posts[0].description, caption, 'Reel draft is retained until Share succeeds');
+  assert.match(state.posts[0].media_urls[0], new RegExp(`post-media/${viewerId}/.*\\.webm$`));
+  assert.ok(state.writes.some((write) => write.resource === 'media' && write.resourcePath?.endsWith('.webm') && write.bytes > 0),
+    'Actual picked bytes go to the existing owner-scoped upload endpoint');
+  await waitFor('Refresh reels');
+  await capture(page, `${name}-reel-published`);
 }
 
 async function testViewport(browser, name, viewport) {
@@ -609,6 +788,7 @@ async function testViewport(browser, name, viewport) {
         await testSocial(page, social, name);
         await testSharingAndDiscovery(page, social, name);
         await testCommunity(page, social, name);
+        await testQuickFlows(page, social, name);
       } else {
         await waitFor('Log in');
         await capture(page, `${name}-login`);
