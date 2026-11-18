@@ -1,0 +1,48 @@
+name: Flutter release diagnostics
+
+on:
+  push:
+    branches: [arena/26108c72-instagram-colne]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: .fvmrc
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Diagnose Android release builds
+        shell: bash
+        run: |
+          build() {
+            local target="$1"
+            local log="$RUNNER_TEMP/$target.log"
+            local result=0
+            flutter build "$target" --release --no-pub > "$log" 2>&1 || result=$?
+            cat "$log"
+            if [[ "$result" != 0 ]]; then
+              local chunk=0
+              while IFS= read -r line; do
+                printf '::notice title=%s-log %04d::%s\n' "$target" "$chunk" "$line"
+                chunk=$((chunk + 1))
+              done < <(tail -n 250 "$log" | gzip -c | base64 -w0 | fold -w 3500 | awk '1')
+            fi
+            return "$result"
+          }
+          build apk
+          build appbundle
