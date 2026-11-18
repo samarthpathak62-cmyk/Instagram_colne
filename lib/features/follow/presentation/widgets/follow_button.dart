@@ -98,30 +98,25 @@ class _FollowButtonState extends State<FollowButton> {
       },
       // Build the button based on the state
       builder: (context, state) {
-        // Determine button style and text
-        final buttonStyle = _isFollowing
-            ? OutlinedButton.styleFrom(
-                side: BorderSide(color: context.veyroColors.outlineVariant),
-                foregroundColor: context.veyroColors.onSurface,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-              )
-            : ElevatedButton.styleFrom(
-                backgroundColor: VeyroTheme.blue,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-              );
+        final colors = context.veyroColors;
+        final buttonStyle = FilledButton.styleFrom(
+          backgroundColor:
+              _isFollowing ? colors.surfaceContainerHigh : VeyroTheme.violet,
+          foregroundColor: _isFollowing ? colors.onSurface : Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 15),
+        );
         final buttonText = _isFollowing ? 'Following' : 'Follow';
-
-        return SizedBox(
-          width: 106,
-          height: 44,
+        return ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 100, minHeight: 46),
           child: _isLoading
-              ? const Center(
-                  child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2)))
-              : ElevatedButton(
+              ? const SizedBox(
+                  width: 100,
+                  height: 46,
+                  child: Center(
+                      child: SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2))))
+              : FilledButton(
                   onPressed: () {
                     setState(() => _isLoading = true);
                     if (_isFollowing) {
@@ -135,8 +130,6 @@ class _FollowButtonState extends State<FollowButton> {
                             targetUserId: widget.targetUserId,
                           ));
                     }
-                    // Optimistic UI update (optional) or wait for state change
-                    // setState(() => _isLoading = true);
                   },
                   style: buttonStyle,
                   child: Text(buttonText),
