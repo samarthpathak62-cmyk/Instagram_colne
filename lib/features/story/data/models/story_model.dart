@@ -53,16 +53,20 @@ class StoryModel extends Story {
     return StoryModel(
       id: json['id'] as String,
       userId: json['user_id'] as String,
-      author: json['author'] != null ? UserModel.fromJson(json['author']) : null,
+      author:
+          json['author'] != null ? UserModel.fromJson(json['author']) : null,
       items: (json['items'] as List<dynamic>?)
-          ?.map((item) => StoryItemModel.fromJson(item))
-          .toList() ?? [],
+              ?.map((item) => StoryItemModel.fromJson(item))
+              .toList() ??
+          [],
       lastUpdatedAt: DateTime.parse(json['last_updated_at'] as String),
       username: json['username'] as String?,
       userProfilePictureUrl: json['user_profile_picture_url'] as String?,
       userProfileImageUrl: json['user_profile_image_url'] as String?,
       isViewed: json['is_viewed'] as bool? ?? false,
-      timestamp: json['timestamp'] != null ? DateTime.parse(json['timestamp'] as String) : null,
+      timestamp: json['timestamp'] != null
+          ? DateTime.parse(json['timestamp'] as String)
+          : null,
       mediaUrl: json['media_url'] as String?,
       mediaType: json['media_type'] as String?,
     );
@@ -85,4 +89,3 @@ class StoryModel extends Story {
     };
   }
 }
-

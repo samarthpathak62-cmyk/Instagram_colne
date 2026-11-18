@@ -81,13 +81,6 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
         print('chat: $chat');
         final otherUser = chat.otherUser;
         print('otherUser for chat ${chat.id}: $otherUser');
-        if (chat.id == null) {
-          return ListTile(
-            leading: const Icon(Icons.error, color: Colors.red),
-            title: const Text('Invalid chat'),
-            subtitle: const Text('Chat ID is missing'),
-          );
-        }
         if (otherUser == null) {
           return ListTile(
             leading: const Icon(Icons.error, color: Colors.red),

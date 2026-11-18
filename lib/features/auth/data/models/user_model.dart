@@ -1,5 +1,3 @@
-
-
 import '../../domain/entities/user.dart';
 
 /// Represents a user data model, used for data transfer objects.

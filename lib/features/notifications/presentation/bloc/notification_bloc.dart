@@ -20,7 +20,7 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
   final DeleteNotification deleteNotification;
   final CreateNotification createNotification;
   final SubscribeToNotifications subscribeToNotifications;
-  
+
   StreamSubscription<Notification>? _notificationSubscription;
 
   NotificationBloc({
@@ -45,10 +45,12 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     Emitter<NotificationState> emit,
   ) async {
     emit(NotificationLoading());
-    final result = await getNotifications(GetNotificationsParams(userId: event.userId));
+    final result =
+        await getNotifications(GetNotificationsParams(userId: event.userId));
     result.fold(
       (failure) => emit(NotificationError(message: failure.message)),
-      (notifications) => emit(NotificationsLoaded(notifications: notifications)),
+      (notifications) =>
+          emit(NotificationsLoaded(notifications: notifications)),
     );
   }
 
@@ -62,7 +64,8 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     );
     result.fold(
       (failure) => emit(NotificationError(message: failure.message)),
-      (_) => emit(const NotificationActionSuccess(message: 'Notification marked as read')),
+      (_) => emit(const NotificationActionSuccess(
+          message: 'Notification marked as read')),
     );
   }
 
@@ -76,7 +79,8 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     );
     result.fold(
       (failure) => emit(NotificationError(message: failure.message)),
-      (_) => emit(const NotificationActionSuccess(message: 'All notifications marked as read')),
+      (_) => emit(const NotificationActionSuccess(
+          message: 'All notifications marked as read')),
     );
   }
 
@@ -90,7 +94,8 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     );
     result.fold(
       (failure) => emit(NotificationError(message: failure.message)),
-      (_) => emit(const NotificationActionSuccess(message: 'Notification deleted')),
+      (_) => emit(
+          const NotificationActionSuccess(message: 'Notification deleted')),
     );
   }
 
@@ -122,18 +127,19 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     final result = await subscribeToNotifications(
       SubscribeToNotificationsParams(userId: event.userId),
     );
-    
+
     result.fold(
       (failure) => emit(NotificationError(message: failure.message)),
       (notificationStream) {
         // Cancel any existing subscription
         _notificationSubscription?.cancel();
-        
+
         // Subscribe to the new stream
         _notificationSubscription = notificationStream.listen(
-          (notification) => add(NotificationReceivedEvent(notification: notification)),
+          (notification) =>
+              add(NotificationReceivedEvent(notification: notification)),
         );
-        
+
         emit(NotificationSubscribed(notificationStream: notificationStream));
       },
     );
@@ -145,7 +151,7 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
   ) {
     // When a new notification is received, we can update the UI or show a toast
     emit(NotificationCreated(notification: event.notification));
-    
+
     // Then reload the notifications list
     if (event.notification.userId.isNotEmpty) {
       add(GetNotificationsEvent(userId: event.notification.userId));

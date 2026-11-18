@@ -23,7 +23,8 @@ class FavoriteRepositoryImpl implements FavoriteRepository {
   }
 
   @override
-  Future<Either<Failure, bool>> isPostSaved(String userId, String postId) async {
+  Future<Either<Failure, bool>> isPostSaved(
+      String userId, String postId) async {
     try {
       final isSaved = await remoteDataSource.isPostSaved(userId, postId);
       return Right(isSaved);
@@ -35,7 +36,8 @@ class FavoriteRepositoryImpl implements FavoriteRepository {
   }
 
   @override
-  Future<Either<Failure, Favorite>> savePost(String userId, String postId) async {
+  Future<Either<Failure, Favorite>> savePost(
+      String userId, String postId) async {
     try {
       final favorite = await remoteDataSource.savePost(userId, postId);
       return Right(favorite);

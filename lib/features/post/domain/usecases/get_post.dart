@@ -24,4 +24,3 @@ class GetPostParams extends Equatable {
   @override
   List<Object> get props => [postId];
 }
-

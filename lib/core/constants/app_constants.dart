@@ -1,10 +1,9 @@
-
-
 class AppConstants {
   // Application details
   static const String appName = 'Instagram Clone';
   static const String appVersion = '1.0.0';
-  static const String appDescription = 'A social media application inspired by Instagram.';
+  static const String appDescription =
+      'A social media application inspired by Instagram.';
 
   // UI related constants (examples)
   static const double defaultPadding = 16.0;
@@ -13,7 +12,7 @@ class AppConstants {
 
   // Default values
   static const int defaultPageSize = 20;
-  static const String defaultLocale = 'en'; 
+  static const String defaultLocale = 'en';
 
   // Asset paths (examples)
   static const String appLogoPath = 'assets/images/app_logo.png';

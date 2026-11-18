@@ -16,12 +16,13 @@ abstract class PostRemoteDataSource {
 
   Future<List<PostModel>> getFeedPosts(String currentUserId);
 
-  Future<List<PostModel>> getVideoExplorePosts({int limit = 10, int offset = 0}); // Added for video explore
+  Future<List<PostModel>> getVideoExplorePosts(
+      {int limit = 10, int offset = 0}); // Added for video explore
 
   Future<void> likePost(String postId, String userId);
 
   Future<void> unlikePost(String postId, String userId);
 
-  Future<List<String>> uploadMediaFiles(List<File> files, String userId, PostType type);
+  Future<List<String>> uploadMediaFiles(
+      List<File> files, String userId, PostType type);
 }
-

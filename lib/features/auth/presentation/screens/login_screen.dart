@@ -10,14 +10,15 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen>
+    with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
   bool _isEmailFocused = false;
   bool _isPasswordFocused = false;
-  
+
   late AnimationController _logoAnimationController;
   late Animation<double> _logoAnimation;
   late AnimationController _formAnimationController;
@@ -27,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   @override
   void initState() {
     super.initState();
-    
+
     // Logo animation
     _logoAnimationController = AnimationController(
       duration: const Duration(milliseconds: 1500),
@@ -40,7 +41,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       parent: _logoAnimationController,
       curve: Curves.elasticOut,
     ));
-    
+
     // Form animation
     _formAnimationController = AnimationController(
       duration: const Duration(milliseconds: 800),
@@ -60,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       parent: _formAnimationController,
       curve: Curves.easeOut,
     ));
-    
+
     // Start animations
     _logoAnimationController.forward();
     Future.delayed(const Duration(milliseconds: 500), () {
@@ -177,7 +178,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(
-            color: isFocused ? const Color(0xFF0095F6) : const Color(0xFF8E8E8E),
+            color:
+                isFocused ? const Color(0xFF0095F6) : const Color(0xFF8E8E8E),
             fontSize: isFocused ? 12 : 16,
           ),
           filled: true,
@@ -247,7 +249,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         final isLoading = state is AuthLoading;
-        
+
         return Container(
           width: double.infinity,
           height: 44,
@@ -460,7 +462,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                     if (value == null || value.isEmpty) {
                                       return 'Please enter your email, phone, or username';
                                     }
-                                    if (value.contains('@') && !value.contains('.')) {
+                                    if (value.contains('@') &&
+                                        !value.contains('.')) {
                                       return 'Please enter a valid email';
                                     }
                                     return null;

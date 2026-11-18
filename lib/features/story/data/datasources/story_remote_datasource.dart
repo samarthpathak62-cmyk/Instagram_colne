@@ -12,8 +12,8 @@ abstract class StoryRemoteDataSource {
   // Returns a list of StoryModels, grouped by user
   Future<List<StoryModel>> getStories(String currentUserId);
 
-  Future<String> uploadStoryMedia(File file, String userId, StoryMediaType type);
+  Future<String> uploadStoryMedia(
+      File file, String userId, StoryMediaType type);
 
   // Optional: Add methods for viewing, deleting stories if needed
 }
-

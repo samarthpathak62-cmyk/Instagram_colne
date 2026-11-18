@@ -19,4 +19,3 @@ abstract class ProfileRepository {
   // Future<Either<Failure, void>> followUser(String userIdToFollow);
   // Future<Either<Failure, void>> unfollowUser(String userIdToUnfollow);
 }
-

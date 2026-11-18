@@ -25,15 +25,15 @@ class ProfileModel extends Profile {
     final followingData = json['following'] as List?;
     final postData = json['posts'] as List?;
 
-    final followerCount = (followerData != null && followerData.isNotEmpty) 
-                          ? parseInt(followerData.first?['count']) 
-                          : 0;
-    final followingCount = (followingData != null && followingData.isNotEmpty) 
-                           ? parseInt(followingData.first?['count']) 
-                           : 0;
-    final postCount = (postData != null && postData.isNotEmpty) 
-                      ? parseInt(postData.first?['count']) 
-                      : 0;
+    final followerCount = (followerData != null && followerData.isNotEmpty)
+        ? parseInt(followerData.first?['count'])
+        : 0;
+    final followingCount = (followingData != null && followingData.isNotEmpty)
+        ? parseInt(followingData.first?['count'])
+        : 0;
+    final postCount = (postData != null && postData.isNotEmpty)
+        ? parseInt(postData.first?['count'])
+        : 0;
 
     return ProfileModel(
       id: json['id'] as String,
@@ -57,7 +57,7 @@ class ProfileModel extends Profile {
       'bio': bio,
       'profile_image_url': profileImageUrl,
       // We don't usually write counts back, but include if needed for local cache
-      // 'follower_count': followerCount, 
+      // 'follower_count': followerCount,
       // 'following_count': followingCount,
       // 'post_count': postCount,
     };
@@ -77,4 +77,3 @@ class ProfileModel extends Profile {
   //   );
   // }
 }
-

@@ -3,12 +3,12 @@
 class SupabaseConstants {
   // Supabase Project URL
   // IMPORTANT: Replace with your actual Supabase Project URL
-  static const String supabaseUrl = 'https://klhczdgjewbmwkktmgzp.supabase.co'; 
- 
+  static const String supabaseUrl = 'https://klhczdgjewbmwkktmgzp.supabase.co';
 
   // Supabase Anon Key
   // IMPORTANT: Replace with your actual Supabase Anon Key
-  static const String supabaseAnonKey = 'sb_publishable_7fxczFSZleFSe85SiDJuSA_YZTs-IcO'; 
+  static const String supabaseAnonKey =
+      'sb_publishable_7fxczFSZleFSe85SiDJuSA_YZTs-IcO';
   // Example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiY2RlZmdoaWprIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NzgwMDc2NzcsImV4cCI6MTk5MzU4MzY3N30.YOUR_ANON_KEY_HERE'
 
   // Supabase Table Names (examples - adjust based on your database schema )

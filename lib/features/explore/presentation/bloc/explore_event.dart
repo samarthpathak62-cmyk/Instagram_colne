@@ -13,7 +13,8 @@ class LoadExplorePostsEvent extends ExploreEvent {
   final int offset;
   final bool isRefresh; // Flag to indicate if it's a pull-to-refresh
 
-  const LoadExplorePostsEvent({this.limit = 21, this.offset = 0, this.isRefresh = false});
+  const LoadExplorePostsEvent(
+      {this.limit = 21, this.offset = 0, this.isRefresh = false});
 
   @override
   List<Object> get props => [limit, offset, isRefresh];
@@ -31,4 +32,3 @@ class SearchQueryChangedEvent extends ExploreEvent {
 
 // Event to clear the search results and go back to explore grid
 class ClearSearchEvent extends ExploreEvent {}
-

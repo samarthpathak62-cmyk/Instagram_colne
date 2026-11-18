@@ -1,11 +1,7 @@
 // lib/features/feed/presentation/widgets/feed_item_card.dart
 
 import 'package:flutter/material.dart';
-import 'package:instagram_clone/features/common_widgets/user_avatar.dart'; // Assuming UserAvatar is defined
-import 'package:instagram_clone/features/post/presentation/widgets/post_actions.dart'; // Assuming PostActions is defined
-import 'package:instagram_clone/features/post/presentation/widgets/video_player_widget.dart'; // Assuming VideoPlayerWidget is defined
 import '../../domain/entities/feed_item.dart'; // Assuming FeedItem entity is defined
-import 'package:timeago/timeago.dart' as timeago;
 
 class FeedItemCard extends StatelessWidget {
   final FeedItem feedItem;

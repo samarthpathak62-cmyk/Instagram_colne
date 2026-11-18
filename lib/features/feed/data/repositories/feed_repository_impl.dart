@@ -14,7 +14,8 @@ class FeedRepositoryImpl implements FeedRepository {
   FeedRepositoryImpl({required this.remoteDataSource});
 
   @override
-  Future<Either<Failure, List<FeedItem>>> getFeed({int page = 0, int limit = 10}) async {
+  Future<Either<Failure, List<FeedItem>>> getFeed(
+      {int page = 0, int limit = 10}) async {
     try {
       final result = await remoteDataSource.getFeed(page: page, limit: limit);
       return Right(result);

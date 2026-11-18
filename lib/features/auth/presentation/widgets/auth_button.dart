@@ -22,7 +22,8 @@ class AuthButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed, // Disable button when loading
         style: ElevatedButton.styleFrom(
-          backgroundColor: Theme.of(context).primaryColor, // Use primary color from theme
+          backgroundColor:
+              Theme.of(context).primaryColor, // Use primary color from theme
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8.0), // Rounded corners
           ),

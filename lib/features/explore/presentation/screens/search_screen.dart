@@ -47,27 +47,36 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
       body: BlocBuilder<ExploreBloc, ExploreState>(
         builder: (context, state) {
-          if (state is ExploreLoading || (state is ExploreInitial && _searchController.text.isEmpty)) {
+          if (state is ExploreLoading ||
+              (state is ExploreInitial && _searchController.text.isEmpty)) {
             return const Center(child: CircularProgressIndicator());
-          } else if (state is ExplorePostsLoaded && _searchController.text.isEmpty) {
+          } else if (state is ExplorePostsLoaded &&
+              _searchController.text.isEmpty) {
             return _buildExploreGrid(state.posts);
-          } else if (state is ExploreSearchLoading && _searchController.text.isNotEmpty) {
+          } else if (state is ExploreSearchLoading &&
+              _searchController.text.isNotEmpty) {
             // Show loading indicator while searching
             return const Center(child: CircularProgressIndicator());
-          } else if (state is ExploreSearchResultsLoaded && _searchController.text.isNotEmpty) {
+          } else if (state is ExploreSearchResultsLoaded &&
+              _searchController.text.isNotEmpty) {
             return _buildUserSearchList(state.users);
           } else if (state is ExploreError) {
             return Center(child: Text('Error: ${state.message}'));
-          } else if (_searchController.text.isNotEmpty && state is! ExploreSearchResultsLoaded) {
-             // If searching but results not loaded yet (e.g., initial search state)
-             return const Center(child: CircularProgressIndicator());
-          } else if (_searchController.text.isEmpty && state is! ExplorePostsLoaded) {
-             // If not searching but posts not loaded (e.g., after clearing search)
-             context.read<ExploreBloc>().add(const LoadExplorePostsEvent()); // Trigger reload
-             return const Center(child: CircularProgressIndicator());
+          } else if (_searchController.text.isNotEmpty &&
+              state is! ExploreSearchResultsLoaded) {
+            // If searching but results not loaded yet (e.g., initial search state)
+            return const Center(child: CircularProgressIndicator());
+          } else if (_searchController.text.isEmpty &&
+              state is! ExplorePostsLoaded) {
+            // If not searching but posts not loaded (e.g., after clearing search)
+            context
+                .read<ExploreBloc>()
+                .add(const LoadExplorePostsEvent()); // Trigger reload
+            return const Center(child: CircularProgressIndicator());
           }
           // Default fallback
-          return const Center(child: Text('Explore content or search for users.'));
+          return const Center(
+              child: Text('Explore content or search for users.'));
         },
       ),
     );
@@ -101,7 +110,9 @@ class _SearchScreenState extends State<SearchScreen> {
       onTap: () {
         // Ensure the state reflects search mode if tapped
         if (_searchController.text.isNotEmpty) {
-           context.read<ExploreBloc>().add(SearchQueryChangedEvent(query: _searchController.text));
+          context
+              .read<ExploreBloc>()
+              .add(SearchQueryChangedEvent(query: _searchController.text));
         }
       },
     );
@@ -114,7 +125,9 @@ class _SearchScreenState extends State<SearchScreen> {
     // Use a GridView to display posts
     return RefreshIndicator(
       onRefresh: () async {
-         context.read<ExploreBloc>().add(const LoadExplorePostsEvent(isRefresh: true));
+        context
+            .read<ExploreBloc>()
+            .add(const LoadExplorePostsEvent(isRefresh: true));
       },
       child: GridView.builder(
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -142,9 +155,10 @@ class _SearchScreenState extends State<SearchScreen> {
         final user = users[index];
         return ListTile(
           leading: CircleAvatar(
-            backgroundImage: user.profileImageUrl != null && user.profileImageUrl!.isNotEmpty
-                ? NetworkImage(user.profileImageUrl!)
-                : null,
+            backgroundImage:
+                user.profileImageUrl != null && user.profileImageUrl!.isNotEmpty
+                    ? NetworkImage(user.profileImageUrl!)
+                    : null,
             child: user.profileImageUrl == null || user.profileImageUrl!.isEmpty
                 ? const Icon(Icons.person)
                 : null,

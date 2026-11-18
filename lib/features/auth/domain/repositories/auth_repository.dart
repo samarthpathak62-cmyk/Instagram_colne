@@ -18,4 +18,3 @@ abstract class AuthRepository {
 
   Future<Either<Failure, void>> logout();
 }
-

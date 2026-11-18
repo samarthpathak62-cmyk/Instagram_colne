@@ -70,11 +70,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         builder: (context, state) {
           if (state is SettingsLoading && state is! SettingsLoaded) {
             return const Center(child: CircularProgressIndicator());
-          } else if (state is SettingsLoaded || 
-                     state is ThemeModeUpdated || 
-                     state is LanguageUpdated || 
-                     state is NotificationsEnabledUpdated) {
-            
+          } else if (state is SettingsLoaded ||
+              state is ThemeModeUpdated ||
+              state is LanguageUpdated ||
+              state is NotificationsEnabledUpdated) {
             Settings settings;
             if (state is SettingsLoaded) {
               settings = state.settings;
@@ -88,27 +87,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
               // This should never happen, but just in case
               return const Center(child: Text('Failed to load settings'));
             }
-            
+
             return ListView(
               children: [
                 // Theme Mode Section
                 _buildSectionHeader('Appearance'),
                 _buildThemeModeSelector(settings.themeMode),
-                
+
                 const Divider(),
-                
+
                 // Language Section
                 _buildSectionHeader('Language'),
                 _buildLanguageSelector(settings.language),
-                
+
                 const Divider(),
-                
+
                 // Notifications Section
                 _buildSectionHeader('Notifications'),
                 _buildNotificationsSwitch(settings.notificationsEnabled),
-                
+
                 const Divider(),
-                
+
                 // Account Section
                 _buildSectionHeader('Account'),
                 ListTile(
@@ -125,9 +124,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     // Navigate to privacy and security screen
                   },
                 ),
-                
+
                 const Divider(),
-                
+
                 // About Section
                 _buildSectionHeader('About'),
                 ListTile(
@@ -150,12 +149,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     // Navigate to help screen
                   },
                 ),
-                
+
                 const Divider(),
-                
+
                 // Logout Button
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 8.0),
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,

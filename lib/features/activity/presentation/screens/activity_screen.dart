@@ -8,11 +8,12 @@ class ActivityScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFFAFAFA),
+        backgroundColor:
+            isDark ? const Color(0xFF000000) : const Color(0xFFFAFAFA),
         appBar: _buildModernAppBar(context, isDark),
         body: TabBarView(
           children: [
@@ -45,7 +46,8 @@ class ActivityScreen extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: isDark ? const Color(0xFF262626) : const Color(0xFFDBDBDB),
+                color:
+                    isDark ? const Color(0xFF262626) : const Color(0xFFDBDBDB),
                 width: 0.5,
               ),
             ),
@@ -55,7 +57,8 @@ class ActivityScreen extends StatelessWidget {
             indicatorWeight: 2,
             indicatorSize: TabBarIndicatorSize.label,
             labelColor: isDark ? Colors.white : Colors.black,
-            unselectedLabelColor: isDark ? const Color(0xFF8E8E8E) : const Color(0xFF8E8E8E),
+            unselectedLabelColor:
+                isDark ? const Color(0xFF8E8E8E) : const Color(0xFF8E8E8E),
             labelStyle: const TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 16,
@@ -107,9 +110,9 @@ class ActivityScreen extends StatelessWidget {
     return Icon(
       icon,
       size: 26,
-      color: isActive 
-        ? (isDark ? Colors.white : Colors.black)
-        : (isDark ? const Color(0xFF8E8E8E) : const Color(0xFF8E8E8E)),
+      color: isActive
+          ? (isDark ? Colors.white : Colors.black)
+          : (isDark ? const Color(0xFF8E8E8E) : const Color(0xFF8E8E8E)),
     );
   }
 }
@@ -117,21 +120,23 @@ class ActivityScreen extends StatelessWidget {
 class _ActivityTab extends StatefulWidget {
   final bool following;
   final bool isDark;
-  
+
   const _ActivityTab({required this.following, required this.isDark});
 
   @override
   State<_ActivityTab> createState() => _ActivityTabState();
 }
 
-class _ActivityTabState extends State<_ActivityTab> with TickerProviderStateMixin {
+class _ActivityTabState extends State<_ActivityTab>
+    with TickerProviderStateMixin {
   late Future<List<Activity>> _futureActivities;
   late AnimationController _animationController;
 
   @override
   void initState() {
     super.initState();
-    _futureActivities = ActivityRepository().fetchActivities(following: widget.following);
+    _futureActivities =
+        ActivityRepository().fetchActivities(following: widget.following);
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -179,7 +184,9 @@ class _ActivityTabState extends State<_ActivityTab> with TickerProviderStateMixi
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: widget.isDark ? const Color(0xFF262626) : const Color(0xFFF0F0F0),
+              color: widget.isDark
+                  ? const Color(0xFF262626)
+                  : const Color(0xFFF0F0F0),
               shape: BoxShape.circle,
             ),
           ),
@@ -192,7 +199,9 @@ class _ActivityTabState extends State<_ActivityTab> with TickerProviderStateMixi
                   height: 14,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: widget.isDark ? const Color(0xFF262626) : const Color(0xFFF0F0F0),
+                    color: widget.isDark
+                        ? const Color(0xFF262626)
+                        : const Color(0xFFF0F0F0),
                     borderRadius: BorderRadius.circular(7),
                   ),
                 ),
@@ -201,7 +210,9 @@ class _ActivityTabState extends State<_ActivityTab> with TickerProviderStateMixi
                   height: 12,
                   width: 100,
                   decoration: BoxDecoration(
-                    color: widget.isDark ? const Color(0xFF262626) : const Color(0xFFF0F0F0),
+                    color: widget.isDark
+                        ? const Color(0xFF262626)
+                        : const Color(0xFFF0F0F0),
                     borderRadius: BorderRadius.circular(6),
                   ),
                 ),
@@ -221,13 +232,17 @@ class _ActivityTabState extends State<_ActivityTab> with TickerProviderStateMixi
           Icon(
             Icons.error_outline,
             size: 48,
-            color: widget.isDark ? const Color(0xFF8E8E8E) : const Color(0xFF8E8E8E),
+            color: widget.isDark
+                ? const Color(0xFF8E8E8E)
+                : const Color(0xFF8E8E8E),
           ),
           const SizedBox(height: 16),
           Text(
             'Unable to load activities',
             style: TextStyle(
-              color: widget.isDark ? const Color(0xFF8E8E8E) : const Color(0xFF8E8E8E),
+              color: widget.isDark
+                  ? const Color(0xFF8E8E8E)
+                  : const Color(0xFF8E8E8E),
               fontSize: 16,
               fontWeight: FontWeight.w500,
             ),
@@ -236,7 +251,8 @@ class _ActivityTabState extends State<_ActivityTab> with TickerProviderStateMixi
           TextButton(
             onPressed: () {
               setState(() {
-                _futureActivities = ActivityRepository().fetchActivities(following: widget.following);
+                _futureActivities = ActivityRepository()
+                    .fetchActivities(following: widget.following);
               });
             },
             child: const Text(
@@ -316,12 +332,14 @@ class _ActivityTabState extends State<_ActivityTab> with TickerProviderStateMixi
         color: widget.isDark ? const Color(0xFF1A1A1A) : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: widget.isDark ? const Color(0xFF262626) : const Color(0xFFEFEFEF),
+          color:
+              widget.isDark ? const Color(0xFF262626) : const Color(0xFFEFEFEF),
           width: 0.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: (widget.isDark ? Colors.black : Colors.black).withOpacity(0.05),
+            color:
+                (widget.isDark ? Colors.black : Colors.black).withOpacity(0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -387,13 +405,17 @@ class _ActivityTabState extends State<_ActivityTab> with TickerProviderStateMixi
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: widget.isDark ? const Color(0xFF262626) : const Color(0xFFF0F0F0),
+              color: widget.isDark
+                  ? const Color(0xFF262626)
+                  : const Color(0xFFF0F0F0),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
               'Reply',
               style: TextStyle(
-                color: widget.isDark ? const Color(0xFF8E8E8E) : const Color(0xFF8E8E8E),
+                color: widget.isDark
+                    ? const Color(0xFF8E8E8E)
+                    : const Color(0xFF8E8E8E),
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
@@ -404,7 +426,9 @@ class _ActivityTabState extends State<_ActivityTab> with TickerProviderStateMixi
         Text(
           activity.time,
           style: TextStyle(
-            color: widget.isDark ? const Color(0xFF8E8E8E) : const Color(0xFF8E8E8E),
+            color: widget.isDark
+                ? const Color(0xFF8E8E8E)
+                : const Color(0xFF8E8E8E),
             fontSize: 12,
             fontWeight: FontWeight.w400,
           ),
@@ -423,7 +447,9 @@ class _ActivityTabState extends State<_ActivityTab> with TickerProviderStateMixi
           height: 44,
           decoration: BoxDecoration(
             border: Border.all(
-              color: widget.isDark ? const Color(0xFF262626) : const Color(0xFFEFEFEF),
+              color: widget.isDark
+                  ? const Color(0xFF262626)
+                  : const Color(0xFFEFEFEF),
               width: 0.5,
             ),
           ),
@@ -432,10 +458,14 @@ class _ActivityTabState extends State<_ActivityTab> with TickerProviderStateMixi
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) {
               return Container(
-                color: widget.isDark ? const Color(0xFF262626) : const Color(0xFFF0F0F0),
+                color: widget.isDark
+                    ? const Color(0xFF262626)
+                    : const Color(0xFFF0F0F0),
                 child: Icon(
                   Icons.image_outlined,
-                  color: widget.isDark ? const Color(0xFF8E8E8E) : const Color(0xFF8E8E8E),
+                  color: widget.isDark
+                      ? const Color(0xFF8E8E8E)
+                      : const Color(0xFF8E8E8E),
                   size: 20,
                 ),
               );
@@ -448,7 +478,7 @@ class _ActivityTabState extends State<_ActivityTab> with TickerProviderStateMixi
 
   Widget _buildActionButton(String buttonText) {
     final isFollowButton = buttonText == 'Follow';
-    
+
     return Padding(
       padding: const EdgeInsets.only(left: 12),
       child: Material(
@@ -461,23 +491,27 @@ class _ActivityTabState extends State<_ActivityTab> with TickerProviderStateMixi
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: isFollowButton 
-                ? const Color(0xFF0095F6)
-                : (widget.isDark ? const Color(0xFF262626) : const Color(0xFFEFEFEF)),
+              color: isFollowButton
+                  ? const Color(0xFF0095F6)
+                  : (widget.isDark
+                      ? const Color(0xFF262626)
+                      : const Color(0xFFEFEFEF)),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: isFollowButton 
-                  ? const Color(0xFF0095F6)
-                  : (widget.isDark ? const Color(0xFF363636) : const Color(0xFFDBDBDB)),
+                color: isFollowButton
+                    ? const Color(0xFF0095F6)
+                    : (widget.isDark
+                        ? const Color(0xFF363636)
+                        : const Color(0xFFDBDBDB)),
                 width: 1,
               ),
             ),
             child: Text(
               buttonText,
               style: TextStyle(
-                color: isFollowButton 
-                  ? Colors.white
-                  : (widget.isDark ? Colors.white : Colors.black),
+                color: isFollowButton
+                    ? Colors.white
+                    : (widget.isDark ? Colors.white : Colors.black),
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
               ),
@@ -488,4 +522,3 @@ class _ActivityTabState extends State<_ActivityTab> with TickerProviderStateMixi
     );
   }
 }
-

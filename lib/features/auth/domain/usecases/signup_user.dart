@@ -25,9 +25,9 @@ class SignupParams extends Equatable {
   final String password;
   final String? username; // Optional, based on requirements
 
-  const SignupParams({required this.email, required this.password, this.username});
+  const SignupParams(
+      {required this.email, required this.password, this.username});
 
   @override
   List<Object?> get props => [email, password, username];
 }
-

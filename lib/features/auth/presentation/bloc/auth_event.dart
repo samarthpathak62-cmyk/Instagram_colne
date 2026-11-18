@@ -22,7 +22,8 @@ class AuthSignupRequested extends AuthEvent {
   final String password;
   final String? username; // Optional
 
-  const AuthSignupRequested({required this.email, required this.password, this.username});
+  const AuthSignupRequested(
+      {required this.email, required this.password, this.username});
 
   @override
   List<Object?> get props => [email, password, username];
@@ -41,4 +42,3 @@ class _AuthUserChanged extends AuthEvent {
   @override
   List<Object?> get props => [user];
 }
-

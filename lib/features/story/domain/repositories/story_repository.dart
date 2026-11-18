@@ -22,4 +22,3 @@ abstract class StoryRepository {
   // Optional: Delete a story item
   // Future<Either<Failure, void>> deleteStoryItem(String storyItemId, String userId);
 }
-

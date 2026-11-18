@@ -139,40 +139,6 @@ class _FavoritesScreenContentState extends State<_FavoritesScreenContent>
     );
   }
 
-  Widget _buildLoadingState(bool isDark) {
-    return AnimatedBuilder(
-      animation: _animationController,
-      builder: (context, child) {
-        return FadeTransition(
-          opacity: _animationController,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 2.0,
-                mainAxisSpacing: 2.0,
-                childAspectRatio: 1.0,
-              ),
-              itemCount: 12,
-              itemBuilder: (context, index) => _buildSkeletonItem(isDark),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildSkeletonItem(bool isDark) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF262626) : const Color(0xFFF0F0F0),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: const SizedBox.expand(),
-    );
-  }
-
   Widget _buildEmptyState(bool isDark) {
     return Center(
       child: Column(
@@ -213,62 +179,6 @@ class _FavoritesScreenContentState extends State<_FavoritesScreenContent>
                 fontSize: 16,
                 fontWeight: FontWeight.w400,
                 height: 1.4,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildErrorState(bool isDark) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.error_outline,
-            size: 64,
-            color: isDark ? const Color(0xFF8E8E8E) : const Color(0xFF8E8E8E),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Unable to load saved posts',
-            style: TextStyle(
-              color: isDark ? Colors.white : Colors.black,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Please check your connection and try again',
-            style: TextStyle(
-              color: isDark ? const Color(0xFF8E8E8E) : const Color(0xFF8E8E8E),
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () {
-              context
-                  .read<FavoriteBloc>()
-                  .add(LoadFavoritesEvent(userId: widget.userId));
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0095F6),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text(
-              'Try Again',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
               ),
             ),
           ),

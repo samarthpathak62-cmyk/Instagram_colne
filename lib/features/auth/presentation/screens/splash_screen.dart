@@ -12,34 +12,34 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _logoAnimationController;
   late AnimationController _textAnimationController;
   late AnimationController _loadingAnimationController;
-  
+
   late Animation<double> _logoFadeAnimation;
   late Animation<double> _logoScaleAnimation;
   late Animation<Offset> _logoSlideAnimation;
-  
+
   late Animation<double> _textFadeAnimation;
   late Animation<double> _textScaleAnimation;
   late Animation<Offset> _textSlideAnimation;
-  
+
   late Animation<double> _loadingFadeAnimation;
   late Animation<double> _loadingScaleAnimation;
 
   @override
   void initState() {
     super.initState();
-    
+
     // Logo Animation Controller
     _logoAnimationController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
-    
+
     // Text Animation Controller
     _textAnimationController = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
-    
+
     // Loading Animation Controller
     _loadingAnimationController = AnimationController(
       duration: const Duration(milliseconds: 800),
@@ -120,11 +120,11 @@ class _SplashScreenState extends State<SplashScreen>
   void _startAnimations() async {
     // Start logo animation immediately
     _logoAnimationController.forward();
-    
+
     // Start text animation after 500ms
     await Future.delayed(const Duration(milliseconds: 500));
     _textAnimationController.forward();
-    
+
     // Start loading animation after 1200ms
     await Future.delayed(const Duration(milliseconds: 700));
     _loadingAnimationController.forward();
@@ -334,7 +334,7 @@ class _SplashScreenState extends State<SplashScreen>
                       curve: Curves.easeInOut,
                     ),
                   ));
-                  
+
                   return Transform.scale(
                     scale: animation.value,
                     child: Container(
@@ -342,7 +342,8 @@ class _SplashScreenState extends State<SplashScreen>
                       width: 8,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0095F6).withOpacity(animation.value),
+                        color: const Color(0xFF0095F6)
+                            .withOpacity(animation.value),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
@@ -380,30 +381,30 @@ class _SplashScreenState extends State<SplashScreen>
                   children: [
                     // Instagram Camera Icon
                     _buildInstagramLogo(),
-                    
+
                     const SizedBox(height: 32),
-                    
+
                     // Instagram Text
                     _buildInstagramText(),
-                    
+
                     const SizedBox(height: 8),
-                    
+
                     // Subtitle
                     _buildSubtitle(),
-                    
+
                     const SizedBox(height: 80),
-                    
+
                     // Loading Indicator
                     _buildLoadingIndicator(),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Pulsing Dots
                     _buildPulsingDots(),
                   ],
                 ),
               ),
-              
+
               // Bottom Section
               Padding(
                 padding: const EdgeInsets.only(bottom: 40),

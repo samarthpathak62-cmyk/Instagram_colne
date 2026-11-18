@@ -76,9 +76,9 @@ class _FeedScreenState extends State<FeedScreen> {
               ),
             ),
           ),
-          child:  FeedStoriesBar(),
+          child: FeedStoriesBar(),
         ),
-        
+
         // Feed Posts
         Expanded(
           child: FeedRefreshIndicator(
@@ -100,8 +100,8 @@ class _FeedScreenState extends State<FeedScreen> {
                   return ListView.builder(
                     controller: _scrollController,
                     physics: const ClampingScrollPhysics(),
-                    itemCount: state.feedItems.length +
-                        (state.hasReachedMax ? 0 : 1),
+                    itemCount:
+                        state.feedItems.length + (state.hasReachedMax ? 0 : 1),
                     itemBuilder: (context, index) {
                       final isLast = index == state.feedItems.length;
                       if (isLast && !state.hasReachedMax) {
@@ -187,9 +187,9 @@ class _FeedScreenState extends State<FeedScreen> {
               color: Color(0xFF262626),
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           const Text(
             'Welcome to Instagram',
             style: TextStyle(
@@ -198,9 +198,9 @@ class _FeedScreenState extends State<FeedScreen> {
               color: Color(0xFF262626),
             ),
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 40),
             child: Text(
@@ -213,9 +213,9 @@ class _FeedScreenState extends State<FeedScreen> {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Find People Button
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 40),

@@ -21,31 +21,26 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version-file: .fvmrc
           cache: true
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Check Dart formatting
-        run: dart format --output=none --set-exit-if-changed lib
+        run: git ls-files -z -- '*.dart' | xargs -0 dart format --output=none --set-exit-if-changed
 
       - name: Run Flutter analyzer
-        run: flutter analyze --no-pub
+        # Keep analyzer errors and warnings fatal while legacy info-level lints are addressed.
+        run: flutter analyze --no-pub --no-fatal-infos
 
-      - name: Run tests when test directory exists
-        shell: bash
-        run: |
-          if [ -d test ]; then
-            flutter test --no-pub
-          else
-            echo "No test/ directory found; skipping Flutter tests."
-          fi
+      - name: Run Flutter tests
+        run: flutter test --no-pub
 
   build-android-debug:
     name: Build Android debug APK
@@ -54,10 +49,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -66,17 +61,17 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version-file: .fvmrc
           cache: true
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Build debug APK
         run: flutter build apk --debug --no-pub
 
       - name: Upload debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: android-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
@@ -89,22 +84,22 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version-file: .fvmrc
           cache: true
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Build web release
         run: flutter build web --release --no-pub
 
       - name: Upload web build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: web-release
           path: build/web

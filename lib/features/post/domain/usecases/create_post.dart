@@ -38,4 +38,3 @@ class CreatePostParams extends Equatable {
   @override
   List<Object?> get props => [authorId, type, mediaFiles, description];
 }
-

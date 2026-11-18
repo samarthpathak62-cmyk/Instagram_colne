@@ -9,7 +9,8 @@ class ProfileHeader extends StatelessWidget {
   final VoidCallback? onEditProfile; // Callback for edit profile button
   final VoidCallback? onFollowToggle; // Callback for follow/unfollow button
   final bool isCurrentUser; // To determine if it's the current user's profile
-  final bool isFollowing; // To determine if current user is following this profile
+  final bool
+      isFollowing; // To determine if current user is following this profile
 
   const ProfileHeader({
     Key? key,
@@ -40,9 +41,13 @@ class ProfileHeader extends StatelessWidget {
                   children: [
                     Text(
                       profile.username,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
                     ),
-                    if (profile.fullName != null && profile.fullName!.isNotEmpty)
+                    if (profile.fullName != null &&
+                        profile.fullName!.isNotEmpty)
                       Text(
                         profile.fullName!,
                         style: Theme.of(context).textTheme.bodyLarge,
@@ -70,8 +75,11 @@ class ProfileHeader extends StatelessWidget {
                 : ElevatedButton(
                     onPressed: onFollowToggle,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isFollowing ? Colors.grey[300] : Theme.of(context).primaryColor,
-                      foregroundColor: isFollowing ? Colors.black : Colors.white,
+                      backgroundColor: isFollowing
+                          ? Colors.grey[300]
+                          : Theme.of(context).primaryColor,
+                      foregroundColor:
+                          isFollowing ? Colors.black : Colors.white,
                     ),
                     child: Text(isFollowing ? 'Following' : 'Follow'),
                   ),

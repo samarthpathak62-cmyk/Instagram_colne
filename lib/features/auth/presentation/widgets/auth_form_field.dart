@@ -38,10 +38,13 @@ class AuthFormField extends StatelessWidget {
           borderSide: BorderSide.none, // No border line
         ),
         filled: true,
-        fillColor: Theme.of(context).inputDecorationTheme.fillColor ?? Colors.grey[200], // Background color for the field
-        contentPadding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
+        fillColor: Theme.of(context).inputDecorationTheme.fillColor ??
+            Colors.grey[200], // Background color for the field
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
       ),
-      style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color), // Text color
+      style: TextStyle(
+          color: Theme.of(context).textTheme.bodyLarge?.color), // Text color
     );
   }
 }

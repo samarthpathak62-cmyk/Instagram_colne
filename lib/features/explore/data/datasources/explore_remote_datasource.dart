@@ -5,4 +5,3 @@ abstract class ExploreRemoteDataSource {
   Future<List<Post>> getExplorePosts({int limit = 21, int offset = 0});
   Future<List<User>> searchUsers(String query);
 }
-

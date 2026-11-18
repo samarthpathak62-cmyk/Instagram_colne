@@ -30,4 +30,3 @@ class AuthFailure extends AuthState {
   @override
   List<Object> get props => [message];
 }
-

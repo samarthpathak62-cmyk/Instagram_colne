@@ -12,6 +12,7 @@ class ExploreInitial extends ExploreState {}
 
 // State when loading explore posts or search results
 class ExploreLoading extends ExploreState {}
+
 class ExploreSearchLoading extends ExploreState {}
 
 // State when explore posts are loaded successfully
@@ -43,4 +44,3 @@ class ExploreError extends ExploreState {
   @override
   List<Object> get props => [message];
 }
-

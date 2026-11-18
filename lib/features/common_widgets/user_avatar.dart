@@ -20,7 +20,10 @@ class UserAvatar extends StatelessWidget {
       onTap: onTap,
       child: CircleAvatar(
         radius: radius,
-        backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2), // Light background
+        backgroundColor: Theme.of(context)
+            .colorScheme
+            .primary
+            .withOpacity(0.2), // Light background
         backgroundImage: imageUrl != null && imageUrl!.isNotEmpty
             ? NetworkImage(imageUrl!)
             : null,

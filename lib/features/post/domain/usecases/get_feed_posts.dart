@@ -18,11 +18,11 @@ class GetFeedPosts implements UseCase<List<Post>, GetFeedPostsParams> {
 }
 
 class GetFeedPostsParams extends Equatable {
-  final String currentUserId; // Needed to determine if posts are liked by the current user
+  final String
+      currentUserId; // Needed to determine if posts are liked by the current user
 
   const GetFeedPostsParams({required this.currentUserId});
 
   @override
   List<Object> get props => [currentUserId];
 }
-

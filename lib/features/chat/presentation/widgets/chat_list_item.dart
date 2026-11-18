@@ -71,7 +71,7 @@ class ChatListItem extends StatelessWidget {
 
   String _formatTimestamp(DateTime? timestamp) {
     if (timestamp == null) return '';
-    
+
     final now = DateTime.now();
     final difference = now.difference(timestamp);
 

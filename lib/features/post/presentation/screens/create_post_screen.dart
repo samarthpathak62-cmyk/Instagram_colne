@@ -238,16 +238,6 @@ class _CreatePostScreenContentState extends State<_CreatePostScreenContent> {
   }
 
   Widget _buildCaptionSection() {
-    final currentUserState = context.read<AuthBloc>().state;
-    String? profileImageUrl;
-    String username = 'User';
-
-    if (currentUserState is Authenticated) {
-      // تأكد من وجود هذه الحقول في UserEntity
-      // profileImageUrl = currentUserState.user.profilePictureUrl;
-      // username = currentUserState.user.username ?? 'User';
-    }
-
     return Container(
       padding: const EdgeInsets.all(16.0),
       child: Row(
@@ -256,22 +246,16 @@ class _CreatePostScreenContentState extends State<_CreatePostScreenContent> {
           CircleAvatar(
             radius: 20,
             backgroundColor: Colors.grey[200],
-            backgroundImage:
-                profileImageUrl != null && profileImageUrl.isNotEmpty
-                    ? NetworkImage(profileImageUrl) as ImageProvider
-                    : null,
-            child: profileImageUrl == null || profileImageUrl.isEmpty
-                ? const Icon(Icons.person, color: Colors.grey, size: 20)
-                : null,
+            child: const Icon(Icons.person, color: Colors.grey, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  username,
-                  style: const TextStyle(
+                const Text(
+                  'User',
+                  style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
                     color: Colors.black,

@@ -12,7 +12,8 @@ class GetExplorePosts implements UseCase<List<Post>, GetExplorePostsParams> {
 
   @override
   Future<Either<Failure, List<Post>>> call(GetExplorePostsParams params) async {
-    return await repository.getExplorePosts(limit: params.limit, offset: params.offset);
+    return await repository.getExplorePosts(
+        limit: params.limit, offset: params.offset);
   }
 }
 
@@ -25,4 +26,3 @@ class GetExplorePostsParams extends Equatable {
   @override
   List<Object> get props => [limit, offset];
 }
-

@@ -271,9 +271,7 @@ class _VideoExploreScreenState extends State<VideoExploreScreen> {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  post.createdAt != null
-                                      ? _formatDate(post.createdAt!)
-                                      : 'Sep 13',
+                                  _formatDate(post.createdAt),
                                   style: const TextStyle(
                                       color: Colors.white70, fontSize: 12),
                                 ),

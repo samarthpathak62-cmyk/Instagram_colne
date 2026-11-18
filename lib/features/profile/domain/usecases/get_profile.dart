@@ -24,4 +24,3 @@ class GetProfileParams extends Equatable {
   @override
   List<Object> get props => [userId];
 }
-

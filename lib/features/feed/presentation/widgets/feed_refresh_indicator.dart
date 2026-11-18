@@ -17,7 +17,9 @@ class FeedRefreshIndicator extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: onRefresh,
       color: Theme.of(context).primaryColor, // Color of the refresh indicator
-      backgroundColor: Theme.of(context).colorScheme.surface, // Background color of the indicator
+      backgroundColor: Theme.of(context)
+          .colorScheme
+          .surface, // Background color of the indicator
       child: child,
     );
   }

@@ -25,8 +25,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
 
-  late final List<Widget> _screens;
-
   @override
   void initState() {
     super.initState();
@@ -43,7 +41,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
       parent: _animationController,
       curve: Curves.easeInOut,
     ));
-
   }
 
   @override
@@ -65,7 +62,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
 
   @override
   Widget build(BuildContext context) {
-
     return SafeArea(
       child: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {

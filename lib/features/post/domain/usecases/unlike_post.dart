@@ -24,4 +24,3 @@ class UnlikePostParams extends Equatable {
   @override
   List<Object> get props => [postId, userId];
 }
-

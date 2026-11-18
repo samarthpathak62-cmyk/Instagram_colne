@@ -12,4 +12,3 @@ abstract class ProfileRemoteDataSource {
   });
   Future<String?> uploadProfileImage(File image, String userId);
 }
-

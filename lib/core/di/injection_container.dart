@@ -47,5 +47,3 @@ Future<void> init() async {
   // Register Feed feature
   await feed_injection.initFeedDependencies();
 }
-
-

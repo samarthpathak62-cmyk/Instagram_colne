@@ -18,7 +18,8 @@ class GetSettingsEvent extends SettingsEvent {
 
 class UpdateThemeModeEvent extends SettingsEvent {
   final String userId;
-  final dynamic themeMode; // Use dynamic to avoid import issues, actual type handled in bloc
+  final dynamic
+      themeMode; // Use dynamic to avoid import issues, actual type handled in bloc
 
   const UpdateThemeModeEvent({
     required this.userId,
@@ -43,7 +44,8 @@ class UpdateNotificationsEnabledEvent extends SettingsEvent {
   final String userId;
   final bool enabled;
 
-  const UpdateNotificationsEnabledEvent({required this.userId, required this.enabled});
+  const UpdateNotificationsEnabledEvent(
+      {required this.userId, required this.enabled});
 
   @override
   List<Object?> get props => [userId, enabled];

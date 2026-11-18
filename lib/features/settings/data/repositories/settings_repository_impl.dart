@@ -24,7 +24,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
   }
 
   @override
-  Future<Either<Failure, Settings>> updateLanguage(String userId, String language) async {
+  Future<Either<Failure, Settings>> updateLanguage(
+      String userId, String language) async {
     try {
       await remoteDataSource.updateLanguage(userId, language);
       final settings = await remoteDataSource.getSettings(userId);
@@ -37,7 +38,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
   }
 
   @override
-  Future<Either<Failure, Settings>> updateNotificationsEnabled(String userId, bool enabled) async {
+  Future<Either<Failure, Settings>> updateNotificationsEnabled(
+      String userId, bool enabled) async {
     try {
       await remoteDataSource.updateNotificationsEnabled(userId, enabled);
       final settings = await remoteDataSource.getSettings(userId);
@@ -50,7 +52,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
   }
 
   @override
-  Future<Either<Failure, Settings>> updateThemeMode(String userId, ThemeMode themeMode) async {
+  Future<Either<Failure, Settings>> updateThemeMode(
+      String userId, ThemeMode themeMode) async {
     try {
       await remoteDataSource.updateThemeMode(userId, themeMode);
       final settings = await remoteDataSource.getSettings(userId);

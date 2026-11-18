@@ -46,8 +46,10 @@ class _ChatInputState extends State<ChatInput> {
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
-                fillColor: Theme.of(context).inputDecorationTheme.fillColor ?? Colors.grey[200],
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+                fillColor: Theme.of(context).inputDecorationTheme.fillColor ??
+                    Colors.grey[200],
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20.0, vertical: 10.0),
               ),
               onSubmitted: (_) => _handleSendMessage(), // Send on enter key
             ),

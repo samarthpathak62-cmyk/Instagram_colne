@@ -182,7 +182,7 @@ lib/
 ---
 
 ## How to Run the Project
-1. **Install Flutter** (latest stable): [flutter.dev/docs/get-started/install](https://flutter.dev/docs/get-started/install)
+1. **Install Flutter** using the version in [`.fvmrc`](.fvmrc) so your local SDK matches CI. Android builds also use JDK 17.
 2. **Clone the repository:**
    ```bash
    git clone <repo-url>
@@ -190,7 +190,7 @@ lib/
    ```
 3. **Install dependencies:**
    ```bash
-   flutter pub get
+   flutter pub get --enforce-lockfile
    ```
 4. **Configure Supabase:**
    - Create a new project on Supabase (app.supabase.com)
@@ -201,6 +201,23 @@ lib/
    ```bash
    flutter run
    ```
+
+---
+
+## CI and GitHub Pages
+
+Run the same checks as CI from the repository root:
+
+```bash
+flutter pub get --enforce-lockfile
+git ls-files -z -- '*.dart' | xargs -0 dart format --output=none --set-exit-if-changed
+flutter analyze --no-pub --no-fatal-infos
+flutter test --no-pub
+```
+
+Flutter generates `lib/generated/` from the translation files in `lib/l10n/` during dependency setup. Edit the `.arb` files rather than the generated Dart files. When changing dependencies or the Flutter version, run `flutter pub get` without `--enforce-lockfile` and commit the resulting `pubspec.lock`.
+
+For deployment, set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. Pushes to `main` deploy automatically; a manual Pages workflow run from another branch builds the artifact without deploying it.
 
 ---
 

@@ -9,7 +9,8 @@ class SignupScreen extends StatefulWidget {
   State<SignupScreen> createState() => _SignupScreenState();
 }
 
-class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMixin {
+class _SignupScreenState extends State<SignupScreen>
+    with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _fullNameController = TextEditingController();
@@ -20,7 +21,7 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
   bool _isFullNameFocused = false;
   bool _isUsernameFocused = false;
   bool _isPasswordFocused = false;
-  
+
   late AnimationController _logoAnimationController;
   late Animation<double> _logoAnimation;
   late AnimationController _formAnimationController;
@@ -30,7 +31,7 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
   @override
   void initState() {
     super.initState();
-    
+
     // Logo animation
     _logoAnimationController = AnimationController(
       duration: const Duration(milliseconds: 1500),
@@ -43,7 +44,7 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
       parent: _logoAnimationController,
       curve: Curves.elasticOut,
     ));
-    
+
     // Form animation
     _formAnimationController = AnimationController(
       duration: const Duration(milliseconds: 800),
@@ -63,7 +64,7 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
       parent: _formAnimationController,
       curve: Curves.easeOut,
     ));
-    
+
     // Start animations
     _logoAnimationController.forward();
     Future.delayed(const Duration(milliseconds: 500), () {
@@ -195,7 +196,8 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(
-            color: isFocused ? const Color(0xFF0095F6) : const Color(0xFF8E8E8E),
+            color:
+                isFocused ? const Color(0xFF0095F6) : const Color(0xFF8E8E8E),
             fontSize: isFocused ? 12 : 16,
           ),
           filled: true,
@@ -265,7 +267,7 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         final isLoading = state is AuthLoading;
-        
+
         return Container(
           width: double.infinity,
           height: 44,
@@ -528,7 +530,8 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
                                   if (value == null || value.isEmpty) {
                                     return 'Please enter your email or mobile number';
                                   }
-                                  if (value.contains('@') && !value.contains('.')) {
+                                  if (value.contains('@') &&
+                                      !value.contains('.')) {
                                     return 'Please enter a valid email';
                                   }
                                   return null;
@@ -571,7 +574,8 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
                                   if (value.length < 3) {
                                     return 'Username must be at least 3 characters';
                                   }
-                                  if (!RegExp(r'^[a-zA-Z0-9._]+$').hasMatch(value)) {
+                                  if (!RegExp(r'^[a-zA-Z0-9._]+$')
+                                      .hasMatch(value)) {
                                     return 'Username can only contain letters, numbers, dots and underscores';
                                   }
                                   return null;
