@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:instagram_clone/features/explore/domain/post_topics.dart';
+import 'package:instagram_clone/features/explore/presentation/screens/search_screen.dart';
 import 'package:instagram_clone/features/post/domain/entities/post.dart';
 import 'package:instagram_clone/features/post/presentation/bloc/post_interactions_cubit.dart';
 import 'package:instagram_clone/features/post/presentation/widgets/post_actions.dart';
 import 'package:instagram_clone/features/post/presentation/widgets/post_header.dart';
+import 'package:instagram_clone/features/post/presentation/widgets/shared_post_preview.dart';
 import 'package:instagram_clone/features/post/presentation/widgets/video_player_widget.dart';
 
 class PostCard extends StatelessWidget {
@@ -17,12 +20,35 @@ class PostCard extends StatelessWidget {
     final state =
         context.select((PostInteractionsCubit cubit) => cubit.forPost(post.id));
     if (state.deleted) return const SizedBox.shrink();
-    final text = state.text(post);
+    final text = post.shareKind == PostShareKind.repost ? '' : state.text(post);
+    final topics = postTopics(text);
+    final theme = Theme.of(context);
     final media = post.mediaUrls.where((url) => url.isNotEmpty).toList();
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 7),
       clipBehavior: Clip.antiAlias,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        if (post.shareKind != null)
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(15, 11, 15, 0),
+            child: Row(children: [
+              Icon(
+                  post.shareKind == PostShareKind.repost
+                      ? Icons.repeat_rounded
+                      : Icons.format_quote_rounded,
+                  size: 16,
+                  color: theme.colorScheme.primary),
+              const SizedBox(width: 6),
+              Text(
+                  post.shareKind == PostShareKind.repost
+                      ? 'REPOSTED'
+                      : 'QUOTED POST',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.15)),
+            ]),
+          ),
         PostHeader(post: post, showOpenPost: !inDetail),
         if (text.isNotEmpty)
           Padding(
@@ -34,6 +60,24 @@ class PostCard extends StatelessWidget {
                         .bodyLarge
                         ?.copyWith(height: 1.55)
                     : Theme.of(context).textTheme.bodyMedium),
+          ),
+        if (post.shareKind != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+            child: SharedPostPreview(post: post.sharedPost),
+          ),
+        if (topics.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+            child: Wrap(spacing: 6, runSpacing: 3, children: [
+              for (final topic in topics)
+                ActionChip(
+                  label: Text(topic),
+                  onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) => SearchScreen(initialQuery: topic))),
+                ),
+            ]),
           ),
         if (post.type != PostType.text && media.isNotEmpty)
           ColoredBox(
@@ -58,6 +102,10 @@ class PostCard extends StatelessWidget {
           const Padding(
               padding: EdgeInsets.all(18),
               child: Text('Media is no longer available.')),
+        Divider(
+            height: 1,
+            thickness: 1,
+            color: theme.colorScheme.outlineVariant.withValues(alpha: .65)),
         PostActions(post: post),
       ]),
     );

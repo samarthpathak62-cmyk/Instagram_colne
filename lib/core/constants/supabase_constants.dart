@@ -34,7 +34,7 @@ class SupabaseConstants {
   static const postsTable = 'posts';
   static const followersTable = 'followers';
   static const savedPostsTable = 'saved_posts';
-  static const publicUserColumns = 'id,username,profile_picture_url';
+  static const publicUserColumns = 'id,username,full_name,profile_picture_url';
 
   static const profileImagesBucket = 'profile-images';
   static const postMediaBucket = 'post-media';

@@ -24,18 +24,25 @@ class PostHeader extends StatelessWidget {
         (PostInteractionsCubit cubit) => cubit.forPost(post.id).editing);
     final canManage = actions.userId == post.authorId;
     final username = post.user?.username ?? 'veyro_user';
+    final name = post.user?.name?.trim();
     return ListTile(
       dense: true,
       contentPadding: const EdgeInsetsDirectional.only(start: 13, end: 6),
-      leading: UserAvatar(imageUrl: post.user?.profilePictureUrl, radius: 18),
-      title: Text('@$username',
+      leading: UserAvatar(
+          imageUrl: post.user?.profilePictureUrl,
+          name: name ?? username,
+          radius: 19),
+      title: Text(name?.isNotEmpty == true ? name! : '@$username',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(context)
               .textTheme
               .titleSmall
               ?.copyWith(fontWeight: FontWeight.w800)),
-      subtitle: Text(timeago.format(post.createdAt),
+      subtitle: Text(
+          '${name?.isNotEmpty == true ? '@$username · ' : ''}${timeago.format(post.createdAt)}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.labelSmall),
       onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
           builder: (_) => ProfileScreen.withProviders(post.authorId))),
@@ -84,10 +91,12 @@ class PostHeader extends StatelessWidget {
                 value: _PostMenu.open, child: Text('Open post')),
           const PopupMenuItem(
               value: _PostMenu.share, child: Text('Share post')),
-          if (canManage) ...const [
-            PopupMenuItem(value: _PostMenu.edit, child: Text('Edit post')),
-            PopupMenuItem(value: _PostMenu.delete, child: Text('Delete post')),
-          ],
+          if (canManage && post.shareKind != PostShareKind.repost)
+            const PopupMenuItem(
+                value: _PostMenu.edit, child: Text('Edit post')),
+          if (canManage)
+            const PopupMenuItem(
+                value: _PostMenu.delete, child: Text('Delete post')),
         ],
       ),
     );

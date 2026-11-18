@@ -14,15 +14,23 @@ class CreatePostScreen extends StatelessWidget {
   final ValueChanged<Post>? onCreated;
   final VoidCallback? onClose;
   final bool reelMode;
+  final bool photoMode;
 
   const CreatePostScreen(
-      {super.key, this.onCreated, this.onClose, this.reelMode = false});
+      {super.key,
+      this.onCreated,
+      this.onClose,
+      this.reelMode = false,
+      this.photoMode = false});
 
   @override
   Widget build(BuildContext context) => BlocProvider<PostBloc>(
         create: (_) => di.sl<PostBloc>(),
         child: _Composer(
-            onCreated: onCreated, onClose: onClose, reelMode: reelMode),
+            onCreated: onCreated,
+            onClose: onClose,
+            reelMode: reelMode,
+            photoMode: photoMode),
       );
 }
 
@@ -30,9 +38,13 @@ class _Composer extends StatefulWidget {
   final ValueChanged<Post>? onCreated;
   final VoidCallback? onClose;
   final bool reelMode;
+  final bool photoMode;
 
   const _Composer(
-      {required this.onCreated, required this.onClose, required this.reelMode});
+      {required this.onCreated,
+      required this.onClose,
+      required this.reelMode,
+      required this.photoMode});
 
   @override
   State<_Composer> createState() => _ComposerState();
@@ -119,7 +131,9 @@ class _ComposerState extends State<_Composer> {
       !_picking &&
       (widget.reelMode
           ? _type == PostType.video
-          : _media.isNotEmpty || text.trim().isNotEmpty);
+          : widget.photoMode
+              ? _type == PostType.image
+              : _media.isNotEmpty || text.trim().isNotEmpty);
 
   void _publish() {
     if (!_canPublish(_text.text)) return;
@@ -171,7 +185,11 @@ class _ComposerState extends State<_Composer> {
                 onPressed: _sending
                     ? null
                     : widget.onClose ?? () => Navigator.of(context).maybePop()),
-            title: Text(widget.reelMode ? 'New reel' : 'New post'),
+            title: Text(widget.reelMode
+                ? 'New reel'
+                : widget.photoMode
+                    ? 'New photo post'
+                    : 'New post'),
             actions: [
               Padding(
                   padding: const EdgeInsetsDirectional.only(end: 12),
@@ -199,23 +217,28 @@ class _ComposerState extends State<_Composer> {
                                     Text(
                                         widget.reelMode
                                             ? 'Share a short video'
-                                            : 'What’s on your mind?',
+                                            : widget.photoMode
+                                                ? 'Share your photos'
+                                                : 'What’s on your mind?',
                                         style: context.veyroText.headlineSmall),
                                     const SizedBox(height: 6),
                                     Text(
                                         widget.reelMode
                                             ? 'Choose a video up to 50 MB. Add a caption if you like.'
-                                            : 'Write an update, add photos, or share a video.',
+                                            : widget.photoMode
+                                                ? 'Choose up to eight photos and add a caption.'
+                                                : 'Write an update, add photos, or share a video.',
                                         style: context.veyroText.bodyMedium),
                                     const SizedBox(height: 18),
                                     TextField(
                                       controller: _text,
                                       enabled: !_sending,
                                       decoration: InputDecoration(
-                                          labelText:
-                                              _media.isEmpty && !widget.reelMode
-                                                  ? 'Post text'
-                                                  : 'Caption (optional)',
+                                          labelText: _media.isEmpty &&
+                                                  !widget.reelMode &&
+                                                  !widget.photoMode
+                                              ? 'Post text'
+                                              : 'Caption (optional)',
                                           hintText: 'Start writing…',
                                           alignLabelWithHint: true),
                                       minLines: 3,
@@ -234,14 +257,15 @@ class _ComposerState extends State<_Composer> {
                                                 Icons.photo_library_outlined,
                                                 size: 19),
                                             label: const Text('Add photos')),
-                                      OutlinedButton.icon(
-                                          onPressed: _picking || _sending
-                                              ? null
-                                              : () => _pick(video: true),
-                                          icon: const Icon(
-                                              Icons.videocam_outlined,
-                                              size: 19),
-                                          label: const Text('Add video')),
+                                      if (!widget.photoMode)
+                                        OutlinedButton.icon(
+                                            onPressed: _picking || _sending
+                                                ? null
+                                                : () => _pick(video: true),
+                                            icon: const Icon(
+                                                Icons.videocam_outlined,
+                                                size: 19),
+                                            label: const Text('Add video')),
                                       if (_media.isNotEmpty)
                                         TextButton.icon(
                                             onPressed: _picking || _sending

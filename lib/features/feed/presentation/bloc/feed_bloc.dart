@@ -27,9 +27,13 @@ class FeedCubit extends Cubit<FeedState> {
   Future<void> _load(
       {required bool reset, required FeedTimeline timeline}) async {
     final request = ++_generation;
-    final existing = reset ? const <FeedItem>[] : state.items;
+    final sameTimeline = timeline == state.timeline;
+    final existing = sameTimeline ? state.items : const <FeedItem>[];
     final page = reset ? 0 : _page;
-    emit(FeedState(timeline: timeline, items: existing));
+    emit(FeedState(
+        timeline: timeline,
+        items: existing,
+        refreshing: reset && sameTimeline));
     final result = await _getFeed(GetFeedParams(
       page: page,
       limit: pageSize,
@@ -44,13 +48,11 @@ class FeedCubit extends Cubit<FeedState> {
           error: failure.message)),
       (items) {
         _page = page + 1;
-        final previousIds = existing.map((item) => item.id).toSet();
+        final base = reset ? const <FeedItem>[] : existing;
+        final previousIds = base.map((item) => item.id).toSet();
         emit(FeedState(
           timeline: timeline,
-          items: [
-            ...existing,
-            ...items.where((item) => previousIds.add(item.id))
-          ],
+          items: [...base, ...items.where((item) => previousIds.add(item.id))],
           loading: false,
           hasMore: items.length == pageSize,
         ));

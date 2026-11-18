@@ -7,6 +7,7 @@ class FeedState {
   final List<FeedItem> items;
   final bool loading;
   final bool hasMore;
+  final bool refreshing;
   final String? error;
 
   const FeedState({
@@ -14,6 +15,7 @@ class FeedState {
     this.items = const [],
     this.loading = true,
     this.hasMore = true,
+    this.refreshing = false,
     this.error,
   });
 }

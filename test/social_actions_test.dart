@@ -11,6 +11,7 @@ import 'package:http/testing.dart';
 import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:instagram_clone/core/error/exceptions.dart';
 import 'package:instagram_clone/core/error/failures.dart';
+import 'package:instagram_clone/features/explore/domain/post_topics.dart';
 import 'package:instagram_clone/features/feed/data/datasources/feed_remote_datasource_impl.dart';
 import 'package:instagram_clone/features/feed/data/models/feed_item_model.dart';
 import 'package:instagram_clone/features/feed/domain/entities/feed_item.dart';
@@ -88,6 +89,29 @@ Future<void> _signInFixture(supabase.SupabaseClient client) async {
 }
 
 void main() {
+  test('topic labels are deduplicated, Unicode aware, and ignore URL fragments',
+      () {
+    expect(
+        postTopics('#Veyro #veyro #कला https://example.invalid/#link no#tag'),
+        ['#veyro', '#कला']);
+    expect(postTopics('#a #b #c', limit: 2), ['#a', '#b']);
+  });
+
+  test('Following rows preserve the quote and its shallow original', () {
+    final item = FeedItemModel.fromJson({
+      ..._row('the-quote'),
+      'description': 'My take',
+      'shared_post_id': _postId,
+      'share_kind': 'quote',
+      'source': _row(),
+    });
+    final post = item.toPost();
+    expect(post.shareKind, PostShareKind.quote);
+    expect(post.shareTargetId, 'the-quote');
+    expect(post.sharedPost?.id, _postId);
+    expect(post.sharedPost?.description, 'First text update');
+  });
+
   test(
       'text composer writes a post but no storage object; blank text is rejected',
       () async {

@@ -12,10 +12,12 @@ class PostGridItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = context.select(
-        (PostInteractionsCubit actions) => actions.forPost(post.id).text(post));
+    final mediaPost =
+        post.shareKind == PostShareKind.repost ? post.sharedPost ?? post : post;
+    final text = context.select((PostInteractionsCubit actions) =>
+        actions.forPost(mediaPost.id).text(mediaPost));
     final colors = Theme.of(context).colorScheme;
-    final url = post.mediaUrls.firstOrNull;
+    final url = mediaPost.mediaUrls.firstOrNull;
     return Material(
       color: post.type == PostType.text
           ? colors.surfaceContainerHigh
@@ -23,7 +25,7 @@ class PostGridItem extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       clipBehavior: Clip.antiAlias,
       child: Stack(fit: StackFit.expand, children: [
-        if (post.type == PostType.image && url != null && url.isNotEmpty)
+        if (mediaPost.type == PostType.image && url != null && url.isNotEmpty)
           Image.network(url,
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) =>
@@ -34,7 +36,7 @@ class PostGridItem extends StatelessWidget {
                   padding: const EdgeInsets.all(10),
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                     Icon(
-                        switch (post.type) {
+                        switch (mediaPost.type) {
                           PostType.video => Icons.play_circle_outline_rounded,
                           PostType.text => Icons.subject_rounded,
                           PostType.image => Icons.image_not_supported_outlined,
@@ -59,6 +61,26 @@ class PostGridItem extends StatelessWidget {
               onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
                   builder: (_) => PostDetailScreen(postId: post.id)))),
         ),
+        if (post.shareKind != null)
+          PositionedDirectional(
+              top: 5,
+              start: 5,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                      color: colors.primaryContainer,
+                      borderRadius: BorderRadius.circular(7)),
+                  child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(
+                        post.shareKind == PostShareKind.repost
+                            ? Icons.repeat_rounded
+                            : Icons.format_quote_rounded,
+                        color: colors.onPrimaryContainer,
+                        size: 14,
+                      )),
+                ),
+              )),
         if (trailing != null)
           PositionedDirectional(top: 3, end: 3, child: trailing!),
       ]),

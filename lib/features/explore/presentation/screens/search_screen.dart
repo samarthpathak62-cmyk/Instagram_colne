@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:instagram_clone/core/di/injection_container.dart';
 import 'package:instagram_clone/features/auth/domain/entities/user.dart';
+import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:instagram_clone/features/common_widgets/error_widget.dart';
 import 'package:instagram_clone/features/common_widgets/user_avatar.dart';
 import 'package:instagram_clone/features/explore/domain/repositories/explore_repository.dart';
@@ -14,8 +15,10 @@ import 'package:instagram_clone/features/profile/presentation/screens/profile_sc
 
 class SearchScreen extends StatefulWidget {
   final bool startWithPeople;
+  final String initialQuery;
 
-  const SearchScreen({super.key, this.startWithPeople = false});
+  const SearchScreen(
+      {super.key, this.startWithPeople = false, this.initialQuery = ''});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -23,7 +26,7 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   static const _limit = 24;
-  final _input = TextEditingController();
+  late final _input = TextEditingController(text: widget.initialQuery);
   Timer? _debounce;
   int _request = 0;
   int _offset = 0;
@@ -69,16 +72,16 @@ class _SearchScreenState extends State<SearchScreen> {
     });
     if (_people) {
       final name = query.replaceFirst(RegExp(r'^@'), '');
-      if (name.isEmpty) {
-        setState(() => _busy = false);
-        return;
-      }
+      final auth = context.read<AuthBloc>().state;
+      final viewer = auth is Authenticated ? auth.user.id : null;
       final result = await repository.searchUsers(name);
       if (!mounted || id != _request) return;
       setState(() {
         _busy = false;
         result.fold(
-            (failure) => _error = failure.message, (users) => _users = users);
+            (failure) => _error = failure.message,
+            (users) =>
+                _users = users.where((user) => user.id != viewer).toList());
       });
     } else {
       final result = await repository.getExplorePosts(
@@ -166,16 +169,33 @@ class _SearchScreenState extends State<SearchScreen> {
       if (_users.isEmpty)
         return Center(
             child: Text(_input.text.trim().isEmpty
-                ? 'Search for a username.'
+                ? 'No other people to show yet.'
                 : 'No people found.'));
+      final browse = _input.text.trim().isEmpty;
       return ListView.builder(
-          itemCount: _users.length,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          itemCount: _users.length + (browse ? 1 : 0),
           itemBuilder: (context, index) {
-            final user = _users[index];
+            if (browse && index == 0) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
+                child: Text('Discover people',
+                    style: Theme.of(context).textTheme.titleMedium),
+              );
+            }
+            final user = _users[index - (browse ? 1 : 0)];
             return ListTile(
               key: ValueKey(user.id),
-              leading: UserAvatar(imageUrl: user.profilePictureUrl),
-              title: Text('@${user.username ?? 'veyro_user'}'),
+              leading: UserAvatar(
+                  imageUrl: user.profilePictureUrl,
+                  name: user.name ?? user.username),
+              title: Text(user.name?.isNotEmpty == true
+                  ? user.name!
+                  : '@${user.username ?? 'veyro_user'}'),
+              subtitle: user.name?.isNotEmpty == true
+                  ? Text('@${user.username ?? 'veyro_user'}')
+                  : null,
+              trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
                   builder: (_) => ProfileScreen.withProviders(user.id))),
             );

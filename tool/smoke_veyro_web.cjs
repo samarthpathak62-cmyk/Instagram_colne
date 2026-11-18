@@ -41,6 +41,7 @@ async function mockSignedIn(page) {
   const nextId = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
   const mediaUrl = new URL('veyro-browser-test-reel.webm', url).href;
   const writes = [];
+  const topicSearches = [];
   const posts = [
     { id: firstPost, author_id: otherId, type: 'text', description: firstText, media_urls: [], created_at: timestamp },
     ...(reelFile ? [{ id: nextId(11), author_id: otherId, type: 'video', description: 'An example reel from our community.', media_urls: [mediaUrl], created_at: timestamp }] : []),
@@ -59,9 +60,10 @@ async function mockSignedIn(page) {
     actor: people[1], message: 'followed you.', is_read: false, created_at: timestamp,
   }];
   const publicPhoto = fs.readFileSync('web/icons/Icon-192.png');
-  function postProjection(post) {
+  function postProjection(post, withOriginal = true) {
+    const original = posts.find((entry) => entry.id === post.shared_post_id);
     return {
-      ...post, caption: null, author: people.find((person) => person.id === post.author_id),
+      ...post, caption: null, source: withOriginal && original ? postProjection(original, false) : null, author: people.find((person) => person.id === post.author_id),
       likes: [{ count: Number(liked.has(post.id)) }],
       comments: [{ count: comments.filter((comment) => comment.post_id === post.id).length }],
       liked_by_user: liked.has(post.id) ? [{ user_id: viewerId }] : [],
@@ -109,11 +111,15 @@ async function mockSignedIn(page) {
           break;
         case 'posts':
         case 'veyro_following_feed':
+          if (contains('description')) topicSearches.push(contains('description'));
           rows = posts.filter((post) =>
             (resource !== 'veyro_following_feed' || follows.has(post.author_id) || post.author_id === viewerId) &&
             (!eq('id') || post.id === eq('id')) && (!eq('author_id') || post.author_id === eq('author_id')) &&
-            (!eq('type') || post.type === eq('type')) && (!contains('description') || post.description?.toLowerCase().includes(contains('description'))),
-          ).map(postProjection);
+            (!eq('type') || post.type === eq('type')) &&
+            (!eq('share_kind') || post.share_kind === eq('share_kind')) &&
+            (!eq('shared_post_id') || post.shared_post_id === eq('shared_post_id')) &&
+            (!contains('description') || post.description?.toLowerCase().includes(contains('description'))),
+          ).map((post) => postProjection(post));
           break;
         case 'comments':
           rows = comments.filter((item) => item.post_id === eq('post_id'));
@@ -195,7 +201,7 @@ async function mockSignedIn(page) {
   await page.addInitScript(({ origin, key, value }) => {
     if (location.origin === origin) localStorage.setItem(key, value);
   }, { origin: url.origin, key: `sb-${backend.hostname.split('.')[0]}-auth-token`, value: JSON.stringify(session) });
-  return { posts, saved, liked, comments, follows, messages, notifications, writes };
+  return { posts, saved, liked, comments, follows, messages, notifications, writes, topicSearches };
 }
 
 async function openApp(page, address = url.href) {
@@ -382,6 +388,65 @@ async function testSocial(page, state, name) {
   await waitFor('Back');
   await waitFor('Unlike post');
   assert.ok(state.saved.has(firstPost));
+}
+
+async function testSharingAndDiscovery(page, state, name) {
+  const { press, enter, waitFor, changed } = controls(page);
+  // The earlier deep-link check leaves the original open. This avoids relying
+  // on the order of feed items after the fixture writes.
+  await press('Repost options');
+  await changed('Repost now', 'posts', 'POST');
+  assert.equal(state.posts[0].shared_post_id, firstPost);
+  assert.equal(state.posts[0].share_kind, 'repost');
+  const repostId = state.posts[0].id;
+  await press('Repost options');
+  await changed('Undo repost', 'posts', 'DELETE');
+  assert.ok(!state.posts.some((post) => post.id === repostId));
+  await press('Repost options');
+  await press('Quote post');
+  await enter('I have another take. #veyro', /Your take/);
+  await changed('Publish quote', 'posts', 'POST');
+  assert.equal(state.posts[0].share_kind, 'quote');
+  assert.equal(state.posts[0].description, 'I have another take. #veyro');
+  assert.equal(state.posts[0].shared_post_id, firstPost);
+  await waitFor('Repost options');
+  await press('Back');
+  await waitFor('Refresh feed');
+  await waitFor('#veyro');
+  await capture(page, `${name}-quote-in-feed`);
+  await press('#veyro');
+  await waitFor('Refresh search');
+  await waitFor(/Open text post/);
+  assert.ok(state.topicSearches.includes('#veyro'), 'The topic opens filtered Explore results');
+  await press('Back');
+  await waitFor('Refresh feed');
+  await press(/\bExplore\b/);
+  await press('People');
+  await waitFor(/@veyro_friend/);
+  await press(/@veyro_friend/);
+  await waitFor('Message');
+  await press('Back');
+  await waitFor('Refresh search');
+  await press(/\bHome\b/);
+  await waitFor('Refresh feed');
+
+  if (name === 'mobile') {
+    await press('Photo');
+    await waitFor('Add photos');
+    const [chooser] = await Promise.all([
+      page.waitForEvent('filechooser', { timeout }),
+      press('Add photos', true),
+    ]);
+    await chooser.setFiles('web/icons/Icon-192.png');
+    await changed('Publish', 'posts', 'POST');
+    const photo = state.posts[0];
+    assert.equal(photo.type, 'image');
+    assert.equal(photo.media_urls.length, 1);
+    assert.match(photo.media_urls[0], /post-media\/00000000-0000-4000-8000-000000000001\//);
+    assert.ok(state.writes.some((write) => write.resource === 'media'));
+    await waitFor('Refresh feed');
+    await capture(page, 'mobile-photo-in-feed');
+  }
 }
 
 async function testViewport(browser, name, viewport) {

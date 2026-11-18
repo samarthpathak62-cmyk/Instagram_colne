@@ -9,7 +9,7 @@ const originalAuthor = '00000000-0000-4000-8000-000000000001';
 const followedPost = '00000000-0000-4000-8000-000000000010';
 const ownPost = '00000000-0000-4000-8000-000000000011';
 const legacySelect = 'id,author_id,type,media_urls,description,caption,created_at,' +
-  'author:users!posts_author_id_fkey(id,username,full_name,profile_picture_url),' +
+  'author:users!posts_author_id_fkey(id,username,profile_picture_url),' +
   'likes(count),comments(count),liked_by_user:likes(user_id),saved_by_user:saved_posts(id)';
 const preview = 'id,author_id,type,media_urls,description,caption,created_at,share_kind,' +
   'author:users!posts_author_id_fkey(id,username,full_name,profile_picture_url)';

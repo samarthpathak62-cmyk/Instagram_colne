@@ -33,12 +33,13 @@ class ExploreRemoteDataSourceImpl implements ExploreRemoteDataSource {
 
   @override
   Future<List<app_user.User>> searchUsers(String query) async {
-    final response = await supabaseClient
+    final response = supabaseClient
         .from(SupabaseConstants.usersTable)
-        .select(SupabaseConstants.publicUserColumns)
-        .ilike('username', _pattern(query))
-        .order('username')
-        .limit(20);
-    return response.map(UserModel.fromJson).toList();
+        .select(SupabaseConstants.publicUserColumns);
+    final filtered = query.isEmpty
+        ? response.order('created_at', ascending: false, nullsFirst: false)
+        : response.ilike('username', _pattern(query)).order('username');
+    final users = await filtered.limit(20);
+    return users.map(UserModel.fromJson).toList();
   }
 }

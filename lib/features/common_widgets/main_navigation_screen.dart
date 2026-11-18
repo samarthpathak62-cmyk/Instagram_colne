@@ -8,6 +8,7 @@ import 'package:instagram_clone/features/chat/presentation/bloc/chat_bloc.dart';
 import 'package:instagram_clone/features/chat/presentation/screens/chats_list_screen.dart';
 import 'package:instagram_clone/features/common_widgets/app_bar.dart';
 import 'package:instagram_clone/features/common_widgets/veyro_brand.dart';
+import 'package:instagram_clone/features/explore/presentation/screens/search_screen.dart';
 import 'package:instagram_clone/features/feed/presentation/screens/feed_screen.dart';
 import 'package:instagram_clone/features/post/presentation/screens/create_post_screen.dart';
 import 'package:instagram_clone/features/post/presentation/screens/video_explore_tab.dart';
@@ -21,11 +22,17 @@ class MainNavigationScreen extends StatefulWidget {
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
+  static const _home = 0, _explore = 1, _create = 2, _reels = 3;
   static const _destinations = [
     NavigationDestination(
       icon: Icon(Icons.home_outlined),
       selectedIcon: Icon(Icons.home_rounded),
       label: 'Home',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.explore_outlined),
+      selectedIcon: Icon(Icons.explore_rounded),
+      label: 'Explore',
     ),
     NavigationDestination(
       icon: Icon(Icons.add_box_outlined),
@@ -43,23 +50,30 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       label: 'Profile',
     ),
   ];
-  int _selected = 0;
+  int _selected = _home;
+  bool _exploreVisited = false;
   int _profileRevision = 0;
-  bool _reelMode = false;
+  FeedComposeMode _composeMode = FeedComposeMode.post;
 
-  void _compose({bool reel = false}) {
-    if (_reelMode != reel) setState(() => _reelMode = reel);
-    _select(1);
+  void _compose([FeedComposeMode mode = FeedComposeMode.post]) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      _composeMode = mode;
+      _selected = _create;
+    });
   }
 
   void _select(int index) {
     if (_selected == index) return;
     FocusManager.instance.primaryFocus?.unfocus();
-    setState(() => _selected = index);
+    setState(() {
+      _selected = index;
+      if (index == _explore) _exploreVisited = true;
+    });
   }
 
   void _destinationSelected(int index) =>
-      index == 1 ? _compose() : _select(index);
+      index == _create ? _compose() : _select(index);
 
   void _openMessages(User user) => Navigator.of(context).push(
         MaterialPageRoute<void>(
@@ -88,29 +102,33 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             onMessagesTap: () => _openMessages(auth.user),
           ),
           body: TickerMode(
-              enabled: _selected == 0, child: FeedScreen(onCompose: _compose)),
+              enabled: _selected == _home,
+              child: FeedScreen(onCompose: _compose)),
         ),
+        _exploreVisited ? const SearchScreen() : const SizedBox.shrink(),
         IndexedStack(
-          index: _reelMode ? 1 : 0,
+          index: _composeMode.index,
           sizing: StackFit.expand,
           children: [
-            for (final reel in [false, true])
+            for (final mode in FeedComposeMode.values)
               ExcludeFocus(
-                excluding: _selected != 1 || _reelMode != reel,
+                excluding: _selected != _create || _composeMode != mode,
                 child: CreatePostScreen(
-                  reelMode: reel,
+                  photoMode: mode == FeedComposeMode.photo,
+                  reelMode: mode == FeedComposeMode.reel,
                   onCreated: (_) {
                     setState(() => _profileRevision++);
-                    if (_selected == 1 && _reelMode == reel)
-                      _select(reel ? 2 : 0);
+                    if (_selected == _create && _composeMode == mode)
+                      _select(mode == FeedComposeMode.reel ? _reels : _home);
                   },
-                  onClose: () => _select(reel ? 2 : 0),
+                  onClose: () =>
+                      _select(mode == FeedComposeMode.reel ? _reels : _home),
                 ),
               ),
           ],
         ),
-        _selected == 2
-            ? VideoExploreTab(onCreate: () => _compose(reel: true))
+        _selected == _reels
+            ? VideoExploreTab(onCreate: () => _compose(FeedComposeMode.reel))
             : const SizedBox.shrink(),
         KeyedSubtree(
             key: ValueKey(_profileRevision),
@@ -130,7 +148,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             Expanded(
               child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 960),
+                  constraints: const BoxConstraints(maxWidth: 1160),
                   child: pages,
                 ),
               ),

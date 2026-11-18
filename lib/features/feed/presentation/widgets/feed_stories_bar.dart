@@ -29,10 +29,7 @@ class _FeedStoriesBarState extends State<FeedStoriesBar> {
       create: (_) =>
           di.sl<StoryBloc>()..add(LoadStories(currentUserId: userId)),
       child: BlocListener<FeedCubit, FeedState>(
-        listenWhen: (before, after) =>
-            after.items.isEmpty &&
-            after.loading &&
-            before.timeline == after.timeline,
+        listenWhen: (before, after) => after.refreshing && !before.refreshing,
         listener: (context, _) =>
             context.read<StoryBloc>().add(LoadStories(currentUserId: userId)),
         child: BlocConsumer<StoryBloc, StoryState>(
@@ -48,6 +45,7 @@ class _FeedStoriesBarState extends State<FeedStoriesBar> {
             return StoryCirclesWidget(
               stories: stories,
               ownAvatar: auth.user.profileImageUrl,
+              ownName: auth.user.name ?? auth.user.username,
               seenItems: _seenItems,
               onAddStoryTap: () async {
                 final created =
