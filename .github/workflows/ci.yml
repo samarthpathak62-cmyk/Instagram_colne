@@ -39,15 +39,22 @@ jobs:
         # Keep analyzer errors and warnings fatal while legacy info-level lints are addressed.
         run: |
           set -o pipefail
-          flutter analyze --no-pub --no-fatal-infos | tee "$RUNNER_TEMP/veyro-analyze.log" || {
-            grep -E '^[[:space:]]*(error|warning) -' "$RUNNER_TEMP/veyro-analyze.log" | while IFS= read -r line; do
+          flutter analyze --no-pub --no-fatal-infos 2>&1 | tee "$RUNNER_TEMP/veyro-analyze.log" || {
+            grep -E '^[[:space:]]*(error|warning) (•|-)' "$RUNNER_TEMP/veyro-analyze.log" | while IFS= read -r line; do
               printf '::error::%s\n' "$line"
             done
             exit 1
           }
 
       - name: Run Flutter tests
-        run: flutter test --no-pub
+        run: |
+          set -o pipefail
+          flutter test --no-pub --reporter expanded 2>&1 | tee "$RUNNER_TEMP/veyro-test.log" || {
+            tail -n 25 "$RUNNER_TEMP/veyro-test.log" | while IFS= read -r line; do
+              printf '::error::%s\n' "$line"
+            done
+            exit 1
+          }
 
   build-android-debug:
     name: Build Android debug APK
