@@ -19,7 +19,7 @@ const viewerId = '00000000-0000-4000-8000-000000000001';
 const otherId = '00000000-0000-4000-8000-000000000002';
 const reelFile = process.env.VEYRO_TEST_REEL;
 
-async function mockSignedIn(page) {
+async function mockSignedIn(page, theme) {
   const timestamp = new Date().toISOString();
   const b64 = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
   const exp = Math.floor(Date.now() / 1000) + 3600;
@@ -100,7 +100,7 @@ async function mockSignedIn(page) {
     if (method === 'GET') {
       switch (resource) {
         case 'settings':
-          rows = [{ id: viewerId, user_id: viewerId, theme_mode: 'dark', language: 'en', notifications_enabled: true, updated_at: timestamp }];
+          rows = [{ id: viewerId, user_id: viewerId, theme_mode: theme, language: 'en', notifications_enabled: true, updated_at: timestamp }];
           break;
         case 'users':
           rows = people.filter((person) => (!eq('id') || person.id === eq('id')) &&
@@ -269,7 +269,8 @@ function controls(page) {
     assert.ok(receipt.ok(), `${method} ${resource} succeeded`);
   }
   const waitFor = (name) => control(name).first().waitFor({ state: 'attached', timeout });
-  return { press, enter, waitFor, changed };
+  const waitGone = (name) => control(name).first().waitFor({ state: 'detached', timeout });
+  return { press, enter, waitFor, waitGone, changed };
 }
 
 async function testSocial(page, state, name) {
@@ -391,21 +392,24 @@ async function testSocial(page, state, name) {
 }
 
 async function testSharingAndDiscovery(page, state, name) {
-  const { press, enter, waitFor, changed } = controls(page);
+  const { press, enter, waitFor, waitGone, changed } = controls(page);
   // The earlier deep-link check leaves the original open. This avoids relying
   // on the order of feed items after the fixture writes.
   await press('Repost options');
   await changed('Repost now', 'posts', 'POST');
+  await waitGone('Close repost options');
   assert.equal(state.posts[0].shared_post_id, firstPost);
   assert.equal(state.posts[0].share_kind, 'repost');
   const repostId = state.posts[0].id;
   await press('Repost options');
   await changed('Undo repost', 'posts', 'DELETE');
+  await waitGone('Close repost options');
   assert.ok(!state.posts.some((post) => post.id === repostId));
   await press('Repost options');
   await press('Quote post');
   await enter('I have another take. #veyro', /Your take/);
   await changed('Publish quote', 'posts', 'POST');
+  await waitGone('Close repost options');
   assert.equal(state.posts[0].share_kind, 'quote');
   assert.equal(state.posts[0].description, 'I have another take. #veyro');
   assert.equal(state.posts[0].shared_post_id, firstPost);
@@ -457,7 +461,7 @@ async function testViewport(browser, name, viewport) {
       isMobile: name === 'mobile',
       hasTouch: name === 'mobile',
       locale: 'en-US',
-      colorScheme: 'dark',
+      colorScheme: name === 'mobile' ? 'light' : 'dark',
     });
     await browserContext.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: url.origin });
     const page = await browserContext.newPage();
@@ -469,12 +473,13 @@ async function testViewport(browser, name, viewport) {
       }
     });
     try {
-      const social = signedIn ? await mockSignedIn(page) : null;
+      const social = signedIn ? await mockSignedIn(page, name === 'mobile' ? 'light' : 'dark') : null;
       await openApp(page);
       const button = (label) => page.getByRole('button', { name: label, exact: true }).first();
       const waitFor = (label) => button(label).waitFor({ state: 'attached', timeout });
       if (social) {
         await testSocial(page, social, name);
+        await testSharingAndDiscovery(page, social, name);
       } else {
         await waitFor('Log in');
         await capture(page, `${name}-login`);
