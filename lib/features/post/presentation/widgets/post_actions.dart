@@ -44,7 +44,9 @@ class PostActions extends StatelessWidget {
                     ? Icons.favorite_border_rounded
                     : Icons.favorite_rounded,
                 size: 25)
-            : Text(reaction.emoji, style: const TextStyle(fontSize: 21)),
+            : ExcludeSemantics(
+                child:
+                    Text(reaction.emoji, style: const TextStyle(fontSize: 21))),
         color: reaction == PostReaction.like ? likedColor : colors.onSurface,
         onPressed: state.liking
             ? null
