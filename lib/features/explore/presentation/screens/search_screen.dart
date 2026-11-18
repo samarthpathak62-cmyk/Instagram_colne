@@ -1,167 +1,290 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:instagram_clone/core/di/injection_container.dart';
+import 'package:instagram_clone/core/theme/veyro_theme.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_brand.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_empty_state.dart';
 import 'package:instagram_clone/features/auth/domain/entities/user.dart';
-import 'package:instagram_clone/features/explore/presentation/bloc/explore_bloc.dart';
+import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:instagram_clone/features/common_widgets/error_widget.dart';
+import 'package:instagram_clone/features/common_widgets/user_avatar.dart';
+import 'package:instagram_clone/features/explore/domain/repositories/explore_repository.dart';
 import 'package:instagram_clone/features/post/domain/entities/post.dart';
-import 'package:instagram_clone/features/post/presentation/widgets/post_grid_item.dart'; // Assuming this widget exists
-import 'package:instagram_clone/features/profile/presentation/screens/profile_screen.dart'; // To navigate to user profiles
+import 'package:instagram_clone/features/post/presentation/bloc/post_interactions_cubit.dart';
+import 'package:instagram_clone/features/post/presentation/widgets/post_grid_item.dart';
+import 'package:instagram_clone/features/profile/presentation/screens/profile_screen.dart';
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  final bool startWithPeople;
+  final String initialQuery;
+  final VoidCallback? onGroups;
+
+  const SearchScreen(
+      {super.key,
+      this.startWithPeople = false,
+      this.initialQuery = '',
+      this.onGroups});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  final FocusNode _searchFocusNode = FocusNode();
+  static const _limit = 24;
+  late final _input = TextEditingController(text: widget.initialQuery);
+  Timer? _debounce;
+  int _request = 0;
+  int _offset = 0;
+  late bool _people = widget.startWithPeople;
+  bool _busy = true;
+  bool _more = false;
+  String? _error;
+  List<Post> _posts = const [];
+  List<User> _users = const [];
 
   @override
   void initState() {
     super.initState();
-    // Load initial explore posts
-    context.read<ExploreBloc>().add(const LoadExplorePostsEvent());
+    _load();
+  }
 
-    // Clear search when focus is lost and text is empty (optional)
-    _searchFocusNode.addListener(() {
-      if (!_searchFocusNode.hasFocus && _searchController.text.isEmpty) {
-        context.read<ExploreBloc>().add(ClearSearchEvent());
+  void _queue() {
+    _request++;
+    _debounce?.cancel();
+    setState(() {
+      _busy = true;
+      _error = null;
+      _posts = const [];
+      _users = const [];
+    });
+    _debounce = Timer(const Duration(milliseconds: 270), _load);
+  }
+
+  Future<void> _load({bool append = false}) async {
+    _debounce?.cancel();
+    final id = ++_request;
+    final repository = sl<ExploreRepository>();
+    final query = _input.text.trim();
+    setState(() {
+      _busy = true;
+      _error = null;
+      if (!append) {
+        _offset = 0;
+        _more = false;
+        _posts = const [];
+        _users = const [];
       }
     });
+    if (_people) {
+      final name = query.replaceFirst(RegExp(r'^@'), '');
+      final auth = context.read<AuthBloc>().state;
+      final viewer = auth is Authenticated ? auth.user.id : null;
+      final result = await repository.searchUsers(name);
+      if (!mounted || id != _request) return;
+      setState(() {
+        _busy = false;
+        result.fold(
+            (failure) => _error = failure.message,
+            (users) =>
+                _users = users.where((user) => user.id != viewer).toList());
+      });
+    } else {
+      final result = await repository.getExplorePosts(
+          limit: _limit, offset: _offset, query: query);
+      if (!mounted || id != _request) return;
+      setState(() {
+        _busy = false;
+        result.fold((failure) => _error = failure.message, (posts) {
+          final seen = _posts.map((post) => post.id).toSet();
+          _posts = [..._posts, ...posts.where((post) => seen.add(post.id))];
+          _offset += posts.length;
+          _more = posts.length == _limit;
+        });
+      });
+    }
+  }
+
+  void _toggle(bool people) {
+    if (_people == people) return;
+    setState(() => _people = people);
+    _load();
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
-    _searchFocusNode.dispose();
+    _debounce?.cancel();
+    _input.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: _buildSearchField(),
-        // Potentially add other actions if needed
-      ),
-      body: BlocBuilder<ExploreBloc, ExploreState>(
-        builder: (context, state) {
-          if (state is ExploreLoading || (state is ExploreInitial && _searchController.text.isEmpty)) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (state is ExplorePostsLoaded && _searchController.text.isEmpty) {
-            return _buildExploreGrid(state.posts);
-          } else if (state is ExploreSearchLoading && _searchController.text.isNotEmpty) {
-            // Show loading indicator while searching
-            return const Center(child: CircularProgressIndicator());
-          } else if (state is ExploreSearchResultsLoaded && _searchController.text.isNotEmpty) {
-            return _buildUserSearchList(state.users);
-          } else if (state is ExploreError) {
-            return Center(child: Text('Error: ${state.message}'));
-          } else if (_searchController.text.isNotEmpty && state is! ExploreSearchResultsLoaded) {
-             // If searching but results not loaded yet (e.g., initial search state)
-             return const Center(child: CircularProgressIndicator());
-          } else if (_searchController.text.isEmpty && state is! ExplorePostsLoaded) {
-             // If not searching but posts not loaded (e.g., after clearing search)
-             context.read<ExploreBloc>().add(const LoadExplorePostsEvent()); // Trigger reload
-             return const Center(child: CircularProgressIndicator());
-          }
-          // Default fallback
-          return const Center(child: Text('Explore content or search for users.'));
-        },
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Explore'), actions: [
+          if (widget.onGroups != null)
+            IconButton(
+                tooltip: 'Browse groups',
+                onPressed: widget.onGroups,
+                icon: const Icon(Icons.groups_outlined)),
+          IconButton(
+              tooltip: 'Refresh search',
+              onPressed: _busy ? null : _load,
+              icon: const Icon(Icons.refresh_rounded))
+        ]),
+        body: Center(
+            child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 896),
+                child: Column(children: [
+                  if (MediaQuery.sizeOf(context).width >= 800)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 15, 16, 2),
+                      child: Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const VeyroEyebrow('Discovery'),
+                                Text('Find something new',
+                                    style: context.veyroText.headlineMedium),
+                              ])),
+                    ),
+                  Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+                      child: TextField(
+                        controller: _input,
+                        maxLength: 80,
+                        textInputAction: TextInputAction.search,
+                        onChanged: (_) => _queue(),
+                        onSubmitted: (_) => _load(),
+                        decoration: InputDecoration(
+                            labelText:
+                                _people ? 'Search by username' : 'Search posts',
+                            counterText: '',
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24)),
+                            enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: BorderSide(
+                                    color: context.veyroColors.outlineVariant)),
+                            focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: BorderSide(
+                                    color: context.veyroColors.primary)),
+                            prefixIcon: const Icon(Icons.search_rounded),
+                            suffixIcon: IconButton(
+                                tooltip: 'Clear search',
+                                icon: const Icon(Icons.close_rounded),
+                                onPressed: () {
+                                  _input.clear();
+                                  _load();
+                                })),
+                      )),
+                  Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Wrap(spacing: 8, children: [
+                            ChoiceChip(
+                                label: const Text('Posts'),
+                                showCheckmark: false,
+                                selected: !_people,
+                                onSelected: (_) => _toggle(false)),
+                            ChoiceChip(
+                                label: const Text('People'),
+                                showCheckmark: false,
+                                selected: _people,
+                                onSelected: (_) => _toggle(true)),
+                          ]))),
+                  const SizedBox(height: 8),
+                  Expanded(child: _results(context)),
+                ]))),
+      );
 
-  Widget _buildSearchField() {
-    return TextField(
-      controller: _searchController,
-      focusNode: _searchFocusNode,
-      decoration: InputDecoration(
-        hintText: 'Search users...',
-        prefixIcon: const Icon(Icons.search),
-        border: InputBorder.none,
-        filled: true,
-        fillColor: Colors.grey[200], // Adjust color as needed
-        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
-        suffixIcon: _searchController.text.isNotEmpty
-            ? IconButton(
-                icon: const Icon(Icons.clear),
-                onPressed: () {
-                  _searchController.clear();
-                  context.read<ExploreBloc>().add(ClearSearchEvent());
-                  _searchFocusNode.unfocus(); // Unfocus after clearing
-                },
-              )
-            : null,
-      ),
-      onChanged: (query) {
-        context.read<ExploreBloc>().add(SearchQueryChangedEvent(query: query));
-      },
-      onTap: () {
-        // Ensure the state reflects search mode if tapped
-        if (_searchController.text.isNotEmpty) {
-           context.read<ExploreBloc>().add(SearchQueryChangedEvent(query: _searchController.text));
-        }
-      },
-    );
-  }
-
-  Widget _buildExploreGrid(List<Post> posts) {
-    if (posts.isEmpty) {
-      return const Center(child: Text('No posts to explore yet.'));
-    }
-    // Use a GridView to display posts
-    return RefreshIndicator(
-      onRefresh: () async {
-         context.read<ExploreBloc>().add(const LoadExplorePostsEvent(isRefresh: true));
-      },
-      child: GridView.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3, // Standard Instagram grid
-          crossAxisSpacing: 2,
-          mainAxisSpacing: 2,
-        ),
-        itemCount: posts.length,
-        itemBuilder: (context, index) {
-          final post = posts[index];
-          // Use a dedicated widget for the grid item
-          return PostGridItem(post: post);
-        },
-      ),
-    );
-  }
-
-  Widget _buildUserSearchList(List<User> users) {
-    if (users.isEmpty) {
-      return const Center(child: Text('No users found.'));
-    }
-    return ListView.builder(
-      itemCount: users.length,
-      itemBuilder: (context, index) {
-        final user = users[index];
-        return ListTile(
-          leading: CircleAvatar(
-            backgroundImage: user.profileImageUrl != null && user.profileImageUrl!.isNotEmpty
-                ? NetworkImage(user.profileImageUrl!)
-                : null,
-            child: user.profileImageUrl == null || user.profileImageUrl!.isEmpty
-                ? const Icon(Icons.person)
-                : null,
-          ),
-          title: Text(user.username ?? 'Unknown User'),
-          // subtitle: Text(user.fullName ?? ''), // Add if available
-          onTap: () {
-            // Navigate to the user's profile screen
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ProfileScreen(userId: user.id), // Pass user ID
-              ),
+  Widget _results(BuildContext context) {
+    if (_error != null && _posts.isEmpty)
+      return CustomErrorWidget(message: _error!, onRetry: _load);
+    if (_busy && _posts.isEmpty)
+      return const Center(child: CircularProgressIndicator());
+    if (_people) {
+      if (_users.isEmpty)
+        return VeyroEmptyState(
+            icon: Icons.person_search_outlined,
+            title: 'No people found',
+            description: _input.text.trim().isEmpty
+                ? 'New people will appear here as Veyro grows.'
+                : 'Try a different username.');
+      final browse = _input.text.trim().isEmpty;
+      return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          itemCount: _users.length + (browse ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (browse && index == 0) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
+                child: Text('Discover people',
+                    style: Theme.of(context).textTheme.titleMedium),
+              );
+            }
+            final user = _users[index - (browse ? 1 : 0)];
+            return ListTile(
+              key: ValueKey(user.id),
+              leading: UserAvatar(
+                  imageUrl: user.profilePictureUrl,
+                  name: user.name ?? user.username),
+              title: Text(user.name?.isNotEmpty == true
+                  ? user.name!
+                  : '@${user.username ?? 'veyro_user'}'),
+              subtitle: user.name?.isNotEmpty == true
+                  ? Text('@${user.username ?? 'veyro_user'}')
+                  : null,
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => ProfileScreen.withProviders(user.id))),
             );
-          },
-        );
-      },
-    );
+          });
+    }
+    final local = context.watch<PostInteractionsCubit>().state;
+    final posts =
+        _posts.where((post) => local[post.id]?.deleted != true).toList();
+    if (posts.isEmpty && !_more)
+      return const VeyroEmptyState(
+          icon: Icons.grid_view_rounded,
+          title: 'No posts found',
+          description:
+              'New photos and posts will show up here, or try another search.');
+    return RefreshIndicator(
+        onRefresh: _load,
+        child: LayoutBuilder(
+            builder: (context, constraints) => CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                        sliver: SliverGrid.builder(
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount:
+                                      constraints.maxWidth >= 660 ? 4 : 3,
+                                  mainAxisSpacing: 5,
+                                  crossAxisSpacing: 5),
+                          itemCount: posts.length,
+                          itemBuilder: (context, index) => PostGridItem(
+                              key: ValueKey(posts[index].id),
+                              post: posts[index]),
+                        )),
+                    if (_busy)
+                      const SliverToBoxAdapter(child: LinearProgressIndicator())
+                    else if (_more)
+                      SliverToBoxAdapter(
+                          child: Center(
+                              child: TextButton(
+                        onPressed: () => _load(append: true),
+                        child: Text(_error == null
+                            ? 'Load more'
+                            : 'Retry loading more posts'),
+                      ))),
+                  ],
+                )));
   }
 }

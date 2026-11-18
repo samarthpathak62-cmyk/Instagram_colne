@@ -1,31 +1,42 @@
-// lib/core/constants/supabase_constants.dart
+import 'package:flutter/foundation.dart';
 
 class SupabaseConstants {
-  // Supabase Project URL
-  // IMPORTANT: Replace with your actual Supabase Project URL
-  static const String supabaseUrl = 'https://klhczdgjewbmwkktmgzp.supabase.co'; 
- 
+  // Both Android and Flutter Web use Veyro. This key is public by design;
+  // Supabase RLS enforces access to rows and media. Never use a service key here.
+  static const supabaseUrl = 'https://klhczdgjewbmwkktmgzp.supabase.co';
+  static const supabasePublishableKey =
+      'sb_publishable_7fxczFSZleFSe85SiDJuSA_YZTs-IcO';
 
-  // Supabase Anon Key
-  // IMPORTANT: Replace with your actual Supabase Anon Key
-  static const String supabaseAnonKey = 'sb_publishable_7fxczFSZleFSe85SiDJuSA_YZTs-IcO'; 
-  // Example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiY2RlZmdoaWprIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NzgwMDc2NzcsImV4cCI6MTk5MzU4MzY3N30.YOUR_ANON_KEY_HERE'
+  static const websiteUrl =
+      'https://samarthpathak62-cmyk.github.io/Instagram_colne/';
+  static const mobileAuthCallback = 'com.instagramcolne.veyro://auth-callback/';
 
-  // Supabase Table Names (examples - adjust based on your database schema )
-  static const String usersTable = 'users';
-  static const String postsTable = 'posts';
-  static const String commentsTable = 'comments';
-  static const String likesTable = 'likes';
-  static const String followersTable = 'followers';
-  static const String notificationsTable = 'notifications';
-  static const String chatsTable = 'chats';
-  static const String messagesTable = 'messages';
-  static const String storiesTable = 'stories';
-  static const String savedPostsTable = 'saved_posts';
+  static String get emailRedirectUrl {
+    if (kIsWeb) {
+      // Keep the site path (e.g. /Instagram_colne/) for the PKCE callback, but
+      // never forward query parameters or a previous auth fragment.
+      final page = Uri.base;
+      return Uri(
+              scheme: page.scheme,
+              host: page.host,
+              port: page.hasPort ? page.port : null,
+              path: page.path)
+          .toString();
+    }
+    if (defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS) {
+      return mobileAuthCallback;
+    }
+    return websiteUrl;
+  }
 
-  // Supabase Storage Buckets (examples - adjust based on your storage setup)
-  static const String profilePicturesBucket = 'profile_pictures';
-  static const String postImagesBucket = 'post_images';
-  static const String postVideosBucket = 'post_videos';
-  static const String storyMediaBucket = 'story_media';
+  static const usersTable = 'users';
+  static const postsTable = 'posts';
+  static const followersTable = 'followers';
+  static const savedPostsTable = 'saved_posts';
+  static const publicUserColumns = 'id,username,full_name,profile_picture_url';
+
+  static const profileImagesBucket = 'profile-images';
+  static const postMediaBucket = 'post-media';
+  static const storyMediaBucket = 'story-media';
 }

@@ -21,40 +21,4 @@ class FavoriteRepositoryImpl implements FavoriteRepository {
       return Left(ServerFailure(message: e.toString()));
     }
   }
-
-  @override
-  Future<Either<Failure, bool>> isPostSaved(String userId, String postId) async {
-    try {
-      final isSaved = await remoteDataSource.isPostSaved(userId, postId);
-      return Right(isSaved);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(message: e.message));
-    } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
-    }
-  }
-
-  @override
-  Future<Either<Failure, Favorite>> savePost(String userId, String postId) async {
-    try {
-      final favorite = await remoteDataSource.savePost(userId, postId);
-      return Right(favorite);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(message: e.message));
-    } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
-    }
-  }
-
-  @override
-  Future<Either<Failure, void>> unsavePost(String favoriteId) async {
-    try {
-      await remoteDataSource.unsavePost(favoriteId);
-      return const Right(null);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(message: e.message));
-    } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
-    }
-  }
 }

@@ -19,6 +19,18 @@ class Message extends Equatable {
     required this.isRead,
   });
 
+  Message asRead() => isRead
+      ? this
+      : Message(
+          id: id,
+          chatId: chatId,
+          senderId: senderId,
+          receiverId: receiverId,
+          content: content,
+          timestamp: timestamp,
+          isRead: true);
+
   @override
-  List<Object?> get props => [id, chatId, senderId, receiverId, content, timestamp, isRead];
+  List<Object?> get props =>
+      [id, chatId, senderId, receiverId, content, timestamp, isRead];
 }

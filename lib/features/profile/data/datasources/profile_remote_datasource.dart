@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:instagram_clone/features/profile/data/models/profile_model.dart'; // To be created
 
 abstract class ProfileRemoteDataSource {
@@ -8,8 +8,6 @@ abstract class ProfileRemoteDataSource {
     String? username,
     String? fullName,
     String? bio,
-    File? profileImage,
+    XFile? profileImage,
   });
-  Future<String?> uploadProfileImage(File image, String userId);
 }
-

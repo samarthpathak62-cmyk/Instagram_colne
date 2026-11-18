@@ -1,8 +1,8 @@
 import 'dart:async';
+
+import 'package:instagram_clone/core/constants/supabase_constants.dart';
 import 'package:instagram_clone/core/error/exceptions.dart';
-import 'package:instagram_clone/features/auth/data/datasources/auth_remote_datasource.dart';
-import 'package:instagram_clone/features/auth/domain/entities/user.dart'
-    as app_user;
+import 'package:instagram_clone/features/auth/data/models/user_model.dart';
 import 'package:instagram_clone/features/chat/data/datasources/chat_remote_datasource.dart';
 import 'package:instagram_clone/features/chat/data/models/chat_model.dart';
 import 'package:instagram_clone/features/chat/data/models/message_model.dart';
@@ -12,152 +12,130 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   final SupabaseClient supabaseClient;
-  final AuthRemoteDataSource authRemoteDataSource;
 
-  ChatRemoteDataSourceImpl({
-    required this.supabaseClient,
-    required this.authRemoteDataSource,
-  });
+  ChatRemoteDataSourceImpl({required this.supabaseClient});
+
+  static const _chatColumns =
+      'id,user1_id,user2_id,last_message_time,has_unread_messages,'
+      'first_user:users!chats_user1_id_fkey(${SupabaseConstants.publicUserColumns}),'
+      'second_user:users!chats_user2_id_fkey(${SupabaseConstants.publicUserColumns})';
+
+  ChatModel _readChat(Map<String, dynamic> row, String? viewerId) {
+    final other =
+        row[row['user1_id'] == viewerId ? 'second_user' : 'first_user']
+            as Map<String, dynamic>?;
+    return ChatModel.fromJson(row,
+        otherUser: other == null ? null : UserModel.fromJson(other));
+  }
 
   @override
   Future<Chat> getChatById(String chatId) async {
     try {
-      final response =
-          await supabaseClient.from('chats').select().eq('id', chatId).single();
-
-      return ChatModel.fromJson(response);
-    } on PostgrestException catch (e) {
-      throw ServerException(message: 'Failed to get chat: $e');
-    } catch (e) {
-      throw ServerException(message: 'Failed to get chat: $e');
+      final row = await supabaseClient
+          .from('chats')
+          .select(_chatColumns)
+          .eq('id', chatId)
+          .single();
+      return _readChat(row, supabaseClient.auth.currentUser?.id);
+    } on PostgrestException catch (error) {
+      throw ServerException(message: 'Could not load chat: ${error.message}');
     }
   }
 
   @override
   Future<List<Chat>> getChats(String userId) async {
     try {
-      final response = await supabaseClient
+      final rows = await supabaseClient
           .from('chats')
-          .select()
+          .select(
+              '$_chatColumns,unread:messages(id),last_message:messages(content)')
           .or('user1_id.eq.$userId,user2_id.eq.$userId')
+          .eq('unread.receiver_id', userId)
+          .eq('unread.is_read', false)
+          .limit(1, referencedTable: 'unread')
+          .order('timestamp', ascending: false, referencedTable: 'last_message')
+          .order('id', ascending: false, referencedTable: 'last_message')
+          .limit(1, referencedTable: 'last_message')
           .order('last_message_time', ascending: false);
-
-      final List<Chat> chats = [];
-
-      for (final chatJson in response) {
-        // Determine the other user's ID
-        // final otherUserId = chatJson['user1_id'] == userId
-        //     ? chatJson['user2_id']
-        //     : chatJson['user1_id'];
-
-        // Get the other user's profile
-        app_user.User? otherUser;
-        try {
-          otherUser = await authRemoteDataSource.getCurrentUser();
-        } catch (e) {
-          // If we can't get the other user, we'll just use null
-          print('Failed to get other user: $e');
-        }
-
-        chats.add(ChatModel.fromJson(chatJson, otherUser: otherUser));
-      }
-
-      return chats;
-    } on PostgrestException catch (e) {
-      throw ServerException(message: 'Failed to get chats: $e');
-    } catch (e) {
-      throw ServerException(message: 'Failed to get chats: $e');
+      return rows.map((row) {
+        row['has_unread_messages'] =
+            (row['unread'] as List?)?.isNotEmpty ?? false;
+        return _readChat(row, userId);
+      }).toList();
+    } on PostgrestException catch (error) {
+      throw ServerException(message: 'Could not load chats: ${error.message}');
     }
   }
 
   @override
   Future<Chat> getOrCreateChat(String currentUserId, String otherUserId) async {
+    if (currentUserId == otherUserId) {
+      throw ServerException(message: 'Choose another person to start a chat.');
+    }
     try {
-      // Check if a chat already exists between these users
-      final existingChats = await supabaseClient.from('chats').select().or(
-          'and(user1_id.eq.$currentUserId,user2_id.eq.$otherUserId),and(user1_id.eq.$otherUserId,user2_id.eq.$currentUserId)');
+      // Look for a pre-existing chat in either order. Store new pairs in the
+      // same order on all platforms so the unique key handles simultaneous starts.
+      final ids = [currentUserId, otherUserId]..sort();
+      Future<Map<String, dynamic>?> existingChat() async => supabaseClient
+          .from('chats')
+          .select(_chatColumns)
+          .or('and(user1_id.eq.${ids[0]},user2_id.eq.${ids[1]}),and(user1_id.eq.${ids[1]},user2_id.eq.${ids[0]})')
+          .order('last_message_time', ascending: false)
+          .limit(1)
+          .maybeSingle();
 
-      if (existingChats.isNotEmpty) {
-        // Chat already exists, get the other user and return the chat
-        app_user.User? otherUser;
-        try {
-          otherUser = await authRemoteDataSource.getCurrentUser();
-        } catch (e) {
-          print('Failed to get other user: $e');
-        }
-
-        return ChatModel.fromJson(existingChats[0], otherUser: otherUser);
-      }
-
-      // No chat exists, create a new one
-      final newChat = {
-        'user1_id': currentUserId,
-        'user2_id': otherUserId,
-        'last_message_time': DateTime.now().toIso8601String(),
-        'has_unread_messages': false,
-      };
-
-      final response =
-          await supabaseClient.from('chats').insert(newChat).select().single();
-
-      // Get the other user
-      app_user.User? otherUser;
+      final existing = await existingChat();
+      if (existing != null) return _readChat(existing, currentUserId);
       try {
-        otherUser = await authRemoteDataSource.getCurrentUser();
-      } catch (e) {
-        print('Failed to get other user: $e');
+        final row = await supabaseClient
+            .from('chats')
+            .insert({
+              'user1_id': ids[0],
+              'user2_id': ids[1],
+            })
+            .select(_chatColumns)
+            .single();
+        return _readChat(row, currentUserId);
+      } on PostgrestException catch (error) {
+        if (error.code != '23505') rethrow;
+        final row = await existingChat();
+        if (row == null) rethrow;
+        return _readChat(row, currentUserId);
       }
-
-      return ChatModel.fromJson(response, otherUser: otherUser);
-    } on PostgrestException catch (e) {
-      throw ServerException(message: 'Failed to get or create chat: $e');
-    } catch (e) {
-      throw ServerException(message: 'Failed to get or create chat: $e');
+    } on PostgrestException catch (error) {
+      throw ServerException(message: 'Could not open chat: ${error.message}');
     }
   }
 
   @override
   Future<List<Message>> getMessages(String chatId) async {
     try {
-      final response = await supabaseClient
+      final rows = await supabaseClient
           .from('messages')
           .select()
           .eq('chat_id', chatId)
-          .order('timestamp', ascending: true);
-
-      return response
-          .map<MessageModel>((json) => MessageModel.fromJson(json))
-          .toList();
-    } on PostgrestException catch (e) {
-      throw ServerException(message: 'Failed to get messages: $e');
-    } catch (e) {
-      throw ServerException(message: 'Failed to get messages: $e');
+          .order('timestamp', ascending: false)
+          .order('id', ascending: false);
+      return rows.map(MessageModel.fromJson).toList();
+    } on PostgrestException catch (error) {
+      throw ServerException(
+          message: 'Could not load messages: ${error.message}');
     }
   }
 
   @override
   Future<bool> markMessagesAsRead(String chatId, String userId) async {
     try {
-      // Mark all messages where the user is the receiver as read
       await supabaseClient
           .from('messages')
           .update({'is_read': true})
           .eq('chat_id', chatId)
           .eq('receiver_id', userId)
           .eq('is_read', false);
-
-      // Update the chat's unread status
-      await supabaseClient
-          .from('chats')
-          .update({'has_unread_messages': false})
-          .or('user1_id.eq.$userId,user2_id.eq.$userId')
-          .eq('id', chatId);
-
       return true;
-    } on PostgrestException catch (e) {
-      throw ServerException(message: 'Failed to mark messages as read: $e');
-    } catch (e) {
-      throw ServerException(message: 'Failed to mark messages as read: $e');
+    } on PostgrestException catch (error) {
+      throw ServerException(
+          message: 'Could not mark messages read: ${error.message}');
     }
   }
 
@@ -165,100 +143,58 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   Future<Message> sendMessage(
       String chatId, String senderId, String receiverId, String content) async {
     try {
-      final newMessage = {
-        'chat_id': chatId,
-        'sender_id': senderId,
-        'receiver_id': receiverId,
-        'content': content,
-        'timestamp': DateTime.now().toIso8601String(),
-        'is_read': false,
-      };
-
-      final response = await supabaseClient
+      final row = await supabaseClient
           .from('messages')
-          .insert(newMessage)
+          .insert({
+            'chat_id': chatId,
+            'sender_id': senderId,
+            'receiver_id': receiverId,
+            'content': content,
+          })
           .select()
           .single();
-
-      // Update the chat's last message time and unread status
-      await supabaseClient.from('chats').update({
-        'last_message_time': DateTime.now().toIso8601String(),
-        'has_unread_messages': true,
-      }).eq('id', chatId);
-
-      return MessageModel.fromJson(response);
-    } on PostgrestException catch (e) {
-      throw ServerException(message: 'Failed to send message: $e');
-    } catch (e) {
-      throw ServerException(message: 'Failed to send message: $e');
+      return MessageModel.fromJson(row);
+    } on PostgrestException catch (error) {
+      throw ServerException(
+          message: 'Could not send message: ${error.message}');
     }
   }
 
   @override
   Stream<List<Chat>> subscribeToChats(String userId) {
-    final controller = StreamController<List<Chat>>();
-
-    // Initial fetch of chats
-    getChats(userId).then((chats) {
-      controller.add(chats);
-    }).catchError((error) {
-      controller.addError(error);
-    });
-
-    // Subscribe to realtime changes
-    final subscription = supabaseClient
-        .channel('public:chats')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: 'chats',
-          callback: (payload) async {
-            // Refetch all chats when there's a change
-            try {
-              final chats = await getChats(userId);
-              controller.add(chats);
-            } catch (e) {
-              controller.addError(e);
-            }
-          },
-        )
-        .subscribe();
-
-    // Clean up subscription when the stream is closed
-    controller.onCancel = () {
-      subscription.unsubscribe();
-    };
-
-    return controller.stream;
+    // Supabase RLS limits the snapshot and events to the viewer's chats. Use
+    // each change to reload joined profile fields and per-recipient unread counts.
+    return supabaseClient
+        .from('chats')
+        .stream(primaryKey: ['id']).asyncMap((_) => getChats(userId));
   }
 
   @override
   Stream<Message> subscribeToMessages(String chatId) {
     final controller = StreamController<Message>();
-
-    // Subscribe to realtime changes
-    final subscription = supabaseClient
-        .channel('public:messages:$chatId')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
-          schema: 'public',
-          table: 'messages',
-          callback: (payload) {
-            try {
-              final message = MessageModel.fromJson(payload.newRecord);
-              controller.add(message);
-            } catch (e) {
-              controller.addError(e);
-            }
-          },
-        )
-        .subscribe();
-
-    // Clean up subscription when the stream is closed
-    controller.onCancel = () {
-      subscription.unsubscribe();
+    final channel = supabaseClient.channel('direct-messages:$chatId');
+    var cancelled = false;
+    controller.onListen = () {
+      channel
+          .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'messages',
+            filter: PostgresChangeFilter(
+                type: PostgresChangeFilterType.eq,
+                column: 'chat_id',
+                value: chatId),
+            callback: (payload) {
+              if (!cancelled)
+                controller.add(MessageModel.fromJson(payload.newRecord));
+            },
+          )
+          .subscribe();
     };
-
+    controller.onCancel = () async {
+      cancelled = true;
+      await supabaseClient.removeChannel(channel);
+    };
     return controller.stream;
   }
 }

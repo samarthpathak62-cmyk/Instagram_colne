@@ -1,126 +1,113 @@
 import 'package:flutter/material.dart';
-import '../../domain/entities/post.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:instagram_clone/features/post/domain/entities/post.dart';
+import 'package:instagram_clone/features/post/presentation/bloc/post_interactions_cubit.dart';
+import 'package:instagram_clone/features/post/presentation/screens/post_detail_screen.dart';
 
 class PostGridItem extends StatelessWidget {
   final Post post;
+  final Widget? trailing;
 
-  const PostGridItem({
-    Key? key,
-    required this.post,
-  }) : super(key: key);
+  const PostGridItem({super.key, required this.post, this.trailing});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        // Navigate to post detail screen
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(
-        //     builder: (_) => PostDetailScreen(postId: post.id),
-        //   ),
-        // );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
+    final mediaPost =
+        post.shareKind == PostShareKind.repost ? post.sharedPost ?? post : post;
+    final text = context.select((PostInteractionsCubit actions) =>
+        actions.forPost(mediaPost.id).text(mediaPost));
+    final colors = Theme.of(context).colorScheme;
+    final url = mediaPost.mediaUrls.firstOrNull;
+    return Material(
+      color: post.type == PostType.text
+          ? colors.surfaceContainerHigh
+          : colors.surfaceContainer,
+      borderRadius: BorderRadius.circular(8),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(fit: StackFit.expand, children: [
+        if (mediaPost.type == PostType.image && url != null && url.isNotEmpty)
+          Image.network(url,
+              fit: BoxFit.cover,
+              cacheWidth: 520,
+              excludeFromSemantics: true,
+              errorBuilder: (_, __, ___) =>
+                  const Center(child: Icon(Icons.broken_image_outlined)))
+        else ...[
+          DecoratedBox(
+              decoration: BoxDecoration(
+                  gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [colors.surfaceContainer, colors.primaryContainer],
+          ))),
+          Center(
+              child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(
+                        switch (mediaPost.type) {
+                          PostType.video => Icons.play_circle_outline_rounded,
+                          PostType.text => Icons.subject_rounded,
+                          PostType.image => Icons.image_not_supported_outlined,
+                        },
+                        color: colors.primary,
+                        size: 23),
+                    if (text.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Flexible(
+                          child: Text(text,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.labelMedium)),
+                    ],
+                  ]))),
+        ],
+        if (mediaPost.mediaUrls.length > 1)
+          const PositionedDirectional(
+              top: 6,
+              end: 6,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                    decoration: BoxDecoration(
+                        color: Color(0xA0100D17),
+                        borderRadius: BorderRadius.all(Radius.circular(6))),
+                    child: Padding(
+                        padding: EdgeInsets.all(4),
+                        child: Icon(Icons.collections_outlined,
+                            color: Colors.white, size: 13))),
+              )),
+        Semantics(
+          label:
+              'Open ${post.type == PostType.text ? 'text post' : post.type == PostType.video ? 'video' : 'photo post'}',
+          button: true,
+          child: InkWell(
+              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => PostDetailScreen(postId: post.id)))),
         ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Post media
-            _buildMediaWidget(),
-
-            // Overlay for video indicator
-            if (post.mediaType == 'video')
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
+        if (post.shareKind != null)
+          PositionedDirectional(
+              top: 5,
+              start: 5,
+              child: IgnorePointer(
+                child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Icon(
-                    Icons.play_arrow,
-                    color: Colors.white,
-                    size: 16,
-                  ),
+                      color: colors.primaryContainer,
+                      borderRadius: BorderRadius.circular(7)),
+                  child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(
+                        post.shareKind == PostShareKind.repost
+                            ? Icons.repeat_rounded
+                            : Icons.format_quote_rounded,
+                        color: colors.onPrimaryContainer,
+                        size: 14,
+                      )),
                 ),
-              ),
-
-            // Overlay for multiple media indicator
-            if (post.mediaUrls.length > 1)
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Icon(
-                    Icons.collections,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
+              )),
+        if (trailing != null)
+          PositionedDirectional(top: 3, end: 3, child: trailing!),
+      ]),
     );
-  }
-
-  Widget _buildMediaWidget() {
-    if (post.mediaUrls.isEmpty) {
-      return Container(
-        color: Colors.grey[200],
-        child: const Icon(
-          Icons.image,
-          color: Colors.grey,
-        ),
-      );
-    }
-
-    final mediaUrl = post.mediaUrls.first;
-
-    if (post.mediaType == 'video') {
-      return Container(
-        color: Colors.black,
-        child: const Center(
-          child: Icon(
-            Icons.play_circle_outline,
-            color: Colors.white,
-            size: 40,
-          ),
-        ),
-      );
-    } else {
-      return Image.network(
-        mediaUrl,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            color: Colors.grey[200],
-            child: const Icon(
-              Icons.broken_image,
-              color: Colors.grey,
-            ),
-          );
-        },
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Container(
-            color: Colors.grey[200],
-            child: const Center(
-              child: CircularProgressIndicator(),
-            ),
-          );
-        },
-      );
-    }
   }
 }

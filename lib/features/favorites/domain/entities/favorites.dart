@@ -1,1 +1,1 @@
-class Favorites {} 
+class Favorites {}

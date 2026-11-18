@@ -24,4 +24,3 @@ class GetUserPostsParams extends Equatable {
   @override
   List<Object> get props => [userId];
 }
-

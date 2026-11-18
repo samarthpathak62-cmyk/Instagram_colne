@@ -1,296 +1,170 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:instagram_clone/core/constants/app_constants.dart';
+import 'package:instagram_clone/core/theme/veyro_theme.dart';
+import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:instagram_clone/features/common_widgets/error_widget.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_brand.dart';
 import 'package:instagram_clone/features/settings/domain/entities/settings.dart';
 import 'package:instagram_clone/features/settings/presentation/bloc/settings_bloc.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends StatelessWidget {
   final String userId;
 
-  const SettingsScreen({Key? key, required this.userId}) : super(key: key);
-
-  @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
-}
-
-class _SettingsScreenState extends State<SettingsScreen> {
-  AppThemeMode _toAppThemeMode(ThemeMode themeMode) {
-    switch (themeMode) {
-      case ThemeMode.system:
-        return AppThemeMode.system;
-      case ThemeMode.light:
-        return AppThemeMode.light;
-      case ThemeMode.dark:
-        return AppThemeMode.dark;
-    }
-  }
-
-  ThemeMode _toThemeMode(AppThemeMode appThemeMode) {
-    switch (appThemeMode) {
-      case AppThemeMode.system:
-        return ThemeMode.system;
-      case AppThemeMode.light:
-        return ThemeMode.light;
-      case AppThemeMode.dark:
-        return ThemeMode.dark;
-    }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    context.read<SettingsBloc>().add(GetSettingsEvent(userId: widget.userId));
-  }
+  const SettingsScreen({super.key, required this.userId});
 
   @override
   Widget build(BuildContext context) {
+    final bloc = context.read<SettingsBloc>();
+    final colors = context.veyroColors;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-      ),
-      body: BlocConsumer<SettingsBloc, SettingsState>(
-        listener: (context, state) {
-          if (state is SettingsError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
-            );
-          } else if (state is ThemeModeUpdated) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Theme updated')),
-            );
-          } else if (state is LanguageUpdated) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Language updated')),
-            );
-          } else if (state is NotificationsEnabledUpdated) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Notification settings updated')),
-            );
-          }
-        },
+      appBar: AppBar(title: const Text('Settings')),
+      body: BlocBuilder<SettingsBloc, SettingsState>(
         builder: (context, state) {
-          if (state is SettingsLoading && state is! SettingsLoaded) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (state is SettingsLoaded || 
-                     state is ThemeModeUpdated || 
-                     state is LanguageUpdated || 
-                     state is NotificationsEnabledUpdated) {
-            
-            Settings settings;
-            if (state is SettingsLoaded) {
-              settings = state.settings;
-            } else if (state is ThemeModeUpdated) {
-              settings = state.settings;
-            } else if (state is LanguageUpdated) {
-              settings = state.settings;
-            } else if (state is NotificationsEnabledUpdated) {
-              settings = state.settings;
-            } else {
-              // This should never happen, but just in case
-              return const Center(child: Text('Failed to load settings'));
-            }
-            
-            return ListView(
-              children: [
-                // Theme Mode Section
-                _buildSectionHeader('Appearance'),
-                _buildThemeModeSelector(settings.themeMode),
-                
-                const Divider(),
-                
-                // Language Section
-                _buildSectionHeader('Language'),
-                _buildLanguageSelector(settings.language),
-                
-                const Divider(),
-                
-                // Notifications Section
-                _buildSectionHeader('Notifications'),
-                _buildNotificationsSwitch(settings.notificationsEnabled),
-                
-                const Divider(),
-                
-                // Account Section
-                _buildSectionHeader('Account'),
-                ListTile(
-                  leading: const Icon(Icons.person),
-                  title: const Text('Account Information'),
-                  onTap: () {
-                    // Navigate to account information screen
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.security),
-                  title: const Text('Privacy and Security'),
-                  onTap: () {
-                    // Navigate to privacy and security screen
-                  },
-                ),
-                
-                const Divider(),
-                
-                // About Section
-                _buildSectionHeader('About'),
-                ListTile(
-                  leading: const Icon(Icons.info),
-                  title: const Text('About Instagram Clone'),
-                  onTap: () {
-                    // Show about dialog
-                    showAboutDialog(
-                      context: context,
-                      applicationName: 'Instagram Clone',
-                      applicationVersion: '1.0.0',
-                      applicationLegalese: '© 2025 Instagram Clone',
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.help),
-                  title: const Text('Help'),
-                  onTap: () {
-                    // Navigate to help screen
-                  },
-                ),
-                
-                const Divider(),
-                
-                // Logout Button
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: () {
-                      // Handle logout
-                    },
-                    child: const Text('Log Out'),
-                  ),
-                ),
-              ],
+          if (state is SettingsError) {
+            return CustomErrorWidget(
+              message: state.message,
+              onRetry: () => bloc.add(GetSettingsEvent(userId: userId)),
             );
-          } else {
-            return const Center(child: Text('Failed to load settings'));
           }
+          if (state is! SettingsLoaded) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final settings = state.settings;
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 650),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 30),
+                children: [
+                  _section(
+                    context,
+                    'Appearance',
+                    RadioGroup<AppThemeMode>(
+                      groupValue: settings.themeMode,
+                      onChanged: (value) {
+                        if (value != null)
+                          bloc.add(UpdateThemeModeEvent(
+                              userId: userId, themeMode: value));
+                      },
+                      child: const Column(children: [
+                        RadioListTile(
+                            value: AppThemeMode.dark,
+                            title: Text('Veyro Midnight'),
+                            subtitle: Text('Deep plum with lilac accents'),
+                            secondary: Icon(Icons.dark_mode_outlined)),
+                        RadioListTile(
+                            value: AppThemeMode.light,
+                            title: Text('Veyro Daylight'),
+                            subtitle: Text('Soft lavender and clean whites'),
+                            secondary: Icon(Icons.light_mode_outlined)),
+                        RadioListTile(
+                            value: AppThemeMode.system,
+                            title: Text('Use device setting'),
+                            secondary: Icon(Icons.devices_outlined)),
+                      ]),
+                    ),
+                  ),
+                  _section(
+                    context,
+                    'Language',
+                    RadioGroup<String>(
+                      groupValue: settings.language,
+                      onChanged: (value) {
+                        if (value != null)
+                          bloc.add(UpdateLanguageEvent(
+                              userId: userId, language: value));
+                      },
+                      child: const Column(children: [
+                        RadioListTile(value: 'en', title: Text('English')),
+                        RadioListTile(value: 'ar', title: Text('العربية')),
+                      ]),
+                    ),
+                  ),
+                  _section(
+                    context,
+                    'Notifications',
+                    SwitchListTile(
+                      title: const Text('In-app activity alerts'),
+                      subtitle: const Text(
+                          'Get new alerts for follows, likes and comments.'),
+                      value: settings.notificationsEnabled,
+                      onChanged: (value) => bloc.add(
+                          UpdateNotificationsEnabledEvent(
+                              userId: userId, enabled: value)),
+                    ),
+                  ),
+                  _section(
+                    context,
+                    'About',
+                    ListTile(
+                      leading: const VeyroMark(size: 38),
+                      title: const Text('About Veyro'),
+                      subtitle:
+                          const Text('Version ${AppConstants.appVersion}'),
+                      onTap: () => showAboutDialog(
+                        context: context,
+                        applicationIcon: const VeyroMark(size: 52),
+                        applicationName: AppConstants.appName,
+                        applicationVersion: AppConstants.appVersion,
+                        children: const [Text(AppConstants.appDescription)],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  OutlinedButton.icon(
+                    onPressed: () => _confirmLogout(context),
+                    style:
+                        OutlinedButton.styleFrom(foregroundColor: colors.error),
+                    icon: const Icon(Icons.logout_rounded, size: 19),
+                    label: const Text('Log out'),
+                  ),
+                ],
+              ),
+            ),
+          );
         },
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
+  Widget _section(BuildContext context, String title, Widget child) => Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsetsDirectional.only(start: 5, bottom: 7),
+              child: Text(title, style: context.veyroText.titleMedium),
+            ),
+            Card(
+                margin: EdgeInsets.zero,
+                clipBehavior: Clip.antiAlias,
+                child: child),
+          ],
         ),
+      );
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Log out of Veyro?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Log out',
+                style: TextStyle(color: context.veyroColors.error)),
+          ),
+        ],
       ),
     );
-  }
-
-  Widget _buildThemeModeSelector(AppThemeMode currentThemeMode) {
-    return Column(
-      children: [
-        RadioListTile<ThemeMode>(
-          title: const Text('System Default'),
-          value: ThemeMode.system,
-          groupValue: _toThemeMode(currentThemeMode),
-          onChanged: (ThemeMode? value) {
-            if (value != null) {
-              context.read<SettingsBloc>().add(
-                    UpdateThemeModeEvent(
-                      userId: widget.userId,
-                      themeMode: _toAppThemeMode(value),
-                    ),
-                  );
-            }
-          },
-        ),
-        RadioListTile<ThemeMode>(
-          title: const Text('Light Mode'),
-          value: ThemeMode.light,
-          groupValue: _toThemeMode(currentThemeMode),
-          onChanged: (ThemeMode? value) {
-            if (value != null) {
-              context.read<SettingsBloc>().add(
-                    UpdateThemeModeEvent(
-                      userId: widget.userId,
-                      themeMode: _toAppThemeMode(value),
-                    ),
-                  );
-            }
-          },
-        ),
-        RadioListTile<ThemeMode>(
-          title: const Text('Dark Mode'),
-          value: ThemeMode.dark,
-          groupValue: _toThemeMode(currentThemeMode),
-          onChanged: (ThemeMode? value) {
-            if (value != null) {
-              context.read<SettingsBloc>().add(
-                    UpdateThemeModeEvent(
-                      userId: widget.userId,
-                      themeMode: _toAppThemeMode(value),
-                    ),
-                  );
-            }
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLanguageSelector(String currentLanguage) {
-    return Column(
-      children: [
-        RadioListTile<String>(
-          title: const Text('English'),
-          value: 'en',
-          groupValue: currentLanguage,
-          onChanged: (String? value) {
-            if (value != null) {
-              context.read<SettingsBloc>().add(
-                    UpdateLanguageEvent(
-                      userId: widget.userId,
-                      language: value,
-                    ),
-                  );
-            }
-          },
-        ),
-        RadioListTile<String>(
-          title: const Text('العربية'),
-          value: 'ar',
-          groupValue: currentLanguage,
-          onChanged: (String? value) {
-            if (value != null) {
-              context.read<SettingsBloc>().add(
-                    UpdateLanguageEvent(
-                      userId: widget.userId,
-                      language: value,
-                    ),
-                  );
-            }
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNotificationsSwitch(bool notificationsEnabled) {
-    return SwitchListTile(
-      title: const Text('Enable Notifications'),
-      value: notificationsEnabled,
-      onChanged: (bool value) {
-        context.read<SettingsBloc>().add(
-              UpdateNotificationsEnabledEvent(
-                userId: widget.userId,
-                enabled: value,
-              ),
-            );
-      },
-    );
+    if (confirmed == true && context.mounted) {
+      context.read<AuthBloc>().add(AuthLogoutRequested());
+    }
   }
 }

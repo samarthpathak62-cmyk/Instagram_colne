@@ -28,4 +28,3 @@ class SearchUsersParams extends Equatable {
   @override
   List<Object> get props => [query];
 }
-

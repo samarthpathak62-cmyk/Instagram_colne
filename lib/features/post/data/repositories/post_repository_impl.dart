@@ -1,4 +1,6 @@
-import 'dart:io';
+import 'package:instagram_clone/features/post/domain/entities/post_reaction.dart';
+import 'package:instagram_clone/features/post/domain/entities/post_comment.dart';
+import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:dartz/dartz.dart';
 import 'package:instagram_clone/core/error/exceptions.dart';
 import 'package:instagram_clone/core/error/failures.dart';
@@ -74,16 +76,28 @@ class PostRepositoryImpl implements PostRepository {
   Future<Either<Failure, Post>> createPost({
     required String authorId,
     required PostType type,
-    required List<File> mediaFiles,
+    required List<XFile> mediaFiles,
     String? description,
+    String? groupId,
   }) async {
     return await _handlePostOperation<Post>(() => remoteDataSource.createPost(
           authorId: authorId,
           type: type,
           mediaFiles: mediaFiles,
           description: description,
+          groupId: groupId,
         ));
   }
+
+  @override
+  Future<Either<Failure, Post?>> findRepost(String postId, String userId) =>
+      _handlePostOperation(() => remoteDataSource.findRepost(postId, userId));
+
+  @override
+  Future<Either<Failure, Post>> createShare(String postId, String userId,
+          {String? quote}) =>
+      _handlePostOperation(
+          () => remoteDataSource.createShare(postId, userId, quote: quote));
 
   @override
   Future<Either<Failure, Post>> getPost(String postId) async {
@@ -98,16 +112,16 @@ class PostRepositoryImpl implements PostRepository {
   }
 
   @override
-  Future<Either<Failure, List<Post>>> getFeedPosts(String currentUserId) async {
-    return await _handlePostOperation<List<Post>>(
-        () => remoteDataSource.getFeedPosts(currentUserId));
-  }
-
-  @override
   Future<Either<Failure, void>> likePost(String postId, String userId) async {
     return await _handleVoidOperation(
         () => remoteDataSource.likePost(postId, userId));
   }
+
+  @override
+  Future<Either<Failure, void>> setReaction(
+          String postId, PostReaction reaction) =>
+      _handleVoidOperation(
+          () => remoteDataSource.setReaction(postId, reaction));
 
   @override
   Future<Either<Failure, void>> unlikePost(String postId, String userId) async {
@@ -121,4 +135,38 @@ class PostRepositoryImpl implements PostRepository {
     return await _handlePostOperation<List<Post>>(() =>
         remoteDataSource.getVideoExplorePosts(limit: limit, offset: offset));
   }
+
+  @override
+  Future<Either<Failure, CommentPage>> getComments(String postId,
+          {int offset = 0}) =>
+      _handlePostOperation(
+          () => remoteDataSource.getComments(postId, offset: offset));
+
+  @override
+  Future<Either<Failure, PostComment>> addComment(
+          String postId, String userId, String content) =>
+      _handlePostOperation(
+          () => remoteDataSource.addComment(postId, userId, content));
+
+  @override
+  Future<Either<Failure, void>> deleteComment(
+          String commentId, String userId) =>
+      _handleVoidOperation(
+          () => remoteDataSource.deleteComment(commentId, userId));
+
+  @override
+  Future<Either<Failure, void>> setSaved(
+          String postId, String userId, bool saved) =>
+      _handleVoidOperation(
+          () => remoteDataSource.setSaved(postId, userId, saved));
+
+  @override
+  Future<Either<Failure, void>> editPost(
+          String postId, String userId, String description) =>
+      _handleVoidOperation(
+          () => remoteDataSource.editPost(postId, userId, description));
+
+  @override
+  Future<Either<Failure, void>> deletePost(String postId, String userId) =>
+      _handleVoidOperation(() => remoteDataSource.deletePost(postId, userId));
 }

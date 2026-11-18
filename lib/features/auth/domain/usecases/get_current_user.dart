@@ -14,4 +14,3 @@ class GetCurrentUser implements UseCase<User?, NoParams> {
     return await repository.getCurrentUser();
   }
 }
-

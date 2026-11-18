@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'package:instagram_clone/core/theme/veyro_theme.dart';
+import 'package:instagram_clone/core/media/picked_media_preview.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
@@ -20,7 +21,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _usernameController;
   late TextEditingController _fullNameController;
   late TextEditingController _bioController;
-  File? _selectedImage;
+  XFile? _selectedImage;
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -42,12 +43,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _pickImage() async {
-    final XFile? pickedFile =
-        await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _selectedImage = File(pickedFile.path);
-      });
+    try {
+      final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile != null && mounted)
+        setState(() => _selectedImage = pickedFile);
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open the photo picker.')));
     }
   }
 
@@ -67,19 +70,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black;
-    final subTextColor = isDark ? Colors.white70 : Colors.black87;
-    final borderColor = isDark ? Colors.white12 : Colors.black12;
+    final colors = context.veyroColors;
+    final textColor = colors.onSurface;
+    final borderColor = colors.outlineVariant;
     return Scaffold(
-      backgroundColor: isDark ? Colors.black : Colors.white,
+      backgroundColor: colors.surface,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(56),
         child: SafeArea(
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              color: isDark ? Colors.black : Colors.white,
+              color: colors.surface,
               border: Border(bottom: BorderSide(color: borderColor)),
             ),
             child: Row(
@@ -88,7 +90,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   child: Text('Cancel',
-                      style: TextStyle(color: Colors.blue, fontSize: 16)),
+                      style: TextStyle(
+                          color: context.veyroColors.primary, fontSize: 16)),
                 ),
                 Text('Edit Profile',
                     style: TextStyle(
@@ -108,7 +111,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     } else if (state is ProfileError) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                            content: Text('Update failed: {state.message}')),
+                            content: Text('Update failed: ${state.message}')),
                       );
                     }
                   },
@@ -124,7 +127,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     return TextButton(
                       onPressed: _saveProfile,
                       child: Text('Done',
-                          style: TextStyle(color: Colors.blue, fontSize: 16)),
+                          style: TextStyle(
+                              color: context.veyroColors.primary,
+                              fontSize: 16)),
                     );
                   },
                 ),
@@ -133,108 +138,77 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
         ),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          children: [
-            const SizedBox(height: 8),
-            Center(
-              child: Column(
-                children: [
-                  Stack(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 640),
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              children: [
+                const SizedBox(height: 8),
+                Center(
+                  child: Column(
                     children: [
-                      CircleAvatar(
-                        radius: 44,
-                        backgroundImage: _selectedImage != null
-                            ? FileImage(_selectedImage!)
-                            : (widget.currentProfile.profileImageUrl != null
-                                ? CachedNetworkImageProvider(
-                                    widget.currentProfile.profileImageUrl!)
-                                : null) as ImageProvider?,
-                        child: (_selectedImage == null &&
-                                widget.currentProfile.profileImageUrl == null)
-                            ? const Icon(Icons.person, size: 44)
-                            : null,
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: GestureDetector(
-                          onTap: _pickImage,
-                          child: CircleAvatar(
-                            radius: 16,
-                            backgroundColor: Colors.blue,
-                            child: const Icon(Icons.camera_alt,
-                                size: 16, color: Colors.white),
+                      Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 44,
+                            backgroundImage: _selectedImage != null
+                                ? pickedImageProvider(_selectedImage!)
+                                : (widget.currentProfile.profileImageUrl != null
+                                    ? CachedNetworkImageProvider(
+                                        widget.currentProfile.profileImageUrl!)
+                                    : null),
+                            child: (_selectedImage == null &&
+                                    widget.currentProfile.profileImageUrl ==
+                                        null)
+                                ? const Icon(Icons.person, size: 44)
+                                : null,
                           ),
-                        ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: GestureDetector(
+                              onTap: _pickImage,
+                              child: CircleAvatar(
+                                radius: 16,
+                                backgroundColor: colors.primaryContainer,
+                                child: Icon(Icons.camera_alt,
+                                    size: 16, color: colors.onPrimaryContainer),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: _pickImage,
+                        child: Text('Change Profile Photo',
+                            style: TextStyle(
+                                color: context.veyroColors.primary,
+                                fontWeight: FontWeight.w500)),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: _pickImage,
-                    child: Text('Change Profile Photo',
-                        style: TextStyle(
-                            color: Colors.blue, fontWeight: FontWeight.w500)),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 12),
+                Divider(color: borderColor),
+                const SizedBox(height: 8),
+                _buildField('Name', _fullNameController, textColor),
+                const SizedBox(height: 8),
+                _buildField('Username', _usernameController, textColor,
+                    validator: (value) {
+                  if (value == null || value.isEmpty)
+                    return 'Username cannot be empty';
+                  return null;
+                }),
+                const SizedBox(height: 8),
+                _buildField('Bio', _bioController, textColor, maxLines: 2),
+                const SizedBox(height: 8),
+              ],
             ),
-            const SizedBox(height: 12),
-            Divider(color: borderColor),
-            const SizedBox(height: 8),
-            _buildField('Name', _fullNameController, textColor),
-            const SizedBox(height: 8),
-            _buildField('Username', _usernameController, textColor,
-                validator: (value) {
-              if (value == null || value.isEmpty)
-                return 'Username cannot be empty';
-              return null;
-            }),
-            const SizedBox(height: 8),
-            _buildField(
-                'Website',
-                TextEditingController(
-                    text: widget.currentProfile.website ?? ''),
-                textColor,
-                enabled: false),
-            const SizedBox(height: 8),
-            _buildField('Bio', _bioController, textColor, maxLines: 2),
-            const SizedBox(height: 8),
-            Divider(color: borderColor),
-            const SizedBox(height: 8),
-            GestureDetector(
-              onTap: () {},
-              child: Text('Switch to Professional Account',
-                  style: TextStyle(
-                      color: Colors.blue, fontWeight: FontWeight.w500)),
-            ),
-            const SizedBox(height: 16),
-            Text('Private Information',
-                style:
-                    TextStyle(fontWeight: FontWeight.bold, color: textColor)),
-            const SizedBox(height: 8),
-            _buildField(
-                'Email',
-                TextEditingController(text: widget.currentProfile.email ?? ''),
-                textColor,
-                enabled: false),
-            const SizedBox(height: 8),
-            _buildField(
-                'Phone',
-                TextEditingController(text: widget.currentProfile.phone ?? ''),
-                textColor,
-                enabled: false),
-            const SizedBox(height: 8),
-            _buildField(
-                'Gender',
-                TextEditingController(text: widget.currentProfile.gender ?? ''),
-                textColor,
-                enabled: false),
-            const SizedBox(height: 24),
-          ],
+          ),
         ),
       ),
     );
@@ -258,8 +232,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         fillColor: Colors.transparent,
         enabledBorder: UnderlineInputBorder(
             borderSide: BorderSide(color: textColor.withOpacity(0.2))),
-        focusedBorder:
-            UnderlineInputBorder(borderSide: BorderSide(color: Colors.blue)),
+        focusedBorder: UnderlineInputBorder(
+            borderSide: BorderSide(color: context.veyroColors.primary)),
         disabledBorder: UnderlineInputBorder(
             borderSide: BorderSide(color: textColor.withOpacity(0.1))),
       ),

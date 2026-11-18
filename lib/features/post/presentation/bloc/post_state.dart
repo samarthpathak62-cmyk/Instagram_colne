@@ -56,12 +56,6 @@ class PostOperationFailure extends PostState {
   List<Object> get props => [message];
 }
 
-// Optional: States for like/unlike operations if more specific feedback is needed
-// class PostLikeInProgress extends PostState { ... }
-// class PostLikeSuccess extends PostState { ... }
-// class PostUnlikeInProgress extends PostState { ... }
-// class PostUnlikeSuccess extends PostState { ... }
-
 class PostDetailLoaded extends PostState {
   final Post post;
   const PostDetailLoaded(this.post);
@@ -74,11 +68,4 @@ class PostDetailFailure extends PostState {
   const PostDetailFailure(this.message);
   @override
   List<Object> get props => [message];
-}
-
-class VideoExplorePostsLoaded extends PostState {
-  final List<Post> posts;
-  const VideoExplorePostsLoaded(this.posts);
-  @override
-  List<Object> get props => [posts];
 }

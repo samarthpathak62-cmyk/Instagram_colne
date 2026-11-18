@@ -1,7 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:instagram_clone/core/error/failures.dart';
 import 'package:instagram_clone/features/profile/domain/entities/profile.dart';
-import 'dart:io'; // For File type if handling image uploads
+import 'package:image_picker/image_picker.dart' show XFile;
 
 abstract class ProfileRepository {
   Future<Either<Failure, Profile>> getProfile(String userId);
@@ -11,7 +11,7 @@ abstract class ProfileRepository {
     String? username,
     String? fullName,
     String? bio,
-    File? profileImage, // Pass File object for new image
+    XFile? profileImage, // Pass XFile object for new image
   });
 
   // Add other profile-related methods if needed, e.g.:
@@ -19,4 +19,3 @@ abstract class ProfileRepository {
   // Future<Either<Failure, void>> followUser(String userIdToFollow);
   // Future<Either<Failure, void>> unfollowUser(String userIdToUnfollow);
 }
-

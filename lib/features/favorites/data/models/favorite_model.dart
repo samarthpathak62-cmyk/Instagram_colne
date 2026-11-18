@@ -22,9 +22,10 @@ class FavoriteModel extends Favorite {
       id: json['id'] as String,
       userId: json['user_id'] as String,
       postId: json['post_id'] as String,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
       post: json['post'] != null
-          ? PostModel.fromJson(json['post'], userId: json['user_id'] as String)
+          ? PostModel.fromJson(json['post'] as Map<String, dynamic>)
           : null,
     );
   }

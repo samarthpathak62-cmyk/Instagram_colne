@@ -1,12 +1,16 @@
+import 'package:instagram_clone/core/theme/veyro_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:instagram_clone/features/feed/presentation/bloc/feed_bloc.dart';
+import 'package:instagram_clone/features/feed/presentation/bloc/feed_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:instagram_clone/features/follow/presentation/bloc/follow_bloc.dart';
 
 class FollowButton extends StatefulWidget {
   final String targetUserId;
+  final VoidCallback? onChanged;
 
-  const FollowButton({super.key, required this.targetUserId});
+  const FollowButton({super.key, required this.targetUserId, this.onChanged});
 
   @override
   State<FollowButton> createState() => _FollowButtonState();
@@ -30,6 +34,12 @@ class _FollowButtonState extends State<FollowButton> {
       // Handle case where user is not authenticated (button shouldn't be shown ideally)
       setState(() => _isLoading = false);
     }
+  }
+
+  void _notifyChange() {
+    final feed = context.read<FeedCubit>();
+    if (feed.state.timeline == FeedTimeline.following) feed.refresh();
+    widget.onChanged?.call();
   }
 
   @override
@@ -58,14 +68,14 @@ class _FollowButtonState extends State<FollowButton> {
             _isFollowing = true;
             _isLoading = false;
           });
-          // Optionally show snackbar
+          _notifyChange();
         } else if (state is UnfollowSuccess &&
             state.targetUserId == widget.targetUserId) {
           setState(() {
             _isFollowing = false;
             _isLoading = false;
           });
-          // Optionally show snackbar
+          _notifyChange();
         } else if (state is FollowOperationFailure &&
             state.targetUserId == widget.targetUserId) {
           setState(() {
@@ -88,29 +98,27 @@ class _FollowButtonState extends State<FollowButton> {
       },
       // Build the button based on the state
       builder: (context, state) {
-        // Determine button style and text
-        final buttonStyle = _isFollowing
-            ? OutlinedButton.styleFrom(
-                side: BorderSide(color: Colors.grey.shade400),
-                foregroundColor: Colors.black,
-              )
-            : ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-              );
+        final colors = context.veyroColors;
+        final buttonStyle = FilledButton.styleFrom(
+          backgroundColor:
+              _isFollowing ? colors.surfaceContainerHigh : VeyroTheme.violet,
+          foregroundColor: _isFollowing ? colors.onSurface : Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 15),
+        );
         final buttonText = _isFollowing ? 'Following' : 'Follow';
-
-        return SizedBox(
-          width: 100, // Adjust width as needed
-          height: 35, // Adjust height as needed
+        return ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 100, minHeight: 46),
           child: _isLoading
-              ? const Center(
-                  child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2)))
-              : ElevatedButton(
+              ? const SizedBox(
+                  width: 100,
+                  height: 46,
+                  child: Center(
+                      child: SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2))))
+              : FilledButton(
                   onPressed: () {
+                    setState(() => _isLoading = true);
                     if (_isFollowing) {
                       context.read<FollowBloc>().add(UnfollowUserEvent(
                             currentUserId: currentUserId,
@@ -122,8 +130,6 @@ class _FollowButtonState extends State<FollowButton> {
                             targetUserId: widget.targetUserId,
                           ));
                     }
-                    // Optimistic UI update (optional) or wait for state change
-                    // setState(() => _isLoading = true);
                   },
                   style: buttonStyle,
                   child: Text(buttonText),

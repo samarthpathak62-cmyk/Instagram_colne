@@ -1,578 +1,375 @@
-import 'dart:io';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:instagram_clone/core/di/injection_container.dart' as di;
+import 'package:instagram_clone/core/error/exceptions.dart';
+import 'package:instagram_clone/core/media/picked_media_preview.dart';
+import 'package:instagram_clone/core/media/supabase_media_upload.dart';
+import 'package:instagram_clone/core/theme/veyro_theme.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:instagram_clone/features/common_widgets/draft_pop_scope.dart';
+import 'package:instagram_clone/features/common_widgets/user_avatar.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_brand.dart';
+import 'package:instagram_clone/features/feed/presentation/bloc/feed_bloc.dart';
 import 'package:instagram_clone/features/post/domain/entities/post.dart';
 import 'package:instagram_clone/features/post/presentation/bloc/post_bloc.dart';
-import 'package:instagram_clone/core/di/injection_container.dart' as di;
 import 'package:video_player/video_player.dart';
-import 'package:flutter/services.dart';
 
 class CreatePostScreen extends StatelessWidget {
-  const CreatePostScreen({super.key});
+  final ValueChanged<Post>? onCreated;
+  final bool photoMode;
+  final String? groupId;
+  final String? groupName;
+
+  const CreatePostScreen(
+      {super.key,
+      this.onCreated,
+      this.photoMode = false,
+      this.groupId,
+      this.groupName});
 
   @override
-  Widget build(BuildContext context) {
-    return BlocProvider<PostBloc>(
+  Widget build(BuildContext context) => BlocProvider<PostBloc>(
       create: (_) => di.sl<PostBloc>(),
-      child: const _CreatePostScreenContent(),
-    );
-  }
+      child: _Composer(
+          onCreated: onCreated,
+          photoMode: photoMode,
+          groupId: groupId,
+          groupName: groupName));
 }
 
-class _CreatePostScreenContent extends StatefulWidget {
-  const _CreatePostScreenContent();
+class _Composer extends StatefulWidget {
+  final ValueChanged<Post>? onCreated;
+  final bool photoMode;
+  final String? groupId;
+  final String? groupName;
+
+  const _Composer(
+      {required this.onCreated,
+      required this.photoMode,
+      this.groupId,
+      this.groupName});
 
   @override
-  State<_CreatePostScreenContent> createState() =>
-      _CreatePostScreenContentState();
+  State<_Composer> createState() => _ComposerState();
 }
 
-class _CreatePostScreenContentState extends State<_CreatePostScreenContent> {
-  final _descriptionController = TextEditingController();
-  final ImagePicker _picker = ImagePicker();
-  final PageController _pageController = PageController();
+class _ComposerState extends State<_Composer> {
+  final _text = TextEditingController();
+  final _picker = ImagePicker();
+  List<XFile> _media = const [];
+  PostType _type = PostType.text;
+  VideoPlayerController? _video;
+  bool _videoFailed = false;
+  bool _picking = false;
+  bool _sending = false;
+  String? _error;
 
-  List<XFile> _selectedMedia = [];
-  PostType _postType = PostType.image;
-  VideoPlayerController? _videoController;
-  bool _isUploading = false;
-  int _currentMediaIndex = 0;
+  bool get _busy => _picking || _sending;
 
   @override
   void dispose() {
-    _descriptionController.dispose();
-    _videoController?.dispose();
-    _pageController.dispose();
+    _text.dispose();
+    _video?.dispose();
     super.dispose();
   }
 
-  Future<void> _pickMedia({required bool isVideo}) async {
-    if (isVideo) {
-      final XFile? video = await _picker.pickVideo(source: ImageSource.gallery);
-      if (video != null) {
-        setState(() {
-          _selectedMedia = [video];
-          _postType = PostType.video;
-          _currentMediaIndex = 0;
-          _initializeVideoPlayer(video.path);
-        });
-      }
-    } else {
-      final List<XFile> images = await _picker.pickMultiImage();
-      if (images.isNotEmpty) {
-        setState(() {
-          _selectedMedia = images;
-          _postType = PostType.image;
-          _currentMediaIndex = 0;
-          _videoController?.dispose();
-          _videoController = null;
-        });
-      }
-    }
-  }
-
-  void _initializeVideoPlayer(String path) {
-    _videoController?.dispose();
-    _videoController = VideoPlayerController.file(File(path))
-      ..initialize().then((_) {
-        setState(() {});
-        _videoController?.play();
-        _videoController?.setLooping(true);
-      });
-  }
-
-  void _uploadPost() {
-    if (_selectedMedia.isEmpty) {
-      _showSnackBar('Please select an image or video first.', isError: true);
-      return;
-    }
-
-    final currentUserState = context.read<AuthBloc>().state;
-    if (currentUserState is Authenticated) {
-      final userId = currentUserState.user.id;
-      context.read<PostBloc>().add(CreateNewPost(
-            authorId: userId,
-            type: _postType,
-            mediaFiles:
-                _selectedMedia.map((xfile) => File(xfile.path)).toList(),
-            description: _descriptionController.text.trim(),
-          ));
-    }
-  }
-
-  void _resetState() {
+  Future<void> _pick({bool video = false}) async {
+    if (_busy) return;
+    FocusScope.of(context).unfocus();
     setState(() {
-      _selectedMedia.clear();
-      _descriptionController.clear();
-      _videoController?.dispose();
-      _videoController = null;
-      _isUploading = false;
-      _currentMediaIndex = 0;
+      _picking = true;
+      _error = null;
     });
+    try {
+      final file =
+          video ? await _picker.pickVideo(source: ImageSource.gallery) : null;
+      final files =
+          video ? [if (file != null) file] : await _picker.pickMultiImage();
+      if (!mounted || files.isEmpty) return;
+      if (files.length > 8)
+        throw const FormatException('Select up to eight photos.');
+      for (final file in files) {
+        await validateMediaFile(file, isVideo: video);
+      }
+      if (!mounted) return;
+      setState(() {
+        _clearMedia();
+        _media = files;
+        _type = video ? PostType.video : PostType.image;
+      });
+      if (video) unawaited(_previewVideo(files.single));
+    } on FormatException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } on FileUploadException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } catch (_) {
+      if (mounted)
+        setState(
+            () => _error = 'Couldn’t pick this media. Try a different file.');
+    } finally {
+      if (mounted) setState(() => _picking = false);
+    }
   }
 
-  void _showSnackBar(String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.red : Colors.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
+  Future<void> _previewVideo(XFile file) async {
+    final video = pickedVideoController(file);
+    _video = video;
+    try {
+      await video.initialize();
+      if (mounted && _video == video) setState(() {});
+    } catch (_) {
+      if (mounted && _video == video) setState(() => _videoFailed = true);
+    }
+  }
+
+  void _clearMedia() {
+    _video?.dispose();
+    _video = null;
+    _videoFailed = false;
+    _media = const [];
+    _type = PostType.text;
+    _error = null;
+  }
+
+  bool _canPublish(String text) =>
+      !_busy &&
+      (widget.photoMode
+          ? _type == PostType.image
+          : _media.isNotEmpty || text.trim().isNotEmpty);
+
+  void _publish() {
+    final auth = context.read<AuthBloc>().state;
+    if (!_canPublish(_text.text) || auth is! Authenticated) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+    context.read<PostBloc>().add(CreateNewPost(
+        authorId: auth.user.id,
+        type: _type,
+        mediaFiles: List.of(_media),
+        description: _text.text.trim(),
+        groupId: widget.groupId));
   }
 
   @override
-  Widget build(BuildContext context) {
-    return BlocListener<PostBloc, PostState>(
-      listener: (context, state) {
-        if (state is PostUploading) {
-          setState(() => _isUploading = true);
-        } else if (state is PostUploadSuccess) {
-          _showSnackBar('Post created successfully!');
-          _resetState();
-          Navigator.of(context).pop(); // العودة للشاشة السابقة بعد النجاح
-        } else if (state is PostOperationFailure) {
-          _showSnackBar('Failed to create post: ${state.message}',
-              isError: true);
-          setState(() => _isUploading = false);
-        }
-      },
-      child: Scaffold(
-        appBar: _buildAppBar(),
-        backgroundColor: Colors.white,
-        body: SafeArea(
-          child: _buildBody(),
-        ),
-      ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      systemOverlayStyle: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light,
-      ),
-      leading: IconButton(
-        icon: const Icon(Icons.close, color: Colors.black, size: 24),
-        onPressed: _isUploading ? null : () => Navigator.of(context).pop(),
-      ),
-      title: const Text(
-        'New post',
-        style: TextStyle(
-          color: Colors.black,
-          fontWeight: FontWeight.w600,
-          fontSize: 18,
-        ),
-      ),
-      centerTitle: false,
-      actions: [
-        Container(
-          margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
-          child: TextButton(
-            onPressed:
-                _isUploading || _selectedMedia.isEmpty ? null : _uploadPost,
-            style: TextButton.styleFrom(
-              backgroundColor: _isUploading || _selectedMedia.isEmpty
-                  ? Colors.blue.withOpacity(0.3)
-                  : Colors.blue,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(6),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            ),
-            child: Text(
-              _isUploading ? 'Sharing...' : 'Share',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBody() {
-    if (_isUploading) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Sharing your post...',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 16,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      children: [
-        _buildCaptionSection(),
-        const Divider(height: 1, color: Color(0xFFDBDBDB)),
-        Expanded(
-          child: _buildMediaPreview(),
-        ),
-        if (_selectedMedia.isNotEmpty) _buildMediaIndicator(),
-        const Divider(height: 1, color: Color(0xFFDBDBDB)),
-        _buildMediaSelectionButtons(),
-      ],
-    );
-  }
-
-  Widget _buildCaptionSection() {
-    final currentUserState = context.read<AuthBloc>().state;
-    String? profileImageUrl;
-    String username = 'User';
-
-    if (currentUserState is Authenticated) {
-      // تأكد من وجود هذه الحقول في UserEntity
-      // profileImageUrl = currentUserState.user.profilePictureUrl;
-      // username = currentUserState.user.username ?? 'User';
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: Colors.grey[200],
-            backgroundImage:
-                profileImageUrl != null && profileImageUrl.isNotEmpty
-                    ? NetworkImage(profileImageUrl) as ImageProvider
-                    : null,
-            child: profileImageUrl == null || profileImageUrl.isEmpty
-                ? const Icon(Icons.person, color: Colors.grey, size: 20)
-                : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  username,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _descriptionController,
-                  decoration: const InputDecoration(
-                    hintText: 'Write a caption...',
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                    hintStyle: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 16,
-                    ),
-                  ),
-                  maxLines: null,
-                  keyboardType: TextInputType.multiline,
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (_selectedMedia.isNotEmpty)
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.grey[300]!),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: _postType == PostType.image
-                    ? Image.file(
-                        File(_selectedMedia[0].path),
-                        fit: BoxFit.cover,
-                      )
-                    : Container(
-                        color: Colors.black,
-                        child: const Icon(
-                          Icons.play_arrow,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMediaPreview() {
-    if (_selectedMedia.isEmpty) {
-      return GestureDetector(
-        onTap: () => _showMediaSelectionDialog(),
-        child: Container(
-          color: Colors.black,
-          child: const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.add_a_photo_outlined,
-                  size: 80,
-                  color: Colors.white,
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Tap to select photos or videos',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'You can select multiple photos',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (_postType == PostType.video &&
-        _videoController?.value.isInitialized == true) {
-      return Stack(
-        children: [
-          Center(
-            child: AspectRatio(
-              aspectRatio: _videoController!.value.aspectRatio,
-              child: VideoPlayer(_videoController!),
-            ),
-          ),
-          Positioned(
-            bottom: 16,
-            right: 16,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.videocam, color: Colors.white, size: 16),
-                  SizedBox(width: 4),
-                  Text(
-                    'Video',
-                    style: TextStyle(color: Colors.white, fontSize: 12),
-                  ),
+  Widget build(BuildContext context) => BlocListener<PostBloc, PostState>(
+        listener: (context, state) {
+          if (state is PostUploadSuccess) {
+            unawaited(context.read<FeedCubit>().refresh());
+            ScaffoldMessenger.of(context)
+                .showSnackBar(const SnackBar(content: Text('Post published')));
+            if (widget.onCreated != null) {
+              widget.onCreated!(state.newPost);
+            } else {
+              Navigator.of(context).pop(state.newPost);
+            }
+          } else if (state is PostOperationFailure) {
+            setState(() {
+              _sending = false;
+              _error = state.message;
+            });
+          }
+        },
+        child: ValueListenableBuilder<TextEditingValue>(
+          valueListenable: _text,
+          child: _body(),
+          builder: (context, value, body) => DraftPopScope(
+            hasDraft: value.text.trim().isNotEmpty || _media.isNotEmpty,
+            uploading: _sending,
+            child: Scaffold(
+              appBar: AppBar(
+                leading: IconButton(
+                    tooltip: 'Close composer',
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: _sending
+                        ? null
+                        : () => Navigator.of(context).maybePop()),
+                title: Text(widget.groupId != null
+                    ? 'New group post'
+                    : widget.photoMode
+                        ? 'New photo post'
+                        : 'New post'),
+                actions: [
+                  Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 12),
+                      child: FilledButton(
+                          onPressed: _canPublish(value.text) ? _publish : null,
+                          child: const Text('Publish')))
                 ],
               ),
-            ),
-          ),
-        ],
-      );
-    } else if (_postType == PostType.image) {
-      return PageView.builder(
-        controller: _pageController,
-        onPageChanged: (index) {
-          setState(() {
-            _currentMediaIndex = index;
-          });
-        },
-        itemCount: _selectedMedia.length,
-        itemBuilder: (context, index) {
-          return Image.file(
-            File(_selectedMedia[index].path),
-            fit: BoxFit.contain,
-          );
-        },
-      );
-    }
-
-    return const Center(
-      child: CircularProgressIndicator(
-        valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-      ),
-    );
-  }
-
-  Widget _buildMediaIndicator() {
-    if (_selectedMedia.length <= 1) return const SizedBox.shrink();
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(
-          _selectedMedia.length,
-          (index) => Container(
-            margin: const EdgeInsets.symmetric(horizontal: 2),
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color:
-                  index == _currentMediaIndex ? Colors.blue : Colors.grey[300],
+              body: body,
             ),
           ),
         ),
-      ),
+      );
+
+  Widget _body() => SafeArea(
+      top: false,
+      child: Center(
+          child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 638),
+        child: ListView(
+            padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 16, 26),
+            children: [
+              _author(),
+              const SizedBox(height: 12),
+              if (widget.photoMode) ...[
+                _mediaArea(),
+                const SizedBox(height: 14)
+              ],
+              TextField(
+                  controller: _text,
+                  enabled: !_sending,
+                  decoration: InputDecoration(
+                      labelText: _media.isEmpty && !widget.photoMode
+                          ? 'Post text'
+                          : 'Caption (optional)',
+                      alignLabelWithHint: true),
+                  minLines: 3,
+                  maxLines: 7,
+                  maxLength: Post.maxDescriptionLength,
+                  textCapitalization: TextCapitalization.sentences),
+              if (!widget.photoMode) _mediaArea(),
+              if (_error != null)
+                Padding(
+                    padding: const EdgeInsetsDirectional.only(top: 12),
+                    child: Semantics(
+                        liveRegion: true,
+                        child: Text(_error!,
+                            style:
+                                TextStyle(color: context.veyroColors.error)))),
+              if (_busy) ...[
+                const SizedBox(height: 14),
+                const LinearProgressIndicator(),
+                const SizedBox(height: 7),
+                Text(_sending ? 'Publishing…' : 'Preparing media…',
+                    style: context.veyroText.bodySmall),
+              ],
+            ]),
+      )));
+
+  Widget _author() {
+    final auth = context.watch<AuthBloc>().state;
+    final user = auth is Authenticated ? auth.user : null;
+    final name = user?.name ?? user?.username;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: ExcludeSemantics(
+          child: UserAvatar(
+              imageUrl: user?.profileImageUrl, name: name, radius: 21)),
+      title: Text(name ?? 'Your post',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: context.veyroText.titleSmall),
+      subtitle: Text(
+          widget.groupName == null
+              ? 'Public post'
+              : 'Posting in ${widget.groupName}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: context.veyroText.bodySmall),
+      trailing: Icon(
+          widget.groupName == null
+              ? Icons.public_rounded
+              : Icons.groups_outlined,
+          color: context.veyroColors.onSurfaceVariant,
+          size: 20),
     );
   }
 
-  Widget _buildMediaSelectionButtons() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Color(0xFFDBDBDB), width: 0.5),
-        ),
-      ),
-      child: Row(
+  Widget _mediaArea() {
+    final colors = context.veyroColors;
+    final buttons = Wrap(
+        alignment:
+            widget.photoMode ? WrapAlignment.center : WrapAlignment.start,
+        spacing: 8,
+        runSpacing: 5,
         children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () => _pickMedia(isVideo: false),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey[300]!),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.photo_library, color: Colors.blue, size: 20),
-                    SizedBox(width: 8),
-                    Text(
-                      'Gallery',
-                      style: TextStyle(
-                        color: Colors.blue,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: GestureDetector(
-              onTap: () => _pickMedia(isVideo: true),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey[300]!),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.videocam, color: Colors.blue, size: 20),
-                    SizedBox(width: 8),
-                    Text(
-                      'Video',
-                      style: TextStyle(
-                        color: Colors.blue,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+          FilledButton.tonalIcon(
+              onPressed: _busy ? null : () => _pick(),
+              icon: const Icon(Icons.photo_library_outlined, size: 18),
+              label: const Text('Add photos')),
+          if (!widget.photoMode)
+            FilledButton.tonalIcon(
+                onPressed: _busy ? null : () => _pick(video: true),
+                icon: const Icon(Icons.videocam_outlined, size: 18),
+                label: const Text('Add video')),
+          if (_media.isNotEmpty)
+            TextButton(
+                onPressed: _busy ? null : () => setState(_clearMedia),
+                child: const Text('Remove media')),
+        ]);
+    if (_media.isEmpty && !widget.photoMode) return buttons;
+    return Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+            padding: const EdgeInsets.all(13),
+            child: Column(
+              crossAxisAlignment: widget.photoMode
+                  ? CrossAxisAlignment.center
+                  : CrossAxisAlignment.start,
+              children: [
+                if (_media.isNotEmpty)
+                  _preview()
+                else ...[
+                  const SizedBox(height: 10),
+                  VeyroOrbitRing(
+                      glowing: false,
+                      surface: colors.surfaceContainer,
+                      child: CircleAvatar(
+                          radius: 24,
+                          backgroundColor: colors.primaryContainer,
+                          foregroundColor: colors.onPrimaryContainer,
+                          child: const Icon(Icons.photo_library_outlined))),
+                  const SizedBox(height: 9),
+                  Text('Choose up to eight photos',
+                      textAlign: TextAlign.center,
+                      style: context.veyroText.bodySmall),
+                ],
+                const SizedBox(height: 10),
+                buttons,
+              ],
+            )));
   }
 
-  void _showMediaSelectionDialog() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Select Media',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.photo_library, color: Colors.blue),
-              title: const Text('Photos from Gallery'),
-              subtitle: const Text('Select one or multiple photos'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickMedia(isVideo: false);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.videocam, color: Colors.blue),
-              title: const Text('Video from Gallery'),
-              subtitle: const Text('Select a video file'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickMedia(isVideo: true);
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
+  Widget _preview() {
+    if (_type == PostType.image)
+      return Wrap(spacing: 6, runSpacing: 6, children: [
+        for (final file in _media)
+          ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image(
+                  image: pickedImageProvider(file),
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const SizedBox.square(
+                      dimension: 100,
+                      child: Icon(Icons.broken_image_outlined)))),
+      ]);
+    final video = _video;
+    return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: AspectRatio(
+          aspectRatio: 16 / 9,
+          child: ColoredBox(
+              color: context.veyroColors.surfaceContainerHigh,
+              child: _videoFailed
+                  ? const Center(
+                      child: Text(
+                          'Preview unavailable. MP4 works best across devices.',
+                          textAlign: TextAlign.center))
+                  : video?.value.isInitialized == true
+                      ? Center(
+                          child: AspectRatio(
+                              aspectRatio: video!.value.aspectRatio,
+                              child: VideoPlayer(video)))
+                      : const Center(child: CircularProgressIndicator())),
+        ));
   }
 }

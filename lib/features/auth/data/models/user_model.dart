@@ -1,5 +1,3 @@
-
-
 import '../../domain/entities/user.dart';
 
 /// Represents a user data model, used for data transfer objects.
@@ -9,6 +7,7 @@ class UserModel extends User {
     required String id,
     required String email,
     String? username,
+    String? name,
     String? profilePictureUrl,
     String? bio,
     int? followersCount,
@@ -18,6 +17,7 @@ class UserModel extends User {
           id: id,
           email: email,
           username: username,
+          name: name,
           profilePictureUrl: profilePictureUrl,
           bio: bio,
           followersCount: followersCount,
@@ -29,8 +29,9 @@ class UserModel extends User {
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       id: json['id'] as String,
-      email: json['email'] as String,
+      email: json['email'] as String? ?? '',
       username: json['username'] as String?,
+      name: json['full_name'] as String?,
       profilePictureUrl: json['profile_picture_url'] as String?,
       bio: json['bio'] as String?,
       followersCount: json['followers_count'] as int?,
@@ -45,6 +46,7 @@ class UserModel extends User {
       'id': id,
       'email': email,
       'username': username,
+      'full_name': name,
       'profile_picture_url': profilePictureUrl,
       'bio': bio,
       'followers_count': followersCount,
@@ -61,6 +63,7 @@ class UserModel extends User {
       id: id,
       email: email ?? '', // Email might be null in some cases, provide default
       username: userMetadata?['username'] as String?,
+      name: userMetadata?['full_name'] as String?,
       profilePictureUrl: userMetadata?['profile_picture_url'] as String?,
       // Other fields might need to be fetched from a separate 'profiles' table
     );
@@ -71,6 +74,7 @@ class UserModel extends User {
     String? id,
     String? email,
     String? username,
+    String? name,
     String? profilePictureUrl,
     String? bio,
     int? followersCount,
@@ -81,6 +85,7 @@ class UserModel extends User {
       id: id ?? this.id,
       email: email ?? this.email,
       username: username ?? this.username,
+      name: name ?? this.name,
       profilePictureUrl: profilePictureUrl ?? this.profilePictureUrl,
       bio: bio ?? this.bio,
       followersCount: followersCount ?? this.followersCount,

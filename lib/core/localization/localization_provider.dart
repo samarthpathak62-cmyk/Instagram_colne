@@ -7,7 +7,7 @@ class LocalizationProvider extends ChangeNotifier {
 
   void setLocale(Locale locale) {
     if (!_isLocaleSupported(locale)) return;
-    
+
     _locale = locale;
     notifyListeners();
   }

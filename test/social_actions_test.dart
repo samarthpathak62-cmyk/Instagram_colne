@@ -1,0 +1,465 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:dartz/dartz.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:image_picker/image_picker.dart' show XFile;
+import 'package:instagram_clone/core/error/exceptions.dart';
+import 'package:instagram_clone/core/error/failures.dart';
+import 'package:instagram_clone/features/explore/domain/post_topics.dart';
+import 'package:instagram_clone/features/feed/data/datasources/feed_remote_datasource_impl.dart';
+import 'package:instagram_clone/features/feed/data/models/feed_item_model.dart';
+import 'package:instagram_clone/features/feed/domain/entities/feed_item.dart';
+import 'package:instagram_clone/features/feed/domain/repositories/feed_repository.dart';
+import 'package:instagram_clone/features/feed/domain/usecases/get_feed.dart';
+import 'package:instagram_clone/features/feed/presentation/bloc/feed_bloc.dart';
+import 'package:instagram_clone/features/feed/presentation/bloc/feed_state.dart';
+import 'package:instagram_clone/features/post/data/datasources/post_remote_datasource_impl.dart';
+import 'package:instagram_clone/features/post/data/models/post_model.dart';
+import 'package:instagram_clone/features/post/domain/entities/post.dart';
+import 'package:instagram_clone/features/post/domain/entities/post_reaction.dart';
+import 'package:instagram_clone/features/post/domain/entities/post_comment.dart';
+import 'package:instagram_clone/features/post/domain/repositories/post_repository.dart';
+import 'package:instagram_clone/features/post/domain/usecases/create_post.dart';
+import 'package:instagram_clone/features/post/domain/usecases/get_post.dart';
+import 'package:instagram_clone/features/post/domain/usecases/get_user_posts.dart';
+import 'package:instagram_clone/features/post/presentation/bloc/post_bloc.dart';
+import 'package:instagram_clone/features/post/presentation/bloc/post_interactions_cubit.dart';
+import 'package:instagram_clone/features/post/presentation/post_links.dart';
+import 'package:instagram_clone/features/post/presentation/widgets/post_card.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
+
+const _postId = '00000000-0000-4000-8000-000000000123';
+const _viewer = 'test-viewer';
+
+Map<String, dynamic> _row([String id = _postId]) => {
+      'id': id,
+      'author_id': _viewer,
+      'type': 'text',
+      'description': 'First text update',
+      'media_urls': [],
+      'created_at': '2026-11-18T06:00:00Z',
+      'author': {'id': _viewer, 'username': 'veyro_test'},
+      'likes': [
+        {'count': 2}
+      ],
+      'comments': [
+        {'count': 0}
+      ],
+    };
+
+supabase.SupabaseClient _client(MockClient transport) =>
+    supabase.SupabaseClient(
+      'https://example.invalid',
+      'test-key',
+      httpClient: transport,
+      authOptions: const supabase.AuthClientOptions(
+        authFlowType: supabase.AuthFlowType.implicit,
+        autoRefreshToken: false,
+      ),
+    );
+
+// PostgREST inspects the originating request on the response.
+http.Response _jsonResponse(http.Request request, Object data, int status) =>
+    http.Response(jsonEncode(data), status,
+        headers: {'content-type': 'application/json'}, request: request);
+
+Future<void> _signInFixture(supabase.SupabaseClient client) async {
+  String b64(Object value) =>
+      base64Url.encode(utf8.encode(jsonEncode(value))).replaceAll('=', '');
+  final exp = DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600;
+  await client.auth.recoverSession(jsonEncode({
+    'access_token':
+        '${b64({'alg': 'HS256'})}.${b64({'sub': _viewer, 'exp': exp})}.test',
+    'expires_in': 3600,
+    'token_type': 'bearer',
+    'refresh_token': 'fixture',
+    'user': {
+      'id': _viewer,
+      'app_metadata': {},
+      'user_metadata': {},
+      'created_at': '2026-11-18T06:00:00Z',
+      'aud': 'authenticated'
+    },
+  }));
+}
+
+void main() {
+  test('topic labels are deduplicated, Unicode aware, and ignore URL fragments',
+      () {
+    expect(
+        postTopics('#Veyro #veyro #कला https://example.invalid/#link no#tag'),
+        ['#veyro', '#कला']);
+    expect(postTopics('#a #b #c', limit: 2), ['#a', '#b']);
+  });
+
+  test('Following rows preserve the quote and its shallow original', () {
+    final item = FeedItemModel.fromJson({
+      ..._row('the-quote'),
+      'description': 'My take',
+      'shared_post_id': _postId,
+      'share_kind': 'quote',
+      'source': _row(),
+    });
+    final post = item.toPost();
+    expect(post.shareKind, PostShareKind.quote);
+    expect(post.shareTargetId, 'the-quote');
+    expect(post.sharedPost?.id, _postId);
+    expect(post.sharedPost?.description, 'First text update');
+  });
+
+  test(
+      'text composer writes a post but no storage object; blank text is rejected',
+      () async {
+    var requests = 0;
+    final client = _client(MockClient((request) async {
+      requests++;
+      expect(request.method, 'POST');
+      expect(request.url.path, '/rest/v1/posts');
+      expect(jsonDecode(request.body), {
+        'author_id': _viewer,
+        'type': 'text',
+        'media_urls': [],
+        'description': 'First text update',
+      });
+      return _jsonResponse(request, _row(), 201);
+    }));
+    addTearDown(client.dispose);
+    final remote = PostRemoteDataSourceImpl(supabaseClient: client);
+    final result = await remote.createPost(
+        authorId: _viewer,
+        type: PostType.text,
+        mediaFiles: [],
+        description: ' First text update  ');
+    expect(result.type, PostType.text);
+    expect(result.mediaUrl, isNull);
+    await expectLater(
+        remote.createPost(
+            authorId: _viewer,
+            type: PostType.text,
+            mediaFiles: [],
+            description: '   '),
+        throwsA(isA<ServerException>()));
+    expect(requests, 1);
+  });
+
+  test('photo and reel files use the owner folder and attach public media URLs',
+      () async {
+    final paths = <String>[];
+    final client = _client(MockClient((request) async {
+      expect(request.method, 'POST');
+      if (request.url.path.startsWith('/storage/v1/object/post-media/')) {
+        final asset = request.url.path.replaceFirst('/storage/v1/object/', '');
+        expect(asset, startsWith('post-media/$_viewer/'));
+        paths.add(asset);
+        return _jsonResponse(request, {'Key': asset}, 200);
+      }
+      expect(request.url.path, '/rest/v1/posts');
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      final urls = body['media_urls'] as List;
+      expect(urls,
+          ['https://example.invalid/storage/v1/object/public/${paths.last}']);
+      return _jsonResponse(request, {..._row(), ...body}, 201);
+    }));
+    addTearDown(client.dispose);
+    await _signInFixture(client);
+    final remote = PostRemoteDataSourceImpl(supabaseClient: client);
+    for (final pair in [
+      (PostType.image, 'photo.png'),
+      (PostType.video, 'reel.mp4')
+    ]) {
+      final result = await remote.createPost(
+          authorId: _viewer,
+          type: pair.$1,
+          mediaFiles: [
+            // Dart IO derives the name from the path; the web uses name.
+            XFile.fromData(Uint8List.fromList([1, 2, 3]),
+                path: pair.$2, name: pair.$2)
+          ],
+          description: 'A media post');
+      expect(result.type, pair.$1);
+    }
+    expect(paths.length, 2);
+    expect(paths.first, endsWith('.png'));
+    expect(paths.last, endsWith('.mp4'));
+  });
+
+  test('following feed uses the scoped view with viewer-specific embeds',
+      () async {
+    final client = _client(MockClient((request) async {
+      expect(request.method, 'GET');
+      expect(request.url.path, '/rest/v1/veyro_following_feed');
+      expect(request.url.queryParameters['select'],
+          contains('author:users!posts_author_id_fkey'));
+      expect(request.url.queryParameters['offset'], '10');
+      expect(request.url.queryParameters['limit'], '10');
+      expect(
+          request.url.queryParameters['liked_by_user.user_id'], 'eq.$_viewer');
+      expect(
+          request.url.queryParameters['saved_by_user.user_id'], 'eq.$_viewer');
+      return _jsonResponse(request, [_row()], 200);
+    }));
+    addTearDown(client.dispose);
+    await _signInFixture(client);
+    final remote = FeedRemoteDataSourceImpl(supabaseClient: client);
+    final posts = await remote.getFeed(page: 1, following: true);
+    expect(posts.single.toPost().type, PostType.text);
+    expect(posts.single.toPost().description, 'First text update');
+  });
+
+  test('post detail loads directly from its repository, with viewer save data',
+      () async {
+    final post = PostModel.fromJson({
+      ..._row(),
+      'saved_by_user': [
+        {'id': 'saved-row'}
+      ]
+    });
+    final repository = _PostRepository(post);
+    final bloc = PostBloc(
+        createPost: CreatePost(repository),
+        getPost: GetPost(repository),
+        getUserPosts: GetUserPosts(repository));
+    addTearDown(bloc.close);
+    final future = expectLater(bloc.stream,
+        emitsInOrder([isA<PostsLoading>(), PostDetailLoaded(post)]));
+    bloc.add(const LoadPostDetail(postId: _postId));
+    await future;
+    expect(post.isSavedByCurrentUser, isTrue);
+  });
+
+  test('feed ignores a late Latest response and appends Following pages',
+      () async {
+    final repository = _FeedRepository();
+    final cubit = FeedCubit(GetFeed(repository));
+    addTearDown(cubit.close);
+    final latest = cubit.refresh();
+    final following = cubit.selectTimeline(FeedTimeline.following);
+    final results = List.generate(
+        10, (index) => FeedItemModel.fromJson(_row('following-$index')));
+    repository.following.complete(Right(results));
+    await following;
+    repository.latest.complete(Right([FeedItemModel.fromJson(_row('latest'))]));
+    await latest;
+    expect(cubit.state.timeline, FeedTimeline.following);
+    expect(cubit.state.items, results);
+    await cubit.loadMore();
+    expect(cubit.state.items.length, 11);
+    expect(cubit.state.items.last.id, 'following-next');
+    expect(cubit.state.hasMore, isFalse);
+  });
+
+  test('failed like rolls back without losing a successful save', () async {
+    final post = PostModel.fromJson(_row());
+    final repository = _PostRepository(post);
+    final actions =
+        PostInteractionsCubit(repository: repository, userId: _viewer);
+    addTearDown(actions.close);
+    final like = actions.toggleLike(post);
+    expect(actions.forPost(post.id).likes(post), 3);
+    expect(actions.forPost(post.id).liking, isTrue);
+    await actions.toggleLike(post);
+    expect(repository.likeCalls, 1);
+    expect(await actions.toggleSave(post), isNull);
+    repository.like.complete(const Left(ServerFailure(message: 'Like failed')));
+    expect(await like, 'Like failed');
+    expect(actions.forPost(post.id).likes(post), 2);
+    expect(actions.forPost(post.id).isSaved(post), isTrue);
+    // A freshly loaded snapshot from another screen must not double-count a viewer like.
+    final current = PostInteraction(liked: true);
+    final refreshed = PostModel.fromJson({
+      ..._row(),
+      'liked_by_user': [
+        {'user_id': _viewer}
+      ],
+      'likes': [
+        {'count': 3}
+      ]
+    });
+    expect(current.likes(refreshed), 3);
+  });
+
+  test(
+      'changing a reaction moves its count, never duplicates it, and rolls back',
+      () async {
+    final post = FeedItemModel.fromJson({
+      ..._row(),
+      'group_id': 'community-id',
+      'group': {'name': 'Aperture Club'},
+      'reaction_counts': [
+        {'reaction': 'like', 'total': 2},
+        {'reaction': 'love', 'total': 1},
+      ],
+      'liked_by_user': [
+        {'user_id': _viewer, 'reaction': 'love'}
+      ],
+    }).toPost();
+    final repository = _PostRepository(post);
+    final actions =
+        PostInteractionsCubit(repository: repository, userId: _viewer);
+    addTearDown(actions.close);
+    expect(post.groupName, 'Aperture Club');
+    expect(post.myReaction, PostReaction.love);
+    expect(post.likeCount, 3);
+    final pending = actions.setReaction(post, PostReaction.wow);
+    final optimism = actions.forPost(post.id);
+    expect(optimism.selectedReaction(post), PostReaction.wow);
+    expect(optimism.tally(post), {PostReaction.like: 2, PostReaction.wow: 1});
+    expect(optimism.likes(post), 3);
+    repository.reaction
+        .complete(const Left(ServerFailure(message: 'Try again')));
+    expect(await pending, 'Try again');
+    expect(actions.forPost(post.id).selectedReaction(post), PostReaction.love);
+    expect(actions.forPost(post.id).tally(post),
+        {PostReaction.like: 2, PostReaction.love: 1});
+  });
+
+  testWidgets(
+      'post card makes like, comments, sharing and save directly accessible',
+      (tester) async {
+    final post = PostModel.fromJson(_row());
+    final actions = PostInteractionsCubit(
+        repository: _PostRepository(post), userId: _viewer);
+    addTearDown(actions.close);
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(320, 650);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    await tester.pumpWidget(BlocProvider.value(
+        value: actions,
+        child: MaterialApp(
+          home: Scaffold(body: ListView(children: [PostCard(post: post)])),
+        )));
+    expect(find.byTooltip('Like post'), findsOneWidget);
+    expect(find.byTooltip('Comments'), findsOneWidget);
+    expect(find.byTooltip('Share post'), findsOneWidget);
+    await tester.tap(find.byTooltip('Save post'));
+    await tester.pumpAndSettle();
+    expect(actions.forPost(post.id).isSaved(post), isTrue);
+    expect(find.byTooltip('Remove from saved'), findsOneWidget);
+    await tester.tap(find.byTooltip('Post options'));
+    await tester.pumpAndSettle();
+    expect(find.text('Repost or quote'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('post comments can be written, reloaded and removed',
+      (tester) async {
+    final post = PostModel.fromJson(_row());
+    final repo = _PostRepository(post);
+    final actions = PostInteractionsCubit(repository: repo, userId: _viewer);
+    addTearDown(actions.close);
+    await tester.pumpWidget(BlocProvider.value(
+      value: actions,
+      child: MaterialApp(
+          home: Scaffold(body: ListView(children: [PostCard(post: post)]))),
+    ));
+    await tester.ensureVisible(find.byTooltip('Comments'));
+    await tester.tap(find.byTooltip('Comments'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('No comments yet'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Nice update!');
+    await tester.pump();
+    await tester.tap(find.byTooltip('Send comment'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nice update!'), findsOneWidget);
+    expect(actions.forPost(_postId).commentCount, 1);
+    await tester.tap(find.byTooltip('Delete comment'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nice update!'), findsNothing);
+    expect(actions.forPost(_postId).commentCount, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  test(
+      'portable post links are recognized without treating other hosts as Veyro',
+      () {
+    final link = PostLinks.link(_postId, portable: true);
+    expect(PostLinks.read(link), _postId);
+    expect(PostLinks.inMessage(link.toString()), _postId);
+    expect(
+        PostLinks.inMessage(link.replace(host: 'example.invalid').toString()),
+        isNull);
+    expect(PostLinks.read(link.replace(queryParameters: {'post': 'wrong'})),
+        isNull);
+  });
+}
+
+class _FeedRepository implements FeedRepository {
+  final latest = Completer<Either<Failure, List<FeedItem>>>();
+  final following = Completer<Either<Failure, List<FeedItem>>>();
+
+  @override
+  Future<Either<Failure, List<FeedItem>>> getFeed(
+      {int page = 0, int limit = 10, bool following = false}) async {
+    if (page > 0)
+      return Right([FeedItemModel.fromJson(_row('following-next'))]);
+    return (following ? this.following : latest).future;
+  }
+}
+
+class _PostRepository implements PostRepository {
+  final Post post;
+  final comments = <PostComment>[];
+  final like = Completer<Either<Failure, void>>();
+  final reaction = Completer<Either<Failure, void>>();
+  int likeCalls = 0;
+
+  _PostRepository(this.post);
+
+  @override
+  Future<Either<Failure, Post>> getPost(String postId) async => Right(post);
+
+  @override
+  Future<Either<Failure, void>> likePost(String postId, String userId) {
+    likeCalls++;
+    return like.future;
+  }
+
+  @override
+  Future<Either<Failure, void>> setReaction(
+          String postId, PostReaction reaction) =>
+      this.reaction.future;
+
+  @override
+  Future<Either<Failure, void>> setSaved(
+          String postId, String userId, bool saved) async =>
+      const Right(null);
+
+  @override
+  Future<Either<Failure, CommentPage>> getComments(String postId,
+          {int offset = 0}) async =>
+      Right(CommentPage(List.of(comments), comments.length));
+
+  @override
+  Future<Either<Failure, PostComment>> addComment(
+      String postId, String userId, String content) async {
+    final item = PostComment(
+        id: 'c1',
+        postId: postId,
+        userId: userId,
+        content: content,
+        createdAt: DateTime.now());
+    comments.add(item);
+    return Right(item);
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteComment(
+      String commentId, String userId) async {
+    comments
+        .removeWhere((item) => item.id == commentId && item.userId == userId);
+    return const Right(null);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnsupportedError('${invocation.memberName} not used in test');
+}

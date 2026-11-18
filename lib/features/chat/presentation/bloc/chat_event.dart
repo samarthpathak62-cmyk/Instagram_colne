@@ -10,19 +10,23 @@ abstract class ChatEvent extends Equatable {
 class LoadChatsEvent extends ChatEvent {
   final String userId;
 
-  const LoadChatsEvent({required this.userId});
+  final bool quiet;
+
+  const LoadChatsEvent({required this.userId, this.quiet = false});
 
   @override
-  List<Object?> get props => [userId];
+  List<Object?> get props => [userId, quiet];
 }
 
 class LoadMessagesEvent extends ChatEvent {
   final String chatId;
 
-  const LoadMessagesEvent({required this.chatId});
+  final bool quiet;
+
+  const LoadMessagesEvent({required this.chatId, this.quiet = false});
 
   @override
-  List<Object?> get props => [chatId];
+  List<Object?> get props => [chatId, quiet];
 }
 
 class GetOrCreateChatEvent extends ChatEvent {

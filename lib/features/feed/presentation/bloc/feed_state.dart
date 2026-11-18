@@ -1,52 +1,21 @@
-// lib/features/feed/presentation/bloc/feed_state.dart
+import 'package:instagram_clone/features/feed/domain/entities/feed_item.dart';
 
-import 'package:equatable/equatable.dart';
-import '../../domain/entities/feed_item.dart'; // Assuming FeedItem entity is defined
+enum FeedTimeline { latest, following }
 
-/// Base class for all Feed States.
-abstract class FeedState extends Equatable {
-  const FeedState();
+class FeedState {
+  final FeedTimeline timeline;
+  final List<FeedItem> items;
+  final bool loading;
+  final bool hasMore;
+  final bool refreshing;
+  final String? error;
 
-  @override
-  List<Object> get props => [];
-}
-
-/// Initial state of the Feed Bloc.
-class FeedInitial extends FeedState {}
-
-/// State when feed items are being loaded.
-class FeedLoading extends FeedState {}
-
-/// State when feed items have been successfully loaded.
-class FeedLoaded extends FeedState {
-  final List<FeedItem> feedItems;
-  final bool hasReachedMax; // Indicates if all posts have been loaded
-
-  const FeedLoaded({
-    required this.feedItems,
-    this.hasReachedMax = false,
+  const FeedState({
+    this.timeline = FeedTimeline.latest,
+    this.items = const [],
+    this.loading = true,
+    this.hasMore = true,
+    this.refreshing = false,
+    this.error,
   });
-
-  FeedLoaded copyWith({
-    List<FeedItem>? feedItems,
-    bool? hasReachedMax,
-  }) {
-    return FeedLoaded(
-      feedItems: feedItems ?? this.feedItems,
-      hasReachedMax: hasReachedMax ?? this.hasReachedMax,
-    );
-  }
-
-  @override
-  List<Object> get props => [feedItems, hasReachedMax];
-}
-
-/// State when an error occurs while loading feed items.
-class FeedError extends FeedState {
-  final String message;
-
-  const FeedError({required this.message});
-
-  @override
-  List<Object> get props => [message];
 }

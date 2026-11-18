@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Veyro</string>
+    <color name="veyro_launch">#100D17</color>
+</resources>

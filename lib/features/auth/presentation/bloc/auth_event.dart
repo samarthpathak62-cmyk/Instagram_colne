@@ -20,12 +20,17 @@ class AuthLoginRequested extends AuthEvent {
 class AuthSignupRequested extends AuthEvent {
   final String email;
   final String password;
-  final String? username; // Optional
+  final String? username;
+  final String? fullName;
 
-  const AuthSignupRequested({required this.email, required this.password, this.username});
+  const AuthSignupRequested(
+      {required this.email,
+      required this.password,
+      this.username,
+      this.fullName});
 
   @override
-  List<Object?> get props => [email, password, username];
+  List<Object?> get props => [email, password, username, fullName];
 }
 
 class AuthLogoutRequested extends AuthEvent {}
@@ -42,3 +47,10 @@ class _AuthUserChanged extends AuthEvent {
   List<Object?> get props => [user];
 }
 
+class _AuthCallbackFailed extends AuthEvent {
+  final String message;
+  const _AuthCallbackFailed(this.message);
+
+  @override
+  List<Object> get props => [message];
+}

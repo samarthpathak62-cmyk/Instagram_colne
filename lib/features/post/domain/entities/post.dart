@@ -1,9 +1,13 @@
+import 'package:instagram_clone/features/post/domain/entities/post_reaction.dart';
 import 'package:equatable/equatable.dart';
 import 'package:instagram_clone/features/auth/domain/entities/user.dart'; // For author info
 
-enum PostType { image, video }
+enum PostType { image, video, text }
+
+enum PostShareKind { repost, quote }
 
 class Post extends Equatable {
+  static const maxDescriptionLength = 500;
   final String id;
   final String authorId;
   final User? user; // Changed from author to user to match code expectations
@@ -18,10 +22,24 @@ class Post extends Equatable {
   final int likesCount; // Added to match code expectations
   final int commentsCount; // Added to match code expectations
   final bool isLikedByCurrentUser; // Specific to the viewing user
+  final bool isSavedByCurrentUser;
   final String? mediaUrl; // Single media URL for convenience
   final String? mediaType; // Media type string
 
-  // Add other fields as needed: location, tags, etc.
+  final PostReaction? viewerReaction;
+  final Map<PostReaction, int> reactionCounts;
+  final String? groupId;
+  final String? groupName;
+  final PostShareKind? shareKind;
+  final String? sharedPostId;
+  final Post? sharedPost;
+
+  // Plain reposts point the next share at the original. Quotes can themselves
+  // be shared, but previews only render one level.
+  String? get shareTargetId =>
+      shareKind == PostShareKind.repost ? sharedPostId : id;
+  Post? get sharePreview =>
+      shareKind == PostShareKind.repost ? sharedPost : this;
 
   const Post({
     required this.id,
@@ -37,9 +55,20 @@ class Post extends Equatable {
     this.likesCount = 0,
     this.commentsCount = 0,
     this.isLikedByCurrentUser = false,
+    this.isSavedByCurrentUser = false,
     this.mediaUrl,
     this.mediaType,
+    this.viewerReaction,
+    this.reactionCounts = const {},
+    this.groupId,
+    this.groupName,
+    this.shareKind,
+    this.sharedPostId,
+    this.sharedPost,
   });
+
+  PostReaction? get myReaction =>
+      viewerReaction ?? (isLikedByCurrentUser ? PostReaction.like : null);
 
   // Alias for compatibility
   User? get author => user;
@@ -59,7 +88,15 @@ class Post extends Equatable {
         likesCount,
         commentsCount,
         isLikedByCurrentUser,
+        isSavedByCurrentUser,
         mediaUrl,
         mediaType,
+        viewerReaction,
+        reactionCounts,
+        groupId,
+        groupName,
+        shareKind,
+        sharedPostId,
+        sharedPost,
       ];
 }

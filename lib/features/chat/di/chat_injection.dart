@@ -19,6 +19,7 @@ void initChatDependencies(GetIt sl) {
       getChats: sl(),
       getMessages: sl(),
       sendMessage: sl(),
+      markMessagesAsRead: sl(),
       subscribeToMessages: sl(),
       subscribeToChats: sl(),
     ),
@@ -42,7 +43,6 @@ void initChatDependencies(GetIt sl) {
   sl.registerLazySingleton<ChatRemoteDataSource>(
     () => ChatRemoteDataSourceImpl(
       supabaseClient: sl(),
-      authRemoteDataSource: sl(),
     ),
   );
 }

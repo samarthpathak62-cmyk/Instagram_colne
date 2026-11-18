@@ -10,18 +10,24 @@ class NotificationModel extends Notification {
     required super.message,
     super.isRead = false,
     required super.createdAt,
+    super.senderUsername,
+    super.senderProfilePictureUrl,
   });
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
+    final actor = json['actor'] as Map<String, dynamic>?;
     return NotificationModel(
       id: json['id'],
       userId: json['user_id'],
       actorId: json['actor_id'],
+      senderUsername: actor?['username'] as String?,
+      senderProfilePictureUrl: actor?['profile_picture_url'] as String?,
       type: _mapStringToNotificationType(json['type']),
       resourceId: json['resource_id'],
-      message: json['message'],
+      message: json['message'] as String? ?? '',
       isRead: json['is_read'] ?? false,
-      createdAt: DateTime.parse(json['created_at']),
+      createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
     );
   }
 

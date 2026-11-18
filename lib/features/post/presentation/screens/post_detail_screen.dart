@@ -1,49 +1,49 @@
-// lib/features/post/presentation/screens/post_detail_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:instagram_clone/core/di/injection_container.dart';
+import 'package:instagram_clone/features/common_widgets/error_widget.dart';
 import 'package:instagram_clone/features/post/presentation/bloc/post_bloc.dart';
+import 'package:instagram_clone/features/post/presentation/bloc/post_interactions_cubit.dart';
+import 'package:instagram_clone/features/post/presentation/widgets/post_card.dart';
 
-class PostDetailScreen extends StatefulWidget {
+class PostDetailScreen extends StatelessWidget {
   final String postId;
 
-  const PostDetailScreen({Key? key, required this.postId}) : super(key: key);
-
-  @override
-  State<PostDetailScreen> createState() => _PostDetailScreenState();
-}
-
-class _PostDetailScreenState extends State<PostDetailScreen> {
-  @override
-  void initState() {
-    super.initState();
-    context.read<PostBloc>().add(LoadPostDetail(postId: widget.postId));
-  }
-
-  void GetPostDetail() {}
+  const PostDetailScreen({super.key, required this.postId});
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<PostBloc, PostState>(
-      builder: (context, state) {
-        if (state is PostDetailLoaded) {
-          final post = state.post;
-          return Scaffold(
-            appBar: AppBar(title: Text('Post Detail')),
-            body: Center(child: Text('Post ID: \\${post.id}')),
-          );
-        } else if (state is PostDetailFailure) {
-          return Scaffold(
-            appBar: AppBar(title: Text('Post Detail')),
-            body: Center(child: Text(state.message)),
-          );
-        } else {
-          return Scaffold(
-            appBar: AppBar(title: Text('Post Detail')),
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-      },
+    final deleted = context
+        .select((PostInteractionsCubit cubit) => cubit.forPost(postId).deleted);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Post')),
+      body: deleted
+          ? const Center(child: Text('This post was deleted.'))
+          : BlocProvider<PostBloc>(
+              create: (_) =>
+                  sl<PostBloc>()..add(LoadPostDetail(postId: postId)),
+              child:
+                  BlocBuilder<PostBloc, PostState>(builder: (context, state) {
+                if (state is PostDetailLoaded) {
+                  return Center(
+                      child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 650),
+                    child: ListView(
+                        padding: const EdgeInsets.all(16),
+                        children: [PostCard(post: state.post, inDetail: true)]),
+                  ));
+                }
+                if (state is PostDetailFailure) {
+                  return CustomErrorWidget(
+                    message: 'This post is unavailable or could not be loaded.',
+                    onRetry: () => context
+                        .read<PostBloc>()
+                        .add(LoadPostDetail(postId: postId)),
+                  );
+                }
+                return const Center(child: CircularProgressIndicator());
+              }),
+            ),
     );
   }
 }

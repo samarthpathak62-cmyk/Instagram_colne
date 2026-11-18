@@ -12,7 +12,8 @@ class FollowUserEvent extends FollowEvent {
   final String currentUserId;
   final String targetUserId;
 
-  const FollowUserEvent({required this.currentUserId, required this.targetUserId});
+  const FollowUserEvent(
+      {required this.currentUserId, required this.targetUserId});
 
   @override
   List<Object> get props => [currentUserId, targetUserId];
@@ -23,7 +24,8 @@ class UnfollowUserEvent extends FollowEvent {
   final String currentUserId;
   final String targetUserId;
 
-  const UnfollowUserEvent({required this.currentUserId, required this.targetUserId});
+  const UnfollowUserEvent(
+      {required this.currentUserId, required this.targetUserId});
 
   @override
   List<Object> get props => [currentUserId, targetUserId];
@@ -54,9 +56,9 @@ class CheckFollowStatusEvent extends FollowEvent {
   final String currentUserId;
   final String targetUserId;
 
-  const CheckFollowStatusEvent({required this.currentUserId, required this.targetUserId});
+  const CheckFollowStatusEvent(
+      {required this.currentUserId, required this.targetUserId});
 
   @override
   List<Object> get props => [currentUserId, targetUserId];
 }
-

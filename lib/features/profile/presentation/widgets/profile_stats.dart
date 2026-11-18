@@ -32,7 +32,8 @@ class ProfileStats extends StatelessWidget {
     );
   }
 
-  Widget _buildStatColumn(BuildContext context, String label, int count, VoidCallback? onTap) {
+  Widget _buildStatColumn(
+      BuildContext context, String label, int count, VoidCallback? onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -41,13 +42,16 @@ class ProfileStats extends StatelessWidget {
         children: <Widget>[
           Text(
             count.toString(),
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(context)
+                .textTheme
+                .titleLarge
+                ?.copyWith(fontWeight: FontWeight.bold),
           ),
           Container(
             margin: const EdgeInsets.only(top: 4.0),
             child: Text(
               label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
         ],

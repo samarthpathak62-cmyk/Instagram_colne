@@ -44,7 +44,8 @@ class SearchBar extends StatefulWidget {
   State<SearchBar> createState() => _SearchBarState();
 }
 
-class _SearchBarState extends State<SearchBar> with SingleTickerProviderStateMixin {
+class _SearchBarState extends State<SearchBar>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<Color?> _borderColorAnimation;
@@ -58,7 +59,7 @@ class _SearchBarState extends State<SearchBar> with SingleTickerProviderStateMix
       duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    
+
     _scaleAnimation = Tween<double>(
       begin: 1.0,
       end: 1.02,
@@ -68,12 +69,12 @@ class _SearchBarState extends State<SearchBar> with SingleTickerProviderStateMix
     ));
 
     _internalFocusNode = widget.focusNode ?? FocusNode();
-    
+
     _internalFocusNode.addListener(() {
       setState(() {
         _isFocused = _internalFocusNode.hasFocus;
       });
-      
+
       if (_isFocused) {
         _animationController.forward();
       } else {
@@ -99,7 +100,7 @@ class _SearchBarState extends State<SearchBar> with SingleTickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     // Initialize border color animation based on theme
     _borderColorAnimation = ColorTween(
       begin: Colors.transparent,
@@ -117,8 +118,8 @@ class _SearchBarState extends State<SearchBar> with SingleTickerProviderStateMix
           child: Container(
             height: widget.height ?? 36,
             decoration: BoxDecoration(
-              color: widget.fillColor ?? 
-                     (isDark ? const Color(0xFF262626) : const Color(0xFFEFEFEF)),
+              color: widget.fillColor ??
+                  (isDark ? const Color(0xFF262626) : const Color(0xFFEFEFEF)),
               borderRadius: BorderRadius.circular(widget.borderRadius),
               border: Border.all(
                 color: _borderColorAnimation.value ?? Colors.transparent,
@@ -127,7 +128,8 @@ class _SearchBarState extends State<SearchBar> with SingleTickerProviderStateMix
               boxShadow: _isFocused
                   ? [
                       BoxShadow(
-                        color: (widget.focusedBorderColor ?? const Color(0xFF0095F6))
+                        color: (widget.focusedBorderColor ??
+                                const Color(0xFF0095F6))
                             .withOpacity(0.2),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
@@ -151,15 +153,17 @@ class _SearchBarState extends State<SearchBar> with SingleTickerProviderStateMix
               decoration: InputDecoration(
                 hintText: widget.hintText,
                 hintStyle: TextStyle(
-                  color: isDark ? const Color(0xFF8E8E8E) : const Color(0xFF8E8E8E),
+                  color: isDark
+                      ? const Color(0xFF8E8E8E)
+                      : const Color(0xFF8E8E8E),
                   fontSize: 16,
                   fontWeight: FontWeight.w400,
                 ),
                 prefixIcon: widget.prefixIcon ?? _buildPrefixIcon(isDark),
                 suffixIcon: _buildSuffixIcon(isDark),
                 border: InputBorder.none,
-                contentPadding: widget.contentPadding ?? 
-                               const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
+                contentPadding: widget.contentPadding ??
+                    const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
               ),
             ),
           ),
@@ -173,7 +177,7 @@ class _SearchBarState extends State<SearchBar> with SingleTickerProviderStateMix
       duration: const Duration(milliseconds: 200),
       child: Icon(
         Icons.search,
-        color: _isFocused 
+        color: _isFocused
             ? (widget.focusedBorderColor ?? const Color(0xFF0095F6))
             : (isDark ? const Color(0xFF8E8E8E) : const Color(0xFF8E8E8E)),
         size: 20,
@@ -185,7 +189,7 @@ class _SearchBarState extends State<SearchBar> with SingleTickerProviderStateMix
     if (widget.suffixIcon != null) {
       return widget.suffixIcon;
     }
-    
+
     if (widget.controller.text.isNotEmpty) {
       return AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -209,7 +213,7 @@ class _SearchBarState extends State<SearchBar> with SingleTickerProviderStateMix
         ),
       );
     }
-    
+
     return null;
   }
 }
@@ -262,17 +266,17 @@ class _InstagramSearchBarState extends State<InstagramSearchBar>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    
+
     _internalFocusNode = widget.focusNode ?? FocusNode();
-    
+
     _internalFocusNode.addListener(() {
       setState(() {
-        _showRecentSearches = _internalFocusNode.hasFocus && 
-                             widget.showRecentSearches && 
-                             widget.controller.text.isEmpty &&
-                             (widget.recentSearches?.isNotEmpty ?? false);
+        _showRecentSearches = _internalFocusNode.hasFocus &&
+            widget.showRecentSearches &&
+            widget.controller.text.isEmpty &&
+            (widget.recentSearches?.isNotEmpty ?? false);
       });
-      
+
       if (_showRecentSearches) {
         _animationController.forward();
       } else {
@@ -282,10 +286,10 @@ class _InstagramSearchBarState extends State<InstagramSearchBar>
 
     widget.controller.addListener(() {
       setState(() {
-        _showRecentSearches = _internalFocusNode.hasFocus && 
-                             widget.showRecentSearches && 
-                             widget.controller.text.isEmpty &&
-                             (widget.recentSearches?.isNotEmpty ?? false);
+        _showRecentSearches = _internalFocusNode.hasFocus &&
+            widget.showRecentSearches &&
+            widget.controller.text.isEmpty &&
+            (widget.recentSearches?.isNotEmpty ?? false);
       });
     });
   }
@@ -302,7 +306,7 @@ class _InstagramSearchBarState extends State<InstagramSearchBar>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Column(
       children: [
         SearchBar(
@@ -341,7 +345,9 @@ class _InstagramSearchBarState extends State<InstagramSearchBar>
                 color: isDark ? const Color(0xFF262626) : Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: isDark ? const Color(0xFF363636) : const Color(0xFFDBDBDB),
+                  color: isDark
+                      ? const Color(0xFF363636)
+                      : const Color(0xFFDBDBDB),
                   width: 0.5,
                 ),
                 boxShadow: [
@@ -356,7 +362,8 @@ class _InstagramSearchBarState extends State<InstagramSearchBar>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -383,9 +390,10 @@ class _InstagramSearchBarState extends State<InstagramSearchBar>
                       ],
                     ),
                   ),
-                  ...widget.recentSearches!.take(5).map((search) => 
-                    _buildRecentSearchItem(search, isDark)
-                  ).toList(),
+                  ...widget.recentSearches!
+                      .take(5)
+                      .map((search) => _buildRecentSearchItem(search, isDark))
+                      .toList(),
                 ],
               ),
             ),
@@ -410,7 +418,8 @@ class _InstagramSearchBarState extends State<InstagramSearchBar>
             children: [
               Icon(
                 Icons.history,
-                color: isDark ? const Color(0xFF8E8E8E) : const Color(0xFF8E8E8E),
+                color:
+                    isDark ? const Color(0xFF8E8E8E) : const Color(0xFF8E8E8E),
                 size: 20,
               ),
               const SizedBox(width: 12),
@@ -426,7 +435,8 @@ class _InstagramSearchBarState extends State<InstagramSearchBar>
               ),
               Icon(
                 Icons.north_west,
-                color: isDark ? const Color(0xFF8E8E8E) : const Color(0xFF8E8E8E),
+                color:
+                    isDark ? const Color(0xFF8E8E8E) : const Color(0xFF8E8E8E),
                 size: 16,
               ),
             ],

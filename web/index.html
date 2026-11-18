@@ -1,38 +1,60 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
+  <!-- Flutter replaces this value with --base-href for root or subpath hosting. -->
   <base href="$FLUTTER_BASE_HREF">
-
   <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
-
-  <!-- iOS meta tags & icons -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Veyro is a place to connect with your people, share your moments, and explore what’s new.">
+  <meta name="theme-color" content="#18131f">
+  <meta name="color-scheme" content="dark light">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="instagram_clone">
+  <meta name="apple-mobile-web-app-title" content="Veyro">
+  <meta property="og:title" content="Veyro">
+  <meta property="og:description" content="Connect with your people, share your moments, and explore what’s new.">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
-
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>instagram_clone</title>
+  <link rel="icon" type="image/png" href="favicon.png">
   <link rel="manifest" href="manifest.json">
+  <title>Veyro</title>
+  <style>
+    html, body { height: 100%; margin: 0; background: #100d17; }
+    #veyro-launch {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-content: center;
+      justify-items: center;
+      z-index: 1;
+      pointer-events: none;
+      background: radial-gradient(ellipse at center, #281741, #100d17 64%);
+      color: #fbf7ff;
+      font: 800 39px/1.1 system-ui, sans-serif;
+      letter-spacing: -.05em;
+    }
+    #veyro-progress {
+      margin-top: 18px;
+      width: 60px;
+      height: 4px;
+      border-radius: 6px;
+      background: linear-gradient(90deg, #ad7bfa, #f0ccff);
+      animation: veyro-pulse 1.4s ease-in-out infinite alternate;
+    }
+    @keyframes veyro-pulse { from { opacity: .42; transform: scaleX(.58); } to { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { #veyro-progress { animation: none; } }
+  </style>
 </head>
 <body>
+  <div id="veyro-launch" role="status" aria-label="Loading Veyro">
+    <img src="icons/veyro-mark.png" alt="" width="112" height="112">
+    <span aria-hidden="true">Veyro</span>
+    <div id="veyro-progress" aria-hidden="true"></div>
+  </div>
+  <script>
+    window.addEventListener('flutter-first-frame', () => {
+      document.getElementById('veyro-launch')?.remove();
+    }, { once: true });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

@@ -18,7 +18,8 @@ class MessageModel extends Message {
       senderId: json['sender_id'],
       receiverId: json['receiver_id'],
       content: json['content'],
-      timestamp: DateTime.parse(json['timestamp']),
+      timestamp: DateTime.tryParse(json['timestamp'] as String? ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
       isRead: json['is_read'] ?? false,
     );
   }

@@ -7,10 +7,6 @@ abstract class FeedRemoteDataSource {
   /// Retrieves a list of feed items from the remote source.
   ///
   /// Throws a [ServerException] or [SupabaseException] on failure.
-  Future<List<FeedItem>> getFeed({int page = 0, int limit = 10});
-
-  /// Refreshes the feed data from the remote source.
-  ///
-  /// Throws a [ServerException] or [SupabaseException] on failure.
-  Future<List<FeedItem>> refreshFeed();
+  Future<List<FeedItem>> getFeed(
+      {int page = 0, int limit = 10, bool following = false});
 }

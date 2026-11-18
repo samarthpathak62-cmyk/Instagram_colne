@@ -1,37 +1,76 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:instagram_clone/core/constants/app_constants.dart';
+import 'package:instagram_clone/core/theme/veyro_theme.dart';
+import 'package:instagram_clone/generated/app_localizations.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:instagram_clone/features/auth/presentation/screens/login_screen.dart';
 import 'package:instagram_clone/features/auth/presentation/screens/splash_screen.dart';
 import 'package:instagram_clone/features/common_widgets/main_navigation_screen.dart';
+import 'package:instagram_clone/features/post/presentation/post_links.dart';
+import 'package:instagram_clone/features/post/presentation/screens/post_detail_screen.dart';
 
 class AppView extends StatelessWidget {
-  const AppView({super.key});
+  final ThemeMode themeMode;
+  final Locale? locale;
+
+  const AppView({super.key, this.themeMode = ThemeMode.dark, this.locale});
 
   @override
   Widget build(BuildContext context) {
-    // Define light and dark themes later in core/theme
     return MaterialApp(
-      title: 'Instagram Clone',
-      theme: ThemeData.light(), // Placeholder
-      darkTheme: ThemeData.dark(), // Placeholder
-      themeMode: ThemeMode.system, // Or load from settings
+      title: AppConstants.appName,
+      theme: VeyroTheme.light,
+      darkTheme: VeyroTheme.dark,
+      themeMode: themeMode,
       debugShowCheckedModeBanner: false,
-      // Add localization delegates later
+      builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: VeyroTheme.overlay(context.veyroColors),
+        child: child ?? const SizedBox.shrink(),
+      ),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      locale: locale,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: BlocBuilder<AuthBloc, AuthState>(
         builder: (context, state) {
           if (state is Authenticated) {
-            // Show Instagram-like navigation bar after login
-            return const MainNavigationScreen();
-          } else if (state is Unauthenticated || state is AuthFailure) {
-            // Navigate to the Login Screen
-            return const LoginScreen(); // Placeholder for login screen
-          } else {
-            // Show splash screen while checking auth state or during initial load
+            return const _SignedInHome();
+          }
+          if (state is AuthInitial) {
             return const SplashScreen();
           }
+          // Keep the sign-in form mounted during a request so its listener can
+          // show the response and the form keeps its inputs on failure.
+          return const LoginScreen();
         },
       ),
     );
   }
+}
+
+class _SignedInHome extends StatefulWidget {
+  const _SignedInHome();
+
+  @override
+  State<_SignedInHome> createState() => _SignedInHomeState();
+}
+
+class _SignedInHomeState extends State<_SignedInHome> {
+  @override
+  void initState() {
+    super.initState();
+    final postId = kIsWeb ? PostLinks.read(Uri.base) : null;
+    if (postId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => PostDetailScreen(postId: postId)));
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => const MainNavigationScreen();
 }

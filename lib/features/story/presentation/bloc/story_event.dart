@@ -10,7 +10,7 @@ abstract class StoryEvent extends Equatable {
 // Event to trigger creating a new story item
 class CreateNewStoryItem extends StoryEvent {
   final String userId;
-  final File mediaFile;
+  final XFile mediaFile;
   final StoryMediaType mediaType;
 
   const CreateNewStoryItem({

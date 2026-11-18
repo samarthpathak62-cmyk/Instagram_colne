@@ -12,11 +12,6 @@ abstract class FeedRepository {
   ///
   /// Returns [Right] with a list of [FeedItem] on success.
   /// Returns [Left] with a [Failure] on error.
-  Future<Either<Failure, List<FeedItem>>> getFeed({int page = 0, int limit = 10});
-
-  /// Refreshes the feed data.
-  ///
-  /// Returns [Right] with a list of [FeedItem] on success.
-  /// Returns [Left] with a [Failure] on error.
-  Future<Either<Failure, List<FeedItem>>> refreshFeed();
+  Future<Either<Failure, List<FeedItem>>> getFeed(
+      {int page = 0, int limit = 10, bool following = false});
 }

@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:dartz/dartz.dart';
 import 'package:equatable/equatable.dart';
 import 'package:instagram_clone/core/error/failures.dart';
@@ -18,6 +18,7 @@ class CreatePost implements UseCase<Post, CreatePostParams> {
       type: params.type,
       mediaFiles: params.mediaFiles,
       description: params.description,
+      groupId: params.groupId,
     );
   }
 }
@@ -25,17 +26,18 @@ class CreatePost implements UseCase<Post, CreatePostParams> {
 class CreatePostParams extends Equatable {
   final String authorId;
   final PostType type;
-  final List<File> mediaFiles; // List of images or single video file
+  final List<XFile> mediaFiles; // List of images or single video file
   final String? description;
+  final String? groupId;
 
   const CreatePostParams({
     required this.authorId,
     required this.type,
     required this.mediaFiles,
     this.description,
+    this.groupId,
   });
 
   @override
-  List<Object?> get props => [authorId, type, mediaFiles, description];
+  List<Object?> get props => [authorId, type, mediaFiles, description, groupId];
 }
-

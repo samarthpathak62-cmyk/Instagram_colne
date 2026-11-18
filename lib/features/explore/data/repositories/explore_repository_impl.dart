@@ -41,9 +41,9 @@ class ExploreRepositoryImpl implements ExploreRepository {
 
   @override
   Future<Either<Failure, List<Post>>> getExplorePosts(
-      {int limit = 21, int offset = 0}) async {
-    return await _handleOperation<List<Post>>(
-        () => remoteDataSource.getExplorePosts(limit: limit, offset: offset));
+      {int limit = 24, int offset = 0, String query = ''}) async {
+    return await _handleOperation<List<Post>>(() => remoteDataSource
+        .getExplorePosts(limit: limit, offset: offset, query: query));
   }
 
   @override
