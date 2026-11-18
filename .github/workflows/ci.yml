@@ -41,6 +41,7 @@ jobs:
 
       - name: Run Flutter tests
         run: |
+          set -o pipefail
           if ! flutter test --no-pub --reporter expanded 2>&1 | tee "$RUNNER_TEMP/veyro-test.log"; then
             python3 - "$RUNNER_TEMP/veyro-test.log" <<'PYTHON'
           import pathlib

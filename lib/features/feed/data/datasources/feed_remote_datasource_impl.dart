@@ -27,8 +27,8 @@ class FeedRemoteDataSourceImpl implements FeedRemoteDataSource {
                   .eq('liked_by_user.user_id', viewer)
                   .eq('saved_by_user.user_id', viewer);
       final scoped = following
-          ? withViewer(supabaseClient.rpc('veyro_following_posts', get: true))
-              .select(columns)
+          ? withViewer(supabaseClient.rpc('veyro_following_posts',
+              get: true, params: const <String, dynamic>{})).select(columns)
           : withViewer(supabaseClient
               .from(SupabaseConstants.postsTable)
               .select(columns));

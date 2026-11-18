@@ -291,13 +291,17 @@ async function testSocial(page, state, name) {
   await press('Share post');
   await waitFor('Copy link');
   await page.bringToFront();
+  await page.evaluate(() => navigator.clipboard.writeText(''));
   await page.waitForTimeout(280);
   await press('Copy link', true);
   await page.waitForFunction(async (postId) => (await navigator.clipboard.readText()).includes(postId), firstPost, { timeout });
   const copy = await page.evaluate(() => navigator.clipboard.readText());
   assert.equal(new URL(copy).searchParams.get('post'), firstPost);
+  await waitFor('Post options');
   await press('Back');
+  await waitFor('Sort saved posts');
   await press('Back');
+  await waitFor('Refresh feed');
 
   await press(/What’s on your mind/);
   await waitFor('Publish');
@@ -308,11 +312,11 @@ async function testSocial(page, state, name) {
   assert.equal(state.posts[0].type, 'text');
   assert.deepEqual(state.posts[0].media_urls, []);
   await waitFor('Refresh feed');
-  const following = page.waitForResponse(
-    (response) => response.url().includes('/rest/v1/rpc/veyro_following_posts') && response.ok(), { timeout },
-  );
-  await press('Following');
-  await following;
+  const [following] = await Promise.all([
+    page.waitForResponse((response) => response.url().includes('/rest/v1/rpc/veyro_following_posts'), { timeout }),
+    press('Following'),
+  ]);
+  assert.ok(following.ok(), 'server-side Following request succeeds');
 
   if (name === 'desktop') {
     await press('Post options');
@@ -333,7 +337,9 @@ async function testSocial(page, state, name) {
     await waitFor('Following');
     assert.ok(state.follows.has(otherId));
     await press('Back');
+    await waitFor('Refresh notifications');
     await press('Back');
+    await waitFor('Refresh feed');
     await press('Following');
     await waitFor('Unlike post');
     await press('Share post');
@@ -346,6 +352,7 @@ async function testSocial(page, state, name) {
     await waitFor('Unlike post');
     await capture(page, 'desktop-shared-post');
     await press('Back');
+    await waitFor('View shared post');
     await press('Back');
     await waitFor('Refresh feed');
   }
