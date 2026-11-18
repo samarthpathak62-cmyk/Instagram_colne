@@ -239,13 +239,18 @@ function controls(page) {
     assert.ok(box, `visible bounds for ${name}`);
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   }
-  async function enter(value) {
-    const textbox = page.getByRole('textbox').first();
+  async function enter(value, name) {
+    const textbox = page.getByRole('textbox', { name }).first();
     await textbox.waitFor({ state: 'attached', timeout });
-    const box = await textbox.boundingBox();
-    assert.ok(box, 'visible bounds for the editor');
-    await page.mouse.click(box.x + box.width * .35, box.y + Math.min(box.height / 2, 30));
-    await page.keyboard.insertText(value);
+    // Flutter attaches its DOM editing strategy after the semantics focus
+    // action. Focusing the accessibility field is more reliable than clicking
+    // coordinates during tab/dialog transitions.
+    await page.bringToFront();
+    await textbox.focus();
+    await page.waitForTimeout(180);
+    await textbox.fill(value, { timeout });
+    assert.equal(await textbox.inputValue(), value, `text entered in ${name || 'editor'}`);
+    await page.waitForTimeout(180);
   }
   async function changed(name, resource, method) {
     const [receipt] = await Promise.all([
@@ -285,6 +290,8 @@ async function testSocial(page, state, name) {
   await waitFor('Remove from saved');
   await press('Share post');
   await waitFor('Copy link');
+  await page.bringToFront();
+  await page.waitForTimeout(280);
   await press('Copy link', true);
   await page.waitForFunction(async (postId) => (await navigator.clipboard.readText()).includes(postId), firstPost, { timeout });
   const copy = await page.evaluate(() => navigator.clipboard.readText());
@@ -294,7 +301,7 @@ async function testSocial(page, state, name) {
 
   await press(/What’s on your mind/);
   await waitFor('Publish');
-  await enter(text);
+  await enter(text, /Post text/);
   await capture(page, `${name}-composer`);
   await changed('Publish', 'posts', 'POST');
   assert.equal(state.posts[0].description, text);
@@ -310,7 +317,7 @@ async function testSocial(page, state, name) {
   if (name === 'desktop') {
     await press('Post options');
     await press('Edit post');
-    await enter(' Edited.');
+    await enter(`${text} Edited.`, /Post text/);
     await changed('Save changes', 'posts', 'PATCH');
     assert.ok(state.posts[0].description.includes('Edited.'));
     await press('Post options');
@@ -331,7 +338,7 @@ async function testSocial(page, state, name) {
     await waitFor('Unlike post');
     await press('Share post');
     await press('Send in message');
-    await enter('veyro_friend');
+    await enter('veyro_friend', /Search by username/);
     await press(/@veyro_friend/);
     await changed('Send message', 'messages', 'POST');
     assert.equal(new URL(state.messages[0].content).searchParams.get('post'), firstPost);
@@ -410,8 +417,10 @@ async function testViewport(browser, name, viewport) {
       console.log(`Veyro ${name} ${signedIn ? 'feed' : 'auth'} OK`);
     } catch (error) {
       await capture(page, `${name}-${signedIn ? 'feed' : 'auth'}-error`).catch(() => {});
-      const labels = await page.locator('flt-semantics[aria-label]').evaluateAll((items) => items.map((item) => item.getAttribute('aria-label')).slice(0, 45)).catch(() => []);
-      throw new Error(`${name} ${signedIn ? 'social' : 'auth'}: ${error.message}\n${issues.join('\n')}\nSemantics: ${labels.join(' | ')}`);
+      const controls = await page.locator('flt-semantics[role="button"],input[data-semantics-role],textarea[data-semantics-role]').evaluateAll((nodes) =>
+        nodes.slice(0, 24).map((node) => [node.getAttribute('aria-label') || node.textContent?.trim() || node.tagName,
+          node.getAttribute('aria-disabled') === 'true' ? 'disabled' : '', node.value].filter(Boolean).join(' '))).catch(() => []);
+      throw new Error(`${name} ${signedIn ? 'social' : 'auth'}: ${error.message}\n${issues.join('\n')}\nControls: ${controls.join(' | ')}`);
     } finally {
       await browserContext.close();
     }
@@ -424,12 +433,16 @@ async function testViewport(browser, name, viewport) {
     args: ['--no-sandbox'],
   });
   try {
-    const suites = await Promise.allSettled([
-      testViewport(browser, 'desktop', { width: 1360, height: 860 }),
-      testViewport(browser, 'mobile', { width: 390, height: 844 }),
-    ]);
-    const failures = suites.filter((suite) => suite.status === 'rejected');
-    if (failures.length) throw new Error(failures.map((suite) => suite.reason.message).join('\n'));
+    const failures = [];
+    for (const [name, viewport] of [
+      ['desktop', { width: 1360, height: 860 }],
+      ['mobile', { width: 390, height: 844 }],
+    ]) {
+      // Keep keyboard and clipboard operations in one foreground page.
+      try { await testViewport(browser, name, viewport); }
+      catch (error) { failures.push(error.message); }
+    }
+    if (failures.length) throw new Error(failures.join('\n'));
     console.log('::notice::Veyro auth and signed-in social flows verified in desktop and mobile Chrome (fixture backend).');
   } finally {
     await browser.close();
