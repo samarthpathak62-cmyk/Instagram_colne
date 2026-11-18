@@ -182,7 +182,7 @@ lib/
 ---
 
 ## How to Run the Project
-1. **Install Flutter** using the version in [`.fvmrc`](.fvmrc) so your local SDK matches CI. Android builds also use JDK 17.
+1. **Install Flutter** using the version in [`.fvmrc`](.fvmrc) so your local SDK matches CI. Android builds use JDK 21 (required by the Android release lint tooling).
 2. **Clone the repository:**
    ```bash
    git clone <repo-url>
