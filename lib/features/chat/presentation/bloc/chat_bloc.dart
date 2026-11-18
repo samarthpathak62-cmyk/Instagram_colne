@@ -38,13 +38,24 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   Future<void> _onLoadChats(
       LoadChatsEvent event, Emitter<ChatState> emit) async {
-    emit(ChatsLoading());
-    final result = await getChats(GetChatsParams(userId: event.userId));
-    result.fold(
-      (failure) => emit(ChatError(message: failure.message)),
-      (chats) => emit(ChatsLoaded(chats: chats)),
-    );
+    if (_loadingChats) return;
+    _loadingChats = true;
+    try {
+      if (!event.quiet) emit(ChatsLoading());
+      final result = await getChats(GetChatsParams(userId: event.userId));
+      result.fold(
+        (failure) {
+          if (!event.quiet) emit(ChatError(message: failure.message));
+        },
+        (chats) => emit(ChatsLoaded(chats: chats)),
+      );
+    } finally {
+      _loadingChats = false;
+    }
   }
+
+  bool _loadingChats = false;
+  bool _loadingMessages = false;
 
   final _messages = <String, Message>{};
   String? _openChatId;
@@ -63,20 +74,28 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   Future<void> _onLoadMessages(
       LoadMessagesEvent event, Emitter<ChatState> emit) async {
-    if (_openChatId != event.chatId) _messages.clear();
-    _openChatId = event.chatId;
-    emit(MessagesLoading());
-    final result = await getMessages(GetMessagesParams(chatId: event.chatId));
-    if (_openChatId != event.chatId) return;
-    result.fold(
-      (failure) => emit(ChatError(message: failure.message)),
-      (messages) {
-        for (final message in messages) {
-          _messages.putIfAbsent(message.id, () => message);
-        }
-        _emitMessages(event.chatId, emit);
-      },
-    );
+    if (_loadingMessages) return;
+    _loadingMessages = true;
+    try {
+      if (_openChatId != event.chatId) _messages.clear();
+      _openChatId = event.chatId;
+      if (!event.quiet) emit(MessagesLoading());
+      final result = await getMessages(GetMessagesParams(chatId: event.chatId));
+      result.fold(
+        (failure) {
+          if (!event.quiet) emit(ChatError(message: failure.message));
+        },
+        (messages) {
+          for (final message in messages) {
+            if (_messages[message.id]?.isRead != true)
+              _messages[message.id] = message;
+          }
+          _emitMessages(event.chatId, emit);
+        },
+      );
+    } finally {
+      _loadingMessages = false;
+    }
   }
 
   Future<void> _onSendMessage(

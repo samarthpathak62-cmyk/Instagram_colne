@@ -98,7 +98,6 @@ jobs:
     name: Build web app
     runs-on: ubuntu-latest
     needs: analyze-and-test
-    if: ${{ !cancelled() }}
 
     steps:
       - name: Checkout repository

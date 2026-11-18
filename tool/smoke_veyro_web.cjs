@@ -248,12 +248,14 @@ function controls(page) {
     await page.keyboard.insertText(value);
   }
   async function changed(name, resource, method) {
-    const receipt = page.waitForResponse((response) => {
-      const target = new URL(response.url());
-      return target.origin === backend.origin && target.pathname === `/rest/v1/${resource}` && response.request().method() === method;
-    }, { timeout });
-    await press(name);
-    assert.ok((await receipt).ok(), `${method} ${resource} succeeded`);
+    const [receipt] = await Promise.all([
+      page.waitForResponse((response) => {
+        const target = new URL(response.url());
+        return target.origin === backend.origin && target.pathname === `/rest/v1/${resource}` && response.request().method() === method;
+      }, { timeout }),
+      press(name),
+    ]).catch((error) => { throw new Error(`${name} (${method} ${resource}): ${error.message}`); });
+    assert.ok(receipt.ok(), `${method} ${resource} succeeded`);
   }
   const waitFor = (name) => control(name).waitFor({ state: 'attached', timeout });
   return { press, enter, waitFor, changed };
@@ -278,12 +280,12 @@ async function testSocial(page, state, name) {
   await capture(page, `${name}-comments`);
   await press('Close comments');
   await press('Saved posts');
-  await press('Open text post');
+  await press(/Open text post/);
   await waitFor('Unlike post');
   await waitFor('Remove from saved');
   await press('Share post');
   await waitFor('Copy link');
-  await press('Copy link');
+  await press('Copy link', true);
   await page.waitForFunction(async (postId) => (await navigator.clipboard.readText()).includes(postId), firstPost, { timeout });
   const copy = await page.evaluate(() => navigator.clipboard.readText());
   assert.equal(new URL(copy).searchParams.get('post'), firstPost);
@@ -422,8 +424,12 @@ async function testViewport(browser, name, viewport) {
     args: ['--no-sandbox'],
   });
   try {
-    await testViewport(browser, 'desktop', { width: 1360, height: 860 });
-    await testViewport(browser, 'mobile', { width: 390, height: 844 });
+    const suites = await Promise.allSettled([
+      testViewport(browser, 'desktop', { width: 1360, height: 860 }),
+      testViewport(browser, 'mobile', { width: 390, height: 844 }),
+    ]);
+    const failures = suites.filter((suite) => suite.status === 'rejected');
+    if (failures.length) throw new Error(failures.map((suite) => suite.reason.message).join('\n'));
     console.log('::notice::Veyro auth and signed-in social flows verified in desktop and mobile Chrome (fixture backend).');
   } finally {
     await browser.close();

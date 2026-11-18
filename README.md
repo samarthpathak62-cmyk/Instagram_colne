@@ -13,7 +13,7 @@ The orbit-V logo and violet palettes are shared across the website and app. The 
 - **Post actions:** Like, save, write or delete your own comments, and share a post by link or direct message. Post owners can edit the text or delete the post. Saved posts are private and can be sorted or removed.
 - **Reels and stories:** Browse real video posts vertically in Reels, with next/previous buttons on desktop. Add image or video stories, navigate or pause playback, and see which story items you've viewed in the current app session.
 - **Explore and profiles:** Search post text and usernames. View profile text/photo/video filters and follower/following lists. Follow or message another person from their profile.
-- **Messages and activity:** Start a conversation from the inbox. A shared Veyro post opens directly in the app from a message. New follows, likes and comments generate **in-app** activity; open, mark read, or dismiss it. This does not send push notifications.
+- **Messages and activity:** Start a conversation from the inbox. Visible chats refresh periodically if realtime delivery is unavailable. A shared Veyro post opens directly in the app from a message. New follows, likes and comments generate **in-app** activity; open, mark read, or dismiss it. This does not send push notifications.
 - **Accounts:** Sign up, log in, edit your profile, and change theme/language and activity preferences. Veyro uses its own accounts; it does not import accounts or feeds from other networks.
 
 Feature code is under `lib/features/` with data, domain and presentation layers. Shared navigation and branding sit in `lib/features/common_widgets/`. Flutter integration, browser smoke tests and database checks are in `test/` and `tool/`.

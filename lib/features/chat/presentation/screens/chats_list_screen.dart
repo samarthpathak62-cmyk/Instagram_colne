@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:instagram_clone/core/theme/veyro_theme.dart';
@@ -22,15 +24,35 @@ class ChatsListScreen extends StatefulWidget {
 }
 
 class _ChatsListScreenState extends State<ChatsListScreen> {
+  Timer? _refreshTimer;
+
   @override
   void initState() {
     super.initState();
     _loadChats();
     _subscribeToChats();
+    // Push updates are preferred; periodically refresh while visible so direct
+    // messages still arrive when a Realtime connection is unavailable.
+    _refreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      final lifecycle = WidgetsBinding.instance.lifecycleState;
+      if (mounted &&
+          (lifecycle == null || lifecycle == AppLifecycleState.resumed) &&
+          ModalRoute.isCurrentOf(context) == true) {
+        _loadChats(quiet: true);
+      }
+    });
   }
 
-  void _loadChats() {
-    context.read<ChatBloc>().add(LoadChatsEvent(userId: widget.currentUser.id));
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  void _loadChats({bool quiet = false}) {
+    context
+        .read<ChatBloc>()
+        .add(LoadChatsEvent(userId: widget.currentUser.id, quiet: quiet));
   }
 
   void _subscribeToChats() {

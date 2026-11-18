@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:instagram_clone/core/theme/veyro_theme.dart';
@@ -33,23 +35,38 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   String? _lastMessageId;
   List<Message>? _visibleMessages;
 
+  Timer? _refreshTimer;
+
   @override
   void initState() {
     super.initState();
     _loadMessages();
     _subscribeToMessages();
     _markMessagesAsRead();
+    // Push updates are preferred; periodically refresh while visible so direct
+    // messages still arrive when a Realtime connection is unavailable.
+    _refreshTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+      final lifecycle = WidgetsBinding.instance.lifecycleState;
+      if (mounted &&
+          (lifecycle == null || lifecycle == AppLifecycleState.resumed) &&
+          ModalRoute.isCurrentOf(context) == true) {
+        _loadMessages(quiet: true);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  void _loadMessages() {
-    context.read<ChatBloc>().add(LoadMessagesEvent(chatId: widget.chat.id));
+  void _loadMessages({bool quiet = false}) {
+    context
+        .read<ChatBloc>()
+        .add(LoadMessagesEvent(chatId: widget.chat.id, quiet: quiet));
   }
 
   void _subscribeToMessages() {
