@@ -62,6 +62,31 @@ supabase.SupabaseClient _client(MockClient transport) =>
       ),
     );
 
+// PostgREST inspects the originating request on the response.
+http.Response _jsonResponse(http.Request request, Object data, int status) =>
+    http.Response(jsonEncode(data), status,
+        headers: {'content-type': 'application/json'}, request: request);
+
+Future<void> _signInFixture(supabase.SupabaseClient client) async {
+  String b64(Object value) =>
+      base64Url.encode(utf8.encode(jsonEncode(value))).replaceAll('=', '');
+  final exp = DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600;
+  await client.auth.recoverSession(jsonEncode({
+    'access_token':
+        '${b64({'alg': 'HS256'})}.${b64({'sub': _viewer, 'exp': exp})}.test',
+    'expires_in': 3600,
+    'token_type': 'bearer',
+    'refresh_token': 'fixture',
+    'user': {
+      'id': _viewer,
+      'app_metadata': {},
+      'user_metadata': {},
+      'created_at': '2026-11-18T06:00:00Z',
+      'aud': 'authenticated'
+    },
+  }));
+}
+
 void main() {
   test(
       'text composer writes a post but no storage object; blank text is rejected',
@@ -77,8 +102,7 @@ void main() {
         'media_urls': [],
         'description': 'First text update',
       });
-      return http.Response(jsonEncode(_row()), 201,
-          headers: {'content-type': 'application/json'});
+      return _jsonResponse(request, _row(), 201);
     }));
     addTearDown(client.dispose);
     final remote = PostRemoteDataSourceImpl(supabaseClient: client);
@@ -108,35 +132,17 @@ void main() {
         final asset = request.url.path.replaceFirst('/storage/v1/object/', '');
         expect(asset, startsWith('post-media/$_viewer/'));
         paths.add(asset);
-        return http.Response(jsonEncode({'Key': asset}), 200,
-            headers: {'content-type': 'application/json'});
+        return _jsonResponse(request, {'Key': asset}, 200);
       }
       expect(request.url.path, '/rest/v1/posts');
       final body = jsonDecode(request.body) as Map<String, dynamic>;
       final urls = body['media_urls'] as List;
       expect(urls,
           ['https://example.invalid/storage/v1/object/public/${paths.last}']);
-      return http.Response(jsonEncode({..._row(), ...body}), 201,
-          headers: {'content-type': 'application/json'});
+      return _jsonResponse(request, {..._row(), ...body}, 201);
     }));
     addTearDown(client.dispose);
-    String b64(Object value) =>
-        base64Url.encode(utf8.encode(jsonEncode(value))).replaceAll('=', '');
-    final exp = DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600;
-    await client.auth.recoverSession(jsonEncode({
-      'access_token':
-          '${b64({'alg': 'HS256'})}.${b64({'sub': _viewer, 'exp': exp})}.test',
-      'expires_in': 3600,
-      'token_type': 'bearer',
-      'refresh_token': 'fixture',
-      'user': {
-        'id': _viewer,
-        'app_metadata': {},
-        'user_metadata': {},
-        'created_at': '2026-11-18T06:00:00Z',
-        'aud': 'authenticated'
-      },
-    }));
+    await _signInFixture(client);
     final remote = PostRemoteDataSourceImpl(supabaseClient: client);
     for (final pair in [
       (PostType.image, 'photo.png'),
@@ -165,10 +171,14 @@ void main() {
           contains('author:users!posts_author_id_fkey'));
       expect(request.url.queryParameters['offset'], '10');
       expect(request.url.queryParameters['limit'], '10');
-      return http.Response(jsonEncode([_row()]), 200,
-          headers: {'content-type': 'application/json'});
+      expect(
+          request.url.queryParameters['liked_by_user.user_id'], 'eq.$_viewer');
+      expect(
+          request.url.queryParameters['saved_by_user.user_id'], 'eq.$_viewer');
+      return _jsonResponse(request, [_row()], 200);
     }));
     addTearDown(client.dispose);
+    await _signInFixture(client);
     final remote = FeedRemoteDataSourceImpl(supabaseClient: client);
     final posts = await remote.getFeed(page: 1, following: true);
     expect(posts.single.toPost().type, PostType.text);

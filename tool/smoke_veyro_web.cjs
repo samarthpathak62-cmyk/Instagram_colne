@@ -226,9 +226,9 @@ function controls(page) {
   // navigation/InkWell destinations. Both support a semantics tap.
   const control = (name) => page.getByRole('button', { name, exact: typeof name === 'string' })
     .or(page.getByLabel(name, { exact: typeof name === 'string' }))
-    .or(page.getByTitle(name, { exact: typeof name === 'string' })).first();
+    .or(page.getByTitle(name, { exact: typeof name === 'string' }));
   async function press(name, physical = false) {
-    const element = control(name);
+    const element = control(name).and(page.locator(':not([aria-disabled="true"]):not([disabled])')).first();
     await element.waitFor({ state: 'attached', timeout });
     if (!physical) {
       await element.evaluate((node) => node.click());
@@ -262,7 +262,7 @@ function controls(page) {
     ]).catch((error) => { throw new Error(`${name} (${method} ${resource}): ${error.message}`); });
     assert.ok(receipt.ok(), `${method} ${resource} succeeded`);
   }
-  const waitFor = (name) => control(name).waitFor({ state: 'attached', timeout });
+  const waitFor = (name) => control(name).first().waitFor({ state: 'attached', timeout });
   return { press, enter, waitFor, changed };
 }
 
@@ -326,6 +326,7 @@ async function testSocial(page, state, name) {
     assert.ok(state.posts[0].description.includes('Edited.'));
     await press('Post options');
     await press('Delete post');
+    await waitFor('Cancel');
     await changed('Delete post', 'posts', 'DELETE');
     assert.ok(!state.posts.some((post) => post.description.includes('Edited.')));
     await press('Latest');
