@@ -90,13 +90,24 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           body: TickerMode(
               enabled: _selected == 0, child: FeedScreen(onCompose: _compose)),
         ),
-        CreatePostScreen(
-          reelMode: _reelMode,
-          onCreated: (_) {
-            setState(() => _profileRevision++);
-            _select(_reelMode ? 2 : 0);
-          },
-          onClose: () => _select(_reelMode ? 2 : 0),
+        IndexedStack(
+          index: _reelMode ? 1 : 0,
+          sizing: StackFit.expand,
+          children: [
+            for (final reel in [false, true])
+              ExcludeFocus(
+                excluding: _selected != 1 || _reelMode != reel,
+                child: CreatePostScreen(
+                  reelMode: reel,
+                  onCreated: (_) {
+                    setState(() => _profileRevision++);
+                    if (_selected == 1 && _reelMode == reel)
+                      _select(reel ? 2 : 0);
+                  },
+                  onClose: () => _select(reel ? 2 : 0),
+                ),
+              ),
+          ],
         ),
         _selected == 2
             ? VideoExploreTab(onCreate: () => _compose(reel: true))

@@ -7,179 +7,16 @@ The orbit-V logo and violet palettes are shared across the website and app. The 
 
 ---
 
-## Features
-- User authentication (sign up, login, logout)
-- User profiles with bio and profile picture
-- Create and browse photo/video posts; like and save posts
-- Follow/unfollow users
-- Stories (upload, view, progress indicator)
-- Real-time chat (DMs)
-- Read and manage notifications delivered by the backend
-- Explore page (search, trending)
-- Favorites (save posts)
-- Settings (language, theme, notifications)
-- Localization (English/Arabic)
-- Error handling, loading indicators, and empty states
+## Social features
 
----
+- **Home:** Latest is a chronological public timeline. Following includes updates from people you follow and your own posts. Publish a text update (up to 500 characters), up to eight photos, or a video.
+- **Post actions:** Like, save, write or delete your own comments, and share a post by link or direct message. Post owners can edit the text or delete the post. Saved posts are private and can be sorted or removed.
+- **Reels and stories:** Browse real video posts vertically in Reels, with next/previous buttons on desktop. Add image or video stories, navigate or pause playback, and see which story items you've viewed in the current app session.
+- **Explore and profiles:** Search post text and usernames. View profile text/photo/video filters and follower/following lists. Follow or message another person from their profile.
+- **Messages and activity:** Start a conversation from the inbox. A shared Veyro post opens directly in the app from a message. New follows, likes and comments generate **in-app** activity; open, mark read, or dismiss it. This does not send push notifications.
+- **Accounts:** Sign up, log in, edit your profile, and change theme/language and activity preferences. Veyro uses its own accounts; it does not import accounts or feeds from other networks.
 
-## Folder Structure
-```
-lib/
-  main.dart
-  app.dart
-  core/
-    constants/
-      supabase_constants.dart
-      app_constants.dart
-      api_constants.dart
-    di/
-      injection_container.dart
-    error/
-      failures.dart
-      exceptions.dart
-    localization/
-      localization_helper.dart
-      directionality_wrapper.dart
-      localization_provider.dart
-      app_localization_setup.dart
-    usecase/
-      usecase.dart
-  features/
-    activity/
-      data/
-        activity_repository.dart
-      domain/
-        entities/
-          activity.dart
-      presentation/
-        screens/
-          activity_screen.dart
-    arch/
-      presentation.zip
-    auth/
-      data/
-      domain/
-      presentation/
-    chat/
-      data/
-      domain/
-      di/
-      presentation/
-    common_widgets/
-      app_bar.dart
-      main_navigation_screen.dart
-      user_avatar.dart
-      loading_indicator.dart
-      error_widget.dart
-      empty_state_widget.dart
-    explore/
-      data/
-      domain/
-      di/
-      presentation/
-    favorites/
-      data/
-      domain/
-      di/
-      presentation/
-    feed/
-      data/
-      domain/
-      di/
-      presentation/
-    follow/
-      data/
-      domain/
-      presentation/
-    notifications/
-      data/
-        datasources/
-          notification_remote_datasource.dart
-          notification_remote_datasource_impl.dart
-        models/
-          notification_model.dart
-        repositories/
-          notification_repository_impl.dart
-      domain/
-        entities/
-          notification.dart
-        repositories/
-          notification_repository.dart
-        usecases/
-          mark_notification_as_read.dart
-          delete_notification.dart
-          subscribe_to_notifications.dart
-          mark_all_notifications_as_read.dart
-          get_notifications.dart
-      di/
-        notification_injection.dart
-      presentation/
-        bloc/
-          notification_event.dart
-          notification_state.dart
-          notification_bloc.dart
-        screens/
-          notifications_screen.dart
-          notification_screen.dart
-        widgets/
-          notification_item.dart
-    post/
-      data/
-      domain/
-      di/
-      presentation/
-    profile/
-      data/
-      domain/
-      di/
-      presentation/
-    settings/
-      data/
-      domain/
-      di/
-      presentation/
-    story/
-      data/
-        datasources/
-          story_remote_datasource.dart
-          story_remote_datasource_impl.dart
-        models/
-          story_model.dart
-        repositories/
-          story_repository_impl.dart
-      domain/
-        entities/
-          story.dart
-        repositories/
-          story_repository.dart
-        usecases/
-          get_stories.dart
-          create_story.dart
-          create_story_item.dart
-      di/
-        story_injection.dart
-      presentation/
-        bloc/
-          story_bloc.dart
-          story_event.dart
-          story_state.dart
-        screens/
-          story_view_screen.dart
-          create_story_screen.dart
-        widgets/
-          story_circles_widget.dart
-          story_progress_indicator.dart
-  generated/
-    app_localizations.dart
-    app_localizations_en.dart
-    app_localizations_ar.dart
-  l10n/
-    app_en.arb
-    app_ar.arb
-```
-
----
+Feature code is under `lib/features/` with data, domain and presentation layers. Shared navigation and branding sit in `lib/features/common_widgets/`. Flutter integration, browser smoke tests and database checks are in `test/` and `tool/`.
 
 ## How to Run the Project
 1. **Install Flutter** using the version in [`.fvmrc`](.fvmrc) so your local SDK matches CI. Android builds use JDK 21 (required by the Android release lint tooling).
@@ -203,13 +40,20 @@ lib/
 
 ## CI and GitHub Pages
 
-Run the same checks as CI from the repository root:
+Run the Flutter checks from the repository root:
 
 ```bash
 flutter pub get --enforce-lockfile
 git ls-files -z -- '*.dart' | xargs -0 dart format --output=none --set-exit-if-changed
 flutter analyze --no-pub --no-fatal-infos
 flutter test --no-pub
+```
+
+CI also exercises signed-in interactions in desktop and mobile Chrome against a fixture backend, and runs the social migration against an isolated Postgres database. Neither suite creates live accounts or content. To run the database suite separately:
+
+```bash
+npm install --no-save --prefix /tmp/veyro-sql @electric-sql/pglite@0.5.16
+NODE_PATH=/tmp/veyro-sql/node_modules node tool/test_social_schema.cjs
 ```
 
 Flutter generates `lib/generated/` from the translation files in `lib/l10n/` during dependency setup. Edit the `.arb` files rather than the generated Dart files. When changing dependencies or the Flutter version, run `flutter pub get` without `--enforce-lockfile` and commit the resulting `pubspec.lock`.
@@ -221,8 +65,8 @@ For deployment, set **Settings → Pages → Build and deployment → Source** t
 ## Veyro Supabase
 
 - **Project:** Veyro Social Platform (`klhczdgjewbmwkktmgzp`). [`SupabaseConstants`](lib/core/constants/supabase_constants.dart) holds the shared project URL and publishable client key. Neither the app nor the website needs a service-role key.
-- **Database:** The [Veyro integration migration](supabase/migrations/20261118052414_connect_veyro_clients.sql) is already applied to this project. It extends the existing schema rather than creating a new project or replacing the website/admin tables. Client reads of `public.users` must select specific public columns; the `email` column is not exposed. Chats, messages, saved posts, notifications, and app preferences are scoped to the signed-in user by row-level security.
-- **Media:** `profile-images` (5 MiB), `post-media` and `story-media` (50 MiB each) serve public social media. Only signed-in users can upload to their own folders. Story items older than 24 hours are filtered out of the app's story list; that does not delete the uploaded file.
+- **Database:** The [Veyro integration migration](supabase/migrations/20261118052414_connect_veyro_clients.sql) is already applied to this project. The [social actions migration](supabase/migrations/20261118064846_veyro_social_actions.sql) is also applied; it adds the server-filtered Following timeline, owner-only comment deletion, text validation, and in-app activity triggers. Neither migration replaces the website/admin tables. Client reads of `public.users` must select specific public columns; the `email` column is not exposed. Chats, messages, saved posts, notifications, and app preferences are scoped to the signed-in user by row-level security.
+- **Media:** `profile-images` (5 MiB), `post-media` and `story-media` (50 MiB each) serve public social media. Only signed-in users can upload to their own folders. Story items older than 24 hours are filtered out of the app's story list; story expiry and deleting a post remove it from the app, but do not currently purge its storage object.
 - **Auth:** Email confirmation remains enabled. Allowed signup callbacks include the [GitHub Pages site](https://samarthpathak62-cmyk.github.io/Instagram_colne/), the existing Vercel branch preview, and `com.instagramcolne.veyro://auth-callback/` for Android/iOS. The shared Auth Site URL was left unchanged. Allowlist the exact HTTPS URL for any new deployment under **Authentication → URL Configuration**. Open a web confirmation link on the same browser for automatic sign-in, or sign in manually after confirming.
 - **Email delivery:** Veyro has no custom SMTP configured. Supabase's [default SMTP service](https://supabase.com/docs/guides/auth/auth-smtp) is limited to project-team addresses. Configure custom SMTP in Veyro before enabling public signup; do not disable verification to work around it.
 
@@ -232,7 +76,7 @@ For deployment, set **Settings → Pages → Build and deployment → Source** t
 python3 tool/check_veyro.py
 ```
 
-This read-only smoke check uses the same publishable key as the clients and checks Auth settings, real PostgREST projections, and anonymous privacy rules without printing profile data. For an authenticated check, use a confirmed test account: sign in to the Android app and web app with it, publish a small test photo from one, reload the other and check that the same post and profile appear. Use a second test account to verify private message delivery. Remove any disposable content when done.
+This read-only smoke check uses the same publishable key as the clients and checks Auth settings, real PostgREST projections, and anonymous privacy rules without printing profile data. For an authenticated check, use a confirmed test account: sign in to the Android app and web app with it, publish a small test photo from one, reload the other and check that the same post and profile appear. Use a second confirmed test account to verify follows, activity delivery and private messages; check that shared links open the right post after sign-in. Remove any disposable content when done.
 
 ### Vercel
 

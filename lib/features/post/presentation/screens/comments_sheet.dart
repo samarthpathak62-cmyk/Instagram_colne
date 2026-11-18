@@ -86,6 +86,11 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     setState(() => _writing = false);
     result.fold((failure) => _showError(failure.message), (comment) {
       _text.clear();
+      setState(() {
+        _comments.insert(0, comment);
+        _total++;
+      });
+      _actions.updateCommentCount(widget.postId, _total);
       if (_scroll.hasClients) _scroll.jumpTo(0);
       _load();
     });
@@ -112,7 +117,11 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     if (!mounted) return;
     setState(() => _writing = false);
     result.fold((failure) => _showError(failure.message), (_) {
-      setState(() => _comments.removeWhere((item) => item.id == comment.id));
+      setState(() {
+        _comments.removeWhere((item) => item.id == comment.id);
+        if (_total > 0) _total--;
+      });
+      _actions.updateCommentCount(widget.postId, _total);
       _load();
     });
   }

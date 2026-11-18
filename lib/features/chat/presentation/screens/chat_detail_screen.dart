@@ -102,10 +102,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               onPressed: _loadMessages,
               icon: const Icon(Icons.refresh_rounded))
         ],
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
       ),
       body: Center(
         child: ConstrainedBox(
