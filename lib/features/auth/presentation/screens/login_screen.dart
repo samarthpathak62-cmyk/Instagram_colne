@@ -65,7 +65,7 @@ class _LoginScreenState extends State<LoginScreen>
     // Start animations
     _logoAnimationController.forward();
     Future.delayed(const Duration(milliseconds: 500), () {
-      _formAnimationController.forward();
+      if (mounted) _formAnimationController.forward();
     });
   }
 
@@ -83,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen>
       context.read<AuthBloc>().add(
             AuthLoginRequested(
               email: _emailController.text.trim(),
-              password: _passwordController.text.trim(),
+              password: _passwordController.text,
             ),
           );
     }

@@ -21,15 +21,14 @@ class AppView extends StatelessWidget {
       home: BlocBuilder<AuthBloc, AuthState>(
         builder: (context, state) {
           if (state is Authenticated) {
-            // Show Instagram-like navigation bar after login
             return const MainNavigationScreen();
-          } else if (state is Unauthenticated || state is AuthFailure) {
-            // Navigate to the Login Screen
-            return const LoginScreen(); // Placeholder for login screen
-          } else {
-            // Show splash screen while checking auth state or during initial load
+          }
+          if (state is AuthInitial) {
             return const SplashScreen();
           }
+          // Keep the sign-in form mounted during a request so its listener can
+          // show the response and the form keeps its inputs on failure.
+          return const LoginScreen();
         },
       ),
     );

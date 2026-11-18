@@ -1,33 +1,26 @@
-import 'package:supabase_flutter/supabase_flutter.dart'
-    hide User, AuthException;
+import 'package:instagram_clone/core/constants/supabase_constants.dart';
+import 'package:instagram_clone/core/error/exceptions.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
+
 import '../../domain/entities/user.dart';
-import '../../../../core/error/exceptions.dart';
+import '../models/user_model.dart';
 import 'auth_remote_datasource.dart';
 
-/// Implementation of [AuthRemoteDataSource] that interacts with Supabase.
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
-  final SupabaseClient supabaseClient;
+  final supabase.SupabaseClient supabaseClient;
 
   AuthRemoteDataSourceImpl({required this.supabaseClient});
 
+  User _fromSession(supabase.Session session) => UserModel.fromSupabaseUser(
+        id: session.user.id,
+        email: session.user.email,
+        userMetadata: session.user.userMetadata,
+      );
+
   @override
   Future<User?> getCurrentUser() async {
-    try {
-      final user = supabaseClient.auth.currentUser;
-      if (user != null) {
-        return User(
-          id: user.id,
-          email: user.email ?? '',
-          username: user.userMetadata?['username'] ?? user.email?.split('@')[0],
-        );
-      } else {
-        return null;
-      }
-    } on PostgrestException catch (e) {
-      throw SupabaseException(message: e.message, code: e.code);
-    } catch (e) {
-      throw ServerException(message: e.toString());
-    }
+    final session = supabaseClient.auth.currentSession;
+    return session == null ? null : _fromSession(session);
   }
 
   @override
@@ -36,66 +29,48 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String password,
   }) async {
     try {
-      final AuthResponse response =
-          await supabaseClient.auth.signInWithPassword(
+      final result = await supabaseClient.auth.signInWithPassword(
         email: email,
         password: password,
       );
-
-      if (response.user != null) {
-        return User(
-          id: response.user!.id,
-          email: response.user!.email ?? '',
-          username: response.user!.userMetadata?['username'] ??
-              response.user!.email?.split('@')[0],
-        );
-      } else {
-        throw AuthException(message: 'Login failed: No user returned.');
+      final session = result.session;
+      if (session == null) {
+        throw AuthException(
+            message: 'No session was returned. Please log in again.');
       }
-    } on PostgrestException catch (e) {
-      throw SupabaseException(message: e.message, code: e.code);
-    } catch (e) {
-      throw ServerException(message: e.toString());
+      return _fromSession(session);
+    } on supabase.AuthException catch (error) {
+      throw AuthException(message: error.message);
     }
   }
 
   @override
-  Future<User> signupWithEmailPassword({
+  Future<User?> signupWithEmailPassword({
     required String email,
     required String password,
     String? username,
+    String? fullName,
   }) async {
     try {
-      final AuthResponse response = await supabaseClient.auth.signUp(
+      final result = await supabaseClient.auth.signUp(
         email: email,
         password: password,
-        data: username != null ? {'username': username} : null,
+        emailRedirectTo: SupabaseConstants.emailRedirectUrl,
+        data: {
+          if (username != null) 'username': username,
+          if (fullName != null) 'full_name': fullName,
+          if (fullName != null) 'display_name': fullName,
+        },
       );
-
-      if (response.user != null) {
-        return User(
-          id: response.user!.id,
-          email: response.user!.email ?? '',
-          username: username ?? response.user!.email?.split('@')[0],
-        );
-      } else {
-        throw AuthException(message: 'Signup failed: No user returned.');
-      }
-    } on PostgrestException catch (e) {
-      throw SupabaseException(message: e.message, code: e.code);
-    } catch (e) {
-      throw ServerException(message: e.toString());
+      // Supabase returns a user but no session if email confirmation is required.
+      final session = result.session;
+      return session == null ? null : _fromSession(session);
+    } on supabase.AuthException catch (error) {
+      throw AuthException(message: error.message);
     }
   }
 
   @override
-  Future<void> logout() async {
-    try {
-      await supabaseClient.auth.signOut();
-    } on PostgrestException catch (e) {
-      throw SupabaseException(message: e.message, code: e.code);
-    } catch (e) {
-      throw ServerException(message: e.toString());
-    }
-  }
+  Future<void> logout() =>
+      supabaseClient.auth.signOut(scope: supabase.SignOutScope.local);
 }

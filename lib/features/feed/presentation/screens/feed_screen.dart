@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:instagram_clone/features/common_widgets/error_widget.dart';
 import 'package:instagram_clone/features/common_widgets/loading_indicator.dart';
 import 'package:instagram_clone/features/post/presentation/screens/post_detail_screen.dart';
@@ -22,7 +23,7 @@ class FeedScreen extends StatefulWidget {
 
 class _FeedScreenState extends State<FeedScreen> {
   final _scrollController = ScrollController();
-  int _currentPage = 0;
+  static const _pageSize = 10;
 
   @override
   void initState() {
@@ -33,9 +34,14 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   void _onScroll() {
-    if (_isBottom) {
-      _currentPage++;
-      context.read<FeedBloc>().add(LoadFeed(page: _currentPage));
+    final bloc = context.read<FeedBloc>();
+    final state = bloc.state;
+    if (_isBottom &&
+        state is FeedLoaded &&
+        !state.hasReachedMax &&
+        state.feedItems.length >= _pageSize) {
+      bloc.add(LoadFeed(
+          page: state.feedItems.length ~/ _pageSize, limit: _pageSize));
     }
   }
 
@@ -47,7 +53,6 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   Future<void> _onRefresh() async {
-    _currentPage = 0; // Reset page on refresh
     context.read<FeedBloc>().add(const RefreshFeedEvent());
     // Wait for the bloc to emit a new state
     await BlocProvider.of<FeedBloc>(context)
@@ -76,7 +81,7 @@ class _FeedScreenState extends State<FeedScreen> {
               ),
             ),
           ),
-          child: FeedStoriesBar(),
+          child: const FeedStoriesBar(),
         ),
 
         // Feed Posts
@@ -85,7 +90,7 @@ class _FeedScreenState extends State<FeedScreen> {
             onRefresh: _onRefresh,
             child: BlocBuilder<FeedBloc, FeedState>(
               builder: (context, state) {
-                if (state is FeedLoading && _currentPage == 0) {
+                if (state is FeedLoading) {
                   return const LoadingIndicator();
                 } else if (state is FeedError) {
                   return CustomErrorWidget(
@@ -144,9 +149,12 @@ class _FeedScreenState extends State<FeedScreen> {
                             );
                           },
                           onLikeToggle: (postId, isLiked, likesCount) {
+                            final auth = context.read<AuthBloc>().state;
+                            if (auth is! Authenticated) return;
                             context.read<FeedBloc>().add(
                                   UpdateFeedPostLikeStatus(
                                     postId: postId,
+                                    userId: auth.user.id,
                                     isLiked: isLiked,
                                     likesCount: likesCount,
                                   ),

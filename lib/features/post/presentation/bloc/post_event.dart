@@ -11,7 +11,7 @@ abstract class PostEvent extends Equatable {
 class CreateNewPost extends PostEvent {
   final String authorId;
   final PostType type;
-  final List<File> mediaFiles;
+  final List<XFile> mediaFiles;
   final String? description;
 
   const CreateNewPost({

@@ -23,6 +23,7 @@ class ChatDetailScreen extends StatefulWidget {
 class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  String? _lastMessageId;
 
   @override
   void initState() {
@@ -85,7 +86,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    print('AppLocalizations: $l10n');
 
     return Scaffold(
       appBar: AppBar(
@@ -104,11 +104,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(state.message)),
                   );
-                } else if (state is NewMessageReceived ||
-                    state is MessagesLoaded) {
-                  // Scroll to bottom when new messages arrive or messages are loaded
+                } else if (state is MessagesLoaded &&
+                    state.messages.isNotEmpty) {
+                  final last = state.messages.last;
+                  if (last.id == _lastMessageId) return;
+                  _lastMessageId = last.id;
+                  if (last.receiverId == widget.currentUser.id &&
+                      !last.isRead) {
+                    _markMessagesAsRead();
+                  }
                   WidgetsBinding.instance.addPostFrameCallback((_) {
-                    _scrollToBottom();
+                    if (mounted) _scrollToBottom();
                   });
                 }
               },
@@ -117,8 +123,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   return const Center(child: CircularProgressIndicator());
                 } else if (state is MessagesLoaded) {
                   return _buildMessagesList(state.messages);
-                } else if (state is NewMessageReceived) {
-                  return _buildMessagesList(state.allMessages);
                 } else {
                   return _buildMessagesList([]);
                 }

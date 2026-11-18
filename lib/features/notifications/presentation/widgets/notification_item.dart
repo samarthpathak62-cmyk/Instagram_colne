@@ -40,7 +40,7 @@ class NotificationItem extends StatelessWidget {
               radius: 24,
               onTap: () {
                 // Navigate to sender's profile
-                // Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProfileScreen(userId: notification.senderId)));
+                // Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProfileScreen.withProviders(notification.senderId)));
               },
             ),
             const SizedBox(width: 12),

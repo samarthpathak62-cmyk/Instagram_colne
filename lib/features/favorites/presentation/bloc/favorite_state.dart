@@ -39,12 +39,13 @@ class PostUnsaved extends FavoriteState {
 }
 
 class PostSavedStatusChecked extends FavoriteState {
-  final bool isSaved;
+  final String? favoriteId;
+  bool get isSaved => favoriteId != null;
 
-  const PostSavedStatusChecked({required this.isSaved});
+  const PostSavedStatusChecked({required this.favoriteId});
 
   @override
-  List<Object?> get props => [isSaved];
+  List<Object?> get props => [favoriteId];
 }
 
 class FavoritesError extends FavoriteState {

@@ -15,6 +15,8 @@ class FeedItem extends Equatable {
   final DateTime createdAt;
   final int likesCount;
   final int commentsCount;
+  final bool isLiked;
+  final List<String> mediaUrls;
   final User user; // The user who posted this item
 
   const FeedItem({
@@ -27,6 +29,8 @@ class FeedItem extends Equatable {
     required this.likesCount,
     required this.commentsCount,
     required this.user,
+    this.isLiked = false,
+    this.mediaUrls = const [],
   });
 
   // Copy with method for immutable updates
@@ -39,6 +43,7 @@ class FeedItem extends Equatable {
     DateTime? createdAt,
     int? likesCount,
     int? commentsCount,
+    bool? isLiked,
     User? user,
   }) {
     return FeedItem(
@@ -51,6 +56,8 @@ class FeedItem extends Equatable {
       likesCount: likesCount ?? this.likesCount,
       commentsCount: commentsCount ?? this.commentsCount,
       user: user ?? this.user,
+      isLiked: isLiked ?? this.isLiked,
+      mediaUrls: mediaUrls,
     );
   }
 
@@ -65,6 +72,8 @@ class FeedItem extends Equatable {
         likesCount,
         commentsCount,
         user,
+        isLiked,
+        mediaUrls,
       ];
 
   @override
@@ -77,7 +86,7 @@ class FeedItem extends Equatable {
       authorId: userId,
       user: user,
       type: mediaType == 'video' ? PostType.video : PostType.image,
-      mediaUrls: [mediaUrl],
+      mediaUrls: mediaUrls,
       description: caption,
       caption: caption,
       createdAt: createdAt,
@@ -85,7 +94,7 @@ class FeedItem extends Equatable {
       commentCount: commentsCount,
       likesCount: likesCount,
       commentsCount: commentsCount,
-      isLikedByCurrentUser: false, // Default value
+      isLikedByCurrentUser: isLiked,
       mediaUrl: mediaUrl,
       mediaType: mediaType,
     );

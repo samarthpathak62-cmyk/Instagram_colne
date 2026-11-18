@@ -43,25 +43,6 @@ class DeleteNotificationEvent extends NotificationEvent {
   List<Object?> get props => [notificationId];
 }
 
-class CreateNotificationEvent extends NotificationEvent {
-  final String userId;
-  final String? actorId;
-  final NotificationType type;
-  final String? resourceId;
-  final String message;
-
-  const CreateNotificationEvent({
-    required this.userId,
-    this.actorId,
-    required this.type,
-    this.resourceId,
-    required this.message,
-  });
-
-  @override
-  List<Object?> get props => [userId, actorId, type, resourceId, message];
-}
-
 class SubscribeToNotificationsEvent extends NotificationEvent {
   final String userId;
 

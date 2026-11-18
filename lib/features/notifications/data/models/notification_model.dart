@@ -19,9 +19,10 @@ class NotificationModel extends Notification {
       actorId: json['actor_id'],
       type: _mapStringToNotificationType(json['type']),
       resourceId: json['resource_id'],
-      message: json['message'],
+      message: json['message'] as String? ?? '',
       isRead: json['is_read'] ?? false,
-      createdAt: DateTime.parse(json['created_at']),
+      createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
     );
   }
 

@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:instagram_clone/features/auth/presentation/screens/login_screen.dart';
 import 'package:instagram_clone/features/feed/presentation/screens/feed_screen.dart';
 import 'package:instagram_clone/features/post/presentation/screens/create_post_screen.dart';
 import 'package:instagram_clone/features/post/presentation/screens/video_explore_tab.dart';
-import 'package:instagram_clone/features/profile/presentation/bloc/profile_bloc.dart';
 import 'package:instagram_clone/features/profile/presentation/screens/profile_screen.dart';
 import 'package:instagram_clone/features/common_widgets/app_bar.dart';
 import 'package:instagram_clone/core/di/injection_container.dart' as di;
@@ -52,6 +50,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   void _onItemTapped(int index) {
     if (_selectedIndex != index) {
       _animationController.forward().then((_) {
+        if (!mounted) return;
         setState(() {
           _selectedIndex = index;
         });
@@ -63,18 +62,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: BlocConsumer<AuthBloc, AuthState>(
-        listener: (context, state) {
-          if (state is Unauthenticated) {
-            // التأكد من أن الانتقال يحدث خارج الـ build method
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-                (route) => false,
-              );
-            });
-          }
-        },
+      child: BlocBuilder<AuthBloc, AuthState>(
         builder: (context, state) {
           if (state is Authenticated) {
             final user = state.user;
@@ -91,12 +79,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
                       index: _selectedIndex,
                       children: [
                         const FeedScreen(),
-                        const CreatePostScreen(),
+                        CreatePostScreen(onCreated: () => _onItemTapped(0)),
                         VideoExploreTab(),
-                        BlocProvider<ProfileBloc>(
-                          create: (_) => di.sl<ProfileBloc>(),
-                          child: ProfileScreen(userId: user.id),
-                        ),
+                        ProfileScreen.withProviders(user.id),
                       ],
                     ),
                   );
@@ -132,8 +117,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
             if (authState is Authenticated) {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => BlocProvider<ChatBloc>.value(
-                    value: context.read<ChatBloc>(),
+                  builder: (_) => BlocProvider<ChatBloc>(
+                    create: (_) => di.sl<ChatBloc>(),
                     child: ChatsListScreen(currentUser: authState.user),
                   ),
                 ),

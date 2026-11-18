@@ -2,7 +2,7 @@ import 'package:dartz/dartz.dart';
 import 'package:instagram_clone/core/error/failures.dart';
 import 'package:instagram_clone/core/usecase/usecase.dart';
 import 'package:instagram_clone/features/favorites/domain/entities/favorite.dart';
-import 'package:instagram_clone/features/favorites/domain/repositories/favorites_repository.dart';
+import 'package:instagram_clone/features/favorites/domain/repositories/favorite_repository.dart';
 
 class SavePost implements UseCase<Favorite, SavePostParams> {
   final FavoriteRepository repository;

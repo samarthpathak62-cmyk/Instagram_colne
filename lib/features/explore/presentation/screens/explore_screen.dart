@@ -170,7 +170,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => ProfileScreen(userId: user.id), // Pass user ID
+                builder: (_) =>
+                    ProfileScreen.withProviders(user.id), // Pass user ID
               ),
             );
           },

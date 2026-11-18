@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 // For NoParams if needed
@@ -53,7 +53,7 @@ class PostBloc extends Bloc<PostEvent, PostState> {
     ));
     result.fold(
       (failure) =>
-          emit(PostOperationFailure(failure.toString())), // Use failure.message
+          emit(PostOperationFailure(failure.message)), // Use failure.message
       (post) =>
           emit(PostUploadSuccess(post)), // Emit success state with the new post
     );
@@ -67,7 +67,7 @@ class PostBloc extends Bloc<PostEvent, PostState> {
         GetFeedPostsParams(currentUserId: event.currentUserId));
     result.fold(
       (failure) =>
-          emit(PostsLoadFailure(failure.toString())), // Use failure.message
+          emit(PostsLoadFailure(failure.message)), // Use failure.message
       (posts) => emit(PostsLoaded(posts)),
     );
   }
@@ -78,7 +78,7 @@ class PostBloc extends Bloc<PostEvent, PostState> {
     final result = await getUserPosts(GetUserPostsParams(userId: event.userId));
     result.fold(
       (failure) =>
-          emit(PostsLoadFailure(failure.toString())), // Use failure.message
+          emit(PostsLoadFailure(failure.message)), // Use failure.message
       (posts) => emit(PostsLoaded(posts)), // Reuse PostsLoaded state
     );
   }
@@ -116,7 +116,7 @@ class PostBloc extends Bloc<PostEvent, PostState> {
         LikePostParams(postId: event.postId, userId: event.userId));
     result.fold(
       (failure) {
-        print('Failed to like post: ${failure.toString()}');
+        print('Failed to like post: ${failure.message}');
       },
       (_) => print('Post liked successfully'),
     );
@@ -156,7 +156,7 @@ class PostBloc extends Bloc<PostEvent, PostState> {
         UnlikePostParams(postId: event.postId, userId: event.userId));
     result.fold(
       (failure) {
-        print('Failed to unlike post: ${failure.toString()}');
+        print('Failed to unlike post: ${failure.message}');
       },
       (_) => print('Post unliked successfully'),
     );
@@ -183,7 +183,7 @@ class PostBloc extends Bloc<PostEvent, PostState> {
     final result = await getVideoExplorePosts(GetVideoExplorePostsParams(
         limit: event.limit, page: event.offset ~/ event.limit));
     result.fold(
-      (failure) => emit(PostsLoadFailure(failure.toString())),
+      (failure) => emit(PostsLoadFailure(failure.message)),
       (posts) => emit(VideoExplorePostsLoaded(posts)),
     );
   }

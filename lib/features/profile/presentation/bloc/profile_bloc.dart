@@ -4,7 +4,7 @@ import 'package:equatable/equatable.dart';
 import 'package:instagram_clone/features/profile/domain/entities/profile.dart';
 import 'package:instagram_clone/features/profile/domain/usecases/get_profile.dart';
 import 'package:instagram_clone/features/profile/domain/usecases/update_profile.dart';
-import 'dart:io';
+import 'package:image_picker/image_picker.dart' show XFile;
 
 part 'profile_event.dart';
 part 'profile_state.dart';
@@ -27,7 +27,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     final result = await getProfile(GetProfileParams(userId: event.userId));
     result.fold(
       (failure) => emit(ProfileError(
-          failure.toString())), // Use failure.message or specific mapping
+          failure.message)), // Use failure.message or specific mapping
       (profile) => emit(ProfileLoaded(profile)),
     );
   }
@@ -45,7 +45,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     ));
     result.fold(
       (failure) => emit(ProfileError(
-          failure.toString())), // Use failure.message or specific mapping
+          failure.message)), // Use failure.message or specific mapping
       (updatedProfile) => emit(ProfileLoaded(
           updatedProfile)), // Emit loaded state with updated profile
     );

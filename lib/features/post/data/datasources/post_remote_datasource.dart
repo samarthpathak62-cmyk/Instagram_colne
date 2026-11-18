@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:instagram_clone/features/post/data/models/post_model.dart'; // To be created
 import 'package:instagram_clone/features/post/domain/entities/post.dart'; // For PostType
 
@@ -6,7 +6,7 @@ abstract class PostRemoteDataSource {
   Future<PostModel> createPost({
     required String authorId,
     required PostType type,
-    required List<File> mediaFiles,
+    required List<XFile> mediaFiles,
     String? description,
   });
 
@@ -22,7 +22,4 @@ abstract class PostRemoteDataSource {
   Future<void> likePost(String postId, String userId);
 
   Future<void> unlikePost(String postId, String userId);
-
-  Future<List<String>> uploadMediaFiles(
-      List<File> files, String userId, PostType type);
 }

@@ -23,9 +23,7 @@ class ProfilePostsGrid extends StatelessWidget {
     }
 
     return GridView.builder(
-      shrinkWrap: true, // Important for nested scroll views
-      physics:
-          const NeverScrollableScrollPhysics(), // Disable scrolling for this grid
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(2.0),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3, // 3 items per row
@@ -51,7 +49,8 @@ class ProfilePostsGrid extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               color: Colors.grey[300], // Placeholder background color
-              image: (post.mediaUrl?.isNotEmpty == true)
+              image: (post.type == PostType.image &&
+                      post.mediaUrl?.isNotEmpty == true)
                   ? DecorationImage(
                       image: NetworkImage(post.mediaUrl!),
                       fit: BoxFit.cover,

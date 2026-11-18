@@ -1,3 +1,11 @@
+import 'package:instagram_clone/features/auth/domain/entities/user.dart';
+import 'package:instagram_clone/features/chat/domain/usecases/get_or_create_chat.dart';
+import 'package:instagram_clone/features/chat/presentation/bloc/chat_bloc.dart';
+import 'package:instagram_clone/features/chat/presentation/screens/chat_detail_screen.dart';
+import 'package:instagram_clone/features/follow/presentation/bloc/follow_bloc.dart';
+import 'package:instagram_clone/features/follow/presentation/widgets/follow_button.dart';
+import 'package:instagram_clone/features/post/presentation/bloc/post_bloc.dart';
+import 'package:instagram_clone/features/profile/presentation/widgets/profile_posts_grid.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:instagram_clone/core/di/injection_container.dart';
@@ -14,6 +22,16 @@ class ProfileScreen extends StatefulWidget {
 
   const ProfileScreen({required this.userId, super.key});
 
+  static Widget withProviders(String userId) => MultiBlocProvider(
+        providers: [
+          BlocProvider<ProfileBloc>(create: (_) => sl<ProfileBloc>()),
+          BlocProvider<PostBloc>(
+              create: (_) =>
+                  sl<PostBloc>()..add(LoadUserPosts(userId: userId))),
+        ],
+        child: ProfileScreen(userId: userId),
+      );
+
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
@@ -26,13 +44,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
     context.read<ProfileBloc>().add(LoadProfile(userId: widget.userId));
   }
 
+  bool _openingChat = false;
+
+  Future<void> _openChat(User viewer) async {
+    if (_openingChat) return;
+    setState(() => _openingChat = true);
+    final result = await sl<GetOrCreateChat>()(GetOrCreateChatParams(
+      currentUserId: viewer.id,
+      otherUserId: widget.userId,
+    ));
+    if (!mounted) return;
+    setState(() => _openingChat = false);
+    result.fold(
+      (failure) => ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(failure.message))),
+      (chat) => Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => BlocProvider<ChatBloc>(
+          create: (_) => sl<ChatBloc>(),
+          child: ChatDetailScreen(chat: chat, currentUser: viewer),
+        ),
+      )),
+    );
+  }
+
+  void _editProfile() {
+    final bloc = context.read<ProfileBloc>();
+    final state = bloc.state;
+    if (state is! ProfileLoaded) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => BlocProvider.value(
+        value: bloc,
+        child: EditProfileScreen(currentProfile: state.profile),
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Get the current authenticated user's ID to check if this is their own profile
-    final currentAuthUserId = (context.read<AuthBloc>().state is Authenticated)
-        ? (context.read<AuthBloc>().state as Authenticated).user.id
-        : null;
-    final isOwnProfile = currentAuthUserId == widget.userId;
+    final auth = context.watch<AuthBloc>().state;
+    final viewer = auth is Authenticated ? auth.user : null;
+    final isOwnProfile = viewer?.id == widget.userId;
 
     return Scaffold(
       appBar: CustomAppBar(
@@ -45,27 +96,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (isOwnProfile)
             IconButton(
               icon: const Icon(Icons.edit),
-              onPressed: () {
-                final currentState = context.read<ProfileBloc>().state;
-                if (currentState is ProfileLoaded) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => EditProfileScreen(
-                          currentProfile: currentState.profile),
-                    ),
-                  ).then((_) {
-                    context
-                        .read<ProfileBloc>()
-                        .add(LoadProfile(userId: widget.userId));
-                  });
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Profile data not loaded yet.')),
-                  );
-                }
-              },
+              onPressed: _editProfile,
             ),
           if (isOwnProfile)
             IconButton(
@@ -100,9 +131,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             final profile = state.profile;
             return RefreshIndicator(
               onRefresh: () async {
-                context
-                    .read<ProfileBloc>()
-                    .add(LoadProfile(userId: widget.userId));
+                final profileBloc = context.read<ProfileBloc>();
+                final postsBloc = context.read<PostBloc>();
+                profileBloc.add(LoadProfile(userId: widget.userId));
+                postsBloc.add(LoadUserPosts(userId: widget.userId));
+                await profileBloc.stream
+                    .firstWhere((state) => state is! ProfileLoading);
               },
               child: Column(
                 children: [
@@ -159,48 +193,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         vertical: 8.0, horizontal: 16.0),
                     child: Row(
                       children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: isOwnProfile
-                                ? () {
-                                    final currentState =
-                                        context.read<ProfileBloc>().state;
-                                    if (currentState is ProfileLoaded) {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => EditProfileScreen(
-                                              currentProfile:
-                                                  currentState.profile),
-                                        ),
-                                      ).then((_) {
-                                        context.read<ProfileBloc>().add(
-                                            LoadProfile(userId: widget.userId));
-                                      });
-                                    }
-                                  }
-                                : () {
-                                    // زر متابعة (Follow)
-                                  },
-                            child:
-                                Text(isOwnProfile ? 'Edit Profile' : 'Follow'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.black,
-                              side: const BorderSide(color: Colors.grey),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8)),
-                            ),
-                          ),
-                        ),
-                        if (!isOwnProfile) const SizedBox(width: 8),
-                        if (!isOwnProfile)
+                        if (isOwnProfile)
                           Expanded(
-                            child: OutlinedButton(
-                              onPressed: () {},
-                              child: const Text('Message'),
-                            ),
-                          ),
+                              child: OutlinedButton(
+                                  onPressed: _editProfile,
+                                  child: const Text('Edit Profile'))),
+                        if (!isOwnProfile && viewer != null) ...[
+                          Expanded(
+                              child: BlocProvider<FollowBloc>(
+                            create: (_) => sl<FollowBloc>(),
+                            child: FollowButton(targetUserId: widget.userId),
+                          )),
+                          const SizedBox(width: 8),
+                          Expanded(
+                              child: OutlinedButton(
+                            onPressed:
+                                _openingChat ? null : () => _openChat(viewer),
+                            child: const Text('Message'),
+                          )),
+                        ],
                       ],
                     ),
                   ),
@@ -216,25 +227,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                   ),
-                  // شبكة الصور
-                  Expanded(
-                    child: GridView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 2),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 2,
-                        mainAxisSpacing: 2,
-                      ),
-                      itemCount: 12, // عدل حسب عدد المنشورات الحقيقي
-                      itemBuilder: (context, index) {
-                        return Container(
-                          color: Colors.grey[300],
-                          child: const Center(child: Icon(Icons.image)),
-                        );
-                      },
-                    ),
-                  ),
+                  Expanded(child: BlocBuilder<PostBloc, PostState>(
+                    builder: (context, state) {
+                      if (state is PostsLoaded)
+                        return ProfilePostsGrid(posts: state.posts);
+                      if (state is PostsLoadFailure)
+                        return Center(child: Text(state.message));
+                      return const Center(child: CircularProgressIndicator());
+                    },
+                  )),
                 ],
               ),
             );

@@ -32,16 +32,18 @@ class RefreshFeedEvent extends FeedEvent {
 class UpdateFeedPostLikeStatus extends FeedEvent {
   final String postId;
   final bool isLiked;
+  final String userId;
   final int likesCount;
 
   const UpdateFeedPostLikeStatus({
     required this.postId,
+    required this.userId,
     required this.isLiked,
     required this.likesCount,
   });
 
   @override
-  List<Object> get props => [postId, isLiked, likesCount];
+  List<Object> get props => [postId, userId, isLiked, likesCount];
 }
 
 // Add other events as needed, e.g., for comments, saving posts, etc.

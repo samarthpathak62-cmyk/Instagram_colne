@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:instagram_clone/features/notifications/domain/entities/notification.dart';
-import 'package:instagram_clone/features/notifications/domain/usecases/create_notification.dart';
 import 'package:instagram_clone/features/notifications/domain/usecases/delete_notification.dart';
 import 'package:instagram_clone/features/notifications/domain/usecases/get_notifications.dart';
 import 'package:instagram_clone/features/notifications/domain/usecases/mark_all_notifications_as_read.dart';
@@ -18,7 +17,6 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
   final MarkNotificationAsRead markNotificationAsRead;
   final MarkAllNotificationsAsRead markAllNotificationsAsRead;
   final DeleteNotification deleteNotification;
-  final CreateNotification createNotification;
   final SubscribeToNotifications subscribeToNotifications;
 
   StreamSubscription<Notification>? _notificationSubscription;
@@ -28,14 +26,12 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     required this.markNotificationAsRead,
     required this.markAllNotificationsAsRead,
     required this.deleteNotification,
-    required this.createNotification,
     required this.subscribeToNotifications,
   }) : super(NotificationInitial()) {
     on<GetNotificationsEvent>(_onGetNotifications);
     on<MarkNotificationAsReadEvent>(_onMarkNotificationAsRead);
     on<MarkAllNotificationsAsReadEvent>(_onMarkAllNotificationsAsRead);
     on<DeleteNotificationEvent>(_onDeleteNotification);
-    on<CreateNotificationEvent>(_onCreateNotification);
     on<SubscribeToNotificationsEvent>(_onSubscribeToNotifications);
     on<NotificationReceivedEvent>(_onNotificationReceived);
   }
@@ -99,26 +95,6 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     );
   }
 
-  Future<void> _onCreateNotification(
-    CreateNotificationEvent event,
-    Emitter<NotificationState> emit,
-  ) async {
-    emit(NotificationLoading());
-    final result = await createNotification(
-      CreateNotificationParams(
-        userId: event.userId,
-        actorId: event.actorId,
-        type: event.type,
-        resourceId: event.resourceId,
-        message: event.message,
-      ),
-    );
-    result.fold(
-      (failure) => emit(NotificationError(message: failure.message)),
-      (notification) => emit(NotificationCreated(notification: notification)),
-    );
-  }
-
   Future<void> _onSubscribeToNotifications(
     SubscribeToNotificationsEvent event,
     Emitter<NotificationState> emit,
@@ -138,6 +114,8 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
         _notificationSubscription = notificationStream.listen(
           (notification) =>
               add(NotificationReceivedEvent(notification: notification)),
+          onError: (Object _) =>
+              add(GetNotificationsEvent(userId: event.userId)),
         );
 
         emit(NotificationSubscribed(notificationStream: notificationStream));
@@ -159,8 +137,8 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
   }
 
   @override
-  Future<void> close() {
-    _notificationSubscription?.cancel();
+  Future<void> close() async {
+    await _notificationSubscription?.cancel();
     return super.close();
   }
 }

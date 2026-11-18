@@ -23,11 +23,11 @@ class FavoriteRepositoryImpl implements FavoriteRepository {
   }
 
   @override
-  Future<Either<Failure, bool>> isPostSaved(
+  Future<Either<Failure, String?>> getSavedPostId(
       String userId, String postId) async {
     try {
-      final isSaved = await remoteDataSource.isPostSaved(userId, postId);
-      return Right(isSaved);
+      final id = await remoteDataSource.getSavedPostId(userId, postId);
+      return Right(id);
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message));
     } catch (e) {

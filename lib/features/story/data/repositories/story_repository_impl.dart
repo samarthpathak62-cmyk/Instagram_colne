@@ -5,7 +5,7 @@ import 'package:instagram_clone/features/story/data/datasources/story_remote_dat
 
 import 'package:instagram_clone/features/story/domain/entities/story.dart';
 import 'package:instagram_clone/features/story/domain/repositories/story_repository.dart';
-import 'dart:io';
+import 'package:image_picker/image_picker.dart' show XFile;
 
 class StoryRepositoryImpl implements StoryRepository {
   final StoryRemoteDataSource remoteDataSource;
@@ -27,7 +27,7 @@ class StoryRepositoryImpl implements StoryRepository {
   @override
   Future<Either<Failure, void>> createStoryItem({
     required String userId,
-    required File mediaFile,
+    required XFile mediaFile,
     required StoryMediaType mediaType,
   }) async {
     try {

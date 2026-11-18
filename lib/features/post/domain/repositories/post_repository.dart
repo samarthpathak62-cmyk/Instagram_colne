@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:dartz/dartz.dart';
 import 'package:instagram_clone/core/error/failures.dart';
 import 'package:instagram_clone/features/post/domain/entities/post.dart';
@@ -7,7 +7,7 @@ abstract class PostRepository {
   Future<Either<Failure, Post>> createPost({
     required String authorId,
     required PostType type,
-    required List<File> mediaFiles, // List of image files or single video file
+    required List<XFile> mediaFiles, // List of image files or single video file
     String? description,
   });
 

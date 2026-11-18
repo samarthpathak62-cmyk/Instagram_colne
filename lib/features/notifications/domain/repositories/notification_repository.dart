@@ -15,15 +15,6 @@ abstract class NotificationRepository {
   /// Delete a notification
   Future<Either<Failure, void>> deleteNotification(String notificationId);
 
-  /// Create a notification
-  Future<Either<Failure, Notification>> createNotification({
-    required String userId,
-    String? actorId,
-    required NotificationType type,
-    String? resourceId,
-    required String message,
-  });
-
   /// Subscribe to real-time notifications
   Future<Either<Failure, Stream<Notification>>> subscribeToNotifications(
       String userId);

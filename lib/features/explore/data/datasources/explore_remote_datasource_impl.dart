@@ -1,3 +1,4 @@
+import 'package:instagram_clone/core/constants/supabase_constants.dart';
 import 'package:instagram_clone/core/error/exceptions.dart';
 import 'package:instagram_clone/features/auth/data/models/user_model.dart';
 import 'package:instagram_clone/features/auth/domain/entities/user.dart'
@@ -9,8 +10,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ExploreRemoteDataSourceImpl implements ExploreRemoteDataSource {
   final SupabaseClient supabaseClient;
-  static const String postsTable = 'posts';
-  static const String profilesTable = 'profiles';
 
   ExploreRemoteDataSourceImpl({required this.supabaseClient});
 
@@ -22,17 +21,12 @@ class ExploreRemoteDataSourceImpl implements ExploreRemoteDataSource {
       // (e.g., random, popular, recent from non-followed users)
       // This example fetches recent posts globally.
       final response = await supabaseClient
-          .from(postsTable)
-          .select(
-              '*, author:user_id(id, username, profile_image_url)') // Join with profiles
+          .from(SupabaseConstants.postsTable)
+          .select(PostModel.columns)
           .order('created_at', ascending: false)
           .range(offset, offset + limit - 1);
 
-      final List<Post> posts = (response as List)
-          .map((data) => PostModel.fromJson(data as Map<String, dynamic>,
-              userId: data['author_id'] as String))
-          .toList();
-      return posts;
+      return response.map(PostModel.fromJson).toList();
     } on PostgrestException catch (e) {
       print('Supabase error getting explore posts: ${e.message}');
       throw ServerException(
@@ -50,22 +44,12 @@ class ExploreRemoteDataSourceImpl implements ExploreRemoteDataSource {
     try {
       // Search profiles where username contains the query (case-insensitive)
       final response = await supabaseClient
-          .from(profilesTable)
-          .select('id, username, profile_image_url')
+          .from(SupabaseConstants.usersTable)
+          .select(SupabaseConstants.publicUserColumns)
           .ilike('username', '%$query%') // Case-insensitive search
           .limit(20); // Limit search results
 
-      final List<app_user.User> users = (response as List).map((data) {
-        return UserModel.fromJson({
-          'id': data['id'],
-          'email': '', // Email not needed for search results
-          'username': data['username'],
-          'profile_image_url': data['profile_image_url'],
-          // Add other fields if needed from your UserModel.fromJson
-        });
-      }).toList();
-
-      return users;
+      return response.map(UserModel.fromJson).toList();
     } on PostgrestException catch (e) {
       print('Supabase error searching users: ${e.message}');
       throw ServerException(message: 'Failed to search users: ${e.message}');

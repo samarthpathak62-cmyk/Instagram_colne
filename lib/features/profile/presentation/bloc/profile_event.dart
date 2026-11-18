@@ -21,7 +21,7 @@ class EditProfile extends ProfileEvent {
   final String? username;
   final String? fullName;
   final String? bio;
-  final File? profileImage;
+  final XFile? profileImage;
 
   const EditProfile({
     required this.userId,

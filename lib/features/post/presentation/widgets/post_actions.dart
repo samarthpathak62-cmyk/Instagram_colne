@@ -10,7 +10,8 @@ class PostActions extends StatelessWidget {
   final Post post;
   final bool isLiked;
   final int likesCount;
-  final Function(String postId, bool isLiked, int likesCount) onLikeToggle;
+  final void Function(String postId, bool isLiked, int likesCount)?
+      onLikeToggle;
   final VoidCallback onComment;
   final VoidCallback onShare;
 
@@ -21,7 +22,7 @@ class PostActions extends StatelessWidget {
     required this.post,
     required this.isLiked,
     required this.likesCount,
-    required this.onLikeToggle,
+    this.onLikeToggle,
     required this.onComment,
     required this.onShare,
   }) : super(key: key);
@@ -38,8 +39,10 @@ class PostActions extends StatelessWidget {
               isLiked ? Icons.favorite : Icons.favorite_border,
               color: isLiked ? Colors.red : Theme.of(context).iconTheme.color,
             ),
-            onPressed: () => onLikeToggle(
-                postId, !isLiked, isLiked ? likesCount - 1 : likesCount + 1),
+            onPressed: onLikeToggle == null
+                ? null
+                : () => onLikeToggle!(postId, !isLiked,
+                    isLiked ? likesCount - 1 : likesCount + 1),
           ),
           // Comment Button
           IconButton(

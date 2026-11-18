@@ -1,3 +1,5 @@
+import 'package:instagram_clone/features/post/domain/usecases/like_post.dart';
+import 'package:instagram_clone/features/post/domain/usecases/unlike_post.dart';
 // lib/features/feed/presentation/bloc/feed_bloc.dart
 
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,12 +14,20 @@ import 'feed_state.dart';
 class FeedBloc extends Bloc<FeedEvent, FeedState> {
   final GetFeed _getFeed;
   final RefreshFeed _refreshFeed;
+  final LikePost _likePost;
+  final UnlikePost _unlikePost;
+  final _pendingLikes = <String>{};
+  bool _fetching = false;
 
   FeedBloc({
     required GetFeed getFeed,
     required RefreshFeed refreshFeed,
+    required LikePost likePost,
+    required UnlikePost unlikePost,
   })  : _getFeed = getFeed,
         _refreshFeed = refreshFeed,
+        _likePost = likePost,
+        _unlikePost = unlikePost,
         super(FeedInitial()) {
     on<LoadFeed>(_onLoadFeed);
     on<RefreshFeedEvent>(_onRefreshFeed);
@@ -25,7 +35,9 @@ class FeedBloc extends Bloc<FeedEvent, FeedState> {
   }
 
   Future<void> _onLoadFeed(LoadFeed event, Emitter<FeedState> emit) async {
-    if (state is FeedLoaded && (state as FeedLoaded).hasReachedMax) return;
+    if (_fetching ||
+        (state is FeedLoaded && (state as FeedLoaded).hasReachedMax)) return;
+    _fetching = true;
 
     final currentState = state;
     List<FeedItem> oldFeedItems = [];
@@ -33,10 +45,11 @@ class FeedBloc extends Bloc<FeedEvent, FeedState> {
       oldFeedItems = currentState.feedItems;
     }
 
-    emit(FeedLoading()); // Emit loading state before fetching
+    if (oldFeedItems.isEmpty) emit(FeedLoading());
 
     final result =
         await _getFeed(GetFeedParams(page: event.page, limit: event.limit));
+    _fetching = false;
 
     result.fold(
       (failure) => emit(FeedError(message: _mapFailureToMessage(failure))),
@@ -44,8 +57,7 @@ class FeedBloc extends Bloc<FeedEvent, FeedState> {
         final allFeedItems = oldFeedItems + newFeedItems;
         emit(FeedLoaded(
           feedItems: allFeedItems,
-          hasReachedMax:
-              newFeedItems.isEmpty, // If no new items, we've reached max
+          hasReachedMax: newFeedItems.length < event.limit,
         ));
       },
     );
@@ -59,27 +71,34 @@ class FeedBloc extends Bloc<FeedEvent, FeedState> {
 
     result.fold(
       (failure) => emit(FeedError(message: _mapFailureToMessage(failure))),
-      (feedItems) =>
-          emit(FeedLoaded(feedItems: feedItems, hasReachedMax: false)),
+      (feedItems) => emit(FeedLoaded(
+          feedItems: feedItems, hasReachedMax: feedItems.length < 10)),
     );
   }
 
-  void _onUpdateFeedPostLikeStatus(
-      UpdateFeedPostLikeStatus event, Emitter<FeedState> emit) {
-    if (state is FeedLoaded) {
-      final currentFeed = (state as FeedLoaded).feedItems;
-      final updatedFeed = currentFeed.map((item) {
-        if (item.id == event.postId) {
-          return item.copyWith(
-            likesCount: event.likesCount,
-            // Assuming you have an 'isLiked' property in FeedItem
-            // isLiked: event.isLiked,
-          );
-        }
-        return item;
-      }).toList();
-      emit((state as FeedLoaded).copyWith(feedItems: updatedFeed));
-    }
+  Future<void> _onUpdateFeedPostLikeStatus(
+      UpdateFeedPostLikeStatus event, Emitter<FeedState> emit) async {
+    if (state is! FeedLoaded || !_pendingLikes.add(event.postId)) return;
+    final result = event.isLiked
+        ? await _likePost(
+            LikePostParams(postId: event.postId, userId: event.userId))
+        : await _unlikePost(
+            UnlikePostParams(postId: event.postId, userId: event.userId));
+    _pendingLikes.remove(event.postId);
+    final current = state;
+    if (current is! FeedLoaded) return;
+    result.fold(
+      (failure) => emit(FeedError(message: failure.message)),
+      (_) => emit(current.copyWith(
+          feedItems: current.feedItems.map((item) {
+        return item.id == event.postId
+            ? item.copyWith(
+                isLiked: event.isLiked,
+                likesCount: event.likesCount,
+              )
+            : item;
+      }).toList())),
+    );
   }
 
   String _mapFailureToMessage(Failure failure) {

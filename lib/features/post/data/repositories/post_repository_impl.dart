@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:dartz/dartz.dart';
 import 'package:instagram_clone/core/error/exceptions.dart';
 import 'package:instagram_clone/core/error/failures.dart';
@@ -74,7 +74,7 @@ class PostRepositoryImpl implements PostRepository {
   Future<Either<Failure, Post>> createPost({
     required String authorId,
     required PostType type,
-    required List<File> mediaFiles,
+    required List<XFile> mediaFiles,
     String? description,
   }) async {
     return await _handlePostOperation<Post>(() => remoteDataSource.createPost(

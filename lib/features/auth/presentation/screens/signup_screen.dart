@@ -68,7 +68,7 @@ class _SignupScreenState extends State<SignupScreen>
     // Start animations
     _logoAnimationController.forward();
     Future.delayed(const Duration(milliseconds: 500), () {
-      _formAnimationController.forward();
+      if (mounted) _formAnimationController.forward();
     });
   }
 
@@ -88,7 +88,9 @@ class _SignupScreenState extends State<SignupScreen>
       context.read<AuthBloc>().add(
             AuthSignupRequested(
               email: _emailController.text.trim(),
-              password: _passwordController.text.trim(),
+              password: _passwordController.text,
+              username: _usernameController.text.trim(),
+              fullName: _fullNameController.text.trim(),
             ),
           );
     }
@@ -485,17 +487,15 @@ class _SignupScreenState extends State<SignupScreen>
                   ),
                 ),
               );
+          } else if (state is AuthEmailConfirmationRequired) {
+            final messenger = ScaffoldMessenger.of(context);
+            Navigator.of(context).popUntil((route) => route.isFirst);
+            messenger.showSnackBar(SnackBar(
+              content: Text(
+                  'Check ${state.email} to confirm your account, then log in.'),
+            ));
           } else if (state is Authenticated) {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            }
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Signup Successful! Please login.'),
-                backgroundColor: Color(0xFF0095F6),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
+            Navigator.of(context).popUntil((route) => route.isFirst);
           }
         },
         child: Column(

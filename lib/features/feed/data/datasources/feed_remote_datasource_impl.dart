@@ -1,3 +1,5 @@
+import 'package:instagram_clone/core/constants/supabase_constants.dart';
+import 'package:instagram_clone/features/post/data/models/post_model.dart';
 // lib/features/feed/data/datasources/feed_remote_datasource_impl.dart
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -15,24 +17,19 @@ class FeedRemoteDataSourceImpl implements FeedRemoteDataSource {
   @override
   Future<List<FeedItem>> getFeed({int page = 0, int limit = 10}) async {
     try {
-      final int offset = page * limit;
-      final response = await supabaseClient
-          .from('posts') // Assuming 'posts' table contains feed items
-          .select('''
-            *,
-            profiles(username, profile_image_url as profile_picture_url),
-            likes(id),
-            comments(id)
-          ''') // Select post details, profile info, and count likes/comments
-          .order('created_at', ascending: false) // Order by newest first
-          .range(offset, offset + limit - 1)
-          .limit(limit);
+      final offset = page * limit;
+      final viewer = supabaseClient.auth.currentUser?.id;
+      final posts = supabaseClient.from(SupabaseConstants.postsTable);
+      final query = viewer == null
+          ? posts.select(PostModel.columns)
+          : posts
+              .select(PostModel.columnsWithViewer)
+              .eq('liked_by_user.user_id', viewer);
+      final response = await query
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1);
 
-      final List<FeedItem> feedItems = (response as List)
-          .map((json) => FeedItemModel.fromJson(json))
-          .toList();
-
-      return feedItems;
+      return response.map(FeedItemModel.fromJson).toList();
     } on PostgrestException catch (e) {
       throw SupabaseException(message: e.message, code: e.code);
     } catch (e) {
@@ -45,6 +42,6 @@ class FeedRemoteDataSourceImpl implements FeedRemoteDataSource {
     // For refresh, we typically fetch the latest items,
     // often the first page or a slightly larger set to catch new content.
     // This example reuses getFeed for simplicity, fetching the first page.
-    return await getFeed(page: 0, limit: 20); // Fetch more items on refresh
+    return getFeed();
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:instagram_clone/core/di/injection_container.dart' as di;
 import 'package:instagram_clone/generated/app_localizations.dart';
 import 'package:instagram_clone/features/auth/domain/entities/user.dart';
 import 'package:instagram_clone/features/chat/domain/entities/chat.dart';
@@ -38,9 +39,7 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    print('Building ChatsListScreen');
     final l10n = AppLocalizations.of(context);
-    print('AppLocalizations: $l10n');
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n?.messages ?? 'Messages'),
@@ -54,7 +53,6 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
           }
         },
         builder: (context, state) {
-          print('ChatBloc state: $state');
           if (state is ChatsLoading) {
             return const Center(child: CircularProgressIndicator());
           } else if (state is ChatsLoaded) {
@@ -68,7 +66,6 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
   }
 
   Widget _buildChatsList(List<Chat> chats, AppLocalizations? l10n) {
-    print('Building chat list with count: ${chats.length}');
     if (chats.isEmpty) {
       return Center(
         child: Text(l10n?.noMessages ?? 'No messages'),
@@ -78,9 +75,7 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
       itemCount: chats.length,
       itemBuilder: (context, index) {
         final chat = chats[index];
-        print('chat: $chat');
         final otherUser = chat.otherUser;
-        print('otherUser for chat ${chat.id}: $otherUser');
         if (otherUser == null) {
           return ListTile(
             leading: const Icon(Icons.error, color: Colors.red),
@@ -116,13 +111,13 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                 )
               : null,
           onTap: () {
-            print('Tapped chat: ${chat.id}');
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => ChatDetailScreen(
-                  chat: chat,
-                  currentUser: widget.currentUser,
+                builder: (_) => BlocProvider<ChatBloc>(
+                  create: (_) => di.sl<ChatBloc>(),
+                  child: ChatDetailScreen(
+                      chat: chat, currentUser: widget.currentUser),
                 ),
               ),
             );

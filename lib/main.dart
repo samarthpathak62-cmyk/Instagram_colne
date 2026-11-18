@@ -4,11 +4,8 @@ import 'package:instagram_clone/app.dart';
 import 'package:instagram_clone/core/constants/supabase_constants.dart';
 import 'package:instagram_clone/core/di/injection_container.dart' as di;
 import 'package:instagram_clone/features/feed/presentation/bloc/feed_bloc.dart';
-import 'package:instagram_clone/features/feed/presentation/bloc/feed_event.dart';
 import 'package:instagram_clone/features/explore/presentation/bloc/explore_bloc.dart';
-import 'package:instagram_clone/features/profile/presentation/bloc/profile_bloc.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:instagram_clone/features/chat/presentation/bloc/chat_bloc.dart';
 import 'package:instagram_clone/features/notifications/presentation/bloc/notification_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -17,7 +14,7 @@ Future<void> main() async {
 
   await Supabase.initialize(
     url: SupabaseConstants.supabaseUrl,
-    anonKey: SupabaseConstants.supabaseAnonKey,
+    anonKey: SupabaseConstants.supabasePublishableKey,
   );
 
   // Initialize Dependency Injection
@@ -31,30 +28,30 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Provide multiple blocs at the root of the application
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider<AuthBloc>(
-          create: (_) => di.sl<AuthBloc>()..add(AuthCheckRequested()),
-        ),
-        BlocProvider<FeedBloc>(
-          create: (_) => di.sl<FeedBloc>()..add(const LoadFeed()),
-        ),
-        BlocProvider<ExploreBloc>(
-          create: (_) =>
-              di.sl<ExploreBloc>()..add(const LoadExplorePostsEvent()),
-        ),
-        BlocProvider<ProfileBloc>(
-          create: (_) => di.sl<ProfileBloc>(),
-        ),
-        BlocProvider<ChatBloc>(
-          create: (_) => di.sl<ChatBloc>(),
-        ),
-        BlocProvider<NotificationBloc>(
-          create: (_) => di.sl<NotificationBloc>(),
-        ),
-      ],
-      child: AppView(), // Your main App view widget
+    return BlocProvider<AuthBloc>(
+      create: (_) => di.sl<AuthBloc>(),
+      child: BlocBuilder<AuthBloc, AuthState>(
+        buildWhen: (previous, next) => _userId(previous) != _userId(next),
+        builder: (context, state) {
+          final userId = _userId(state);
+          if (userId == null) return const AppView();
+          return MultiBlocProvider(
+            key: ValueKey(userId),
+            providers: [
+              BlocProvider<FeedBloc>(create: (_) => di.sl<FeedBloc>()),
+              BlocProvider<ExploreBloc>(
+                  create: (_) =>
+                      di.sl<ExploreBloc>()..add(const LoadExplorePostsEvent())),
+              BlocProvider<NotificationBloc>(
+                  create: (_) => di.sl<NotificationBloc>()),
+            ],
+            child: const AppView(),
+          );
+        },
+      ),
     );
   }
+
+  String? _userId(AuthState state) =>
+      state is Authenticated ? state.user.id : null;
 }

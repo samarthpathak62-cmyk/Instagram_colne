@@ -5,6 +5,7 @@ import 'package:instagram_clone/features/chat/domain/entities/message.dart';
 import 'package:instagram_clone/features/chat/domain/usecases/get_chats.dart';
 import 'package:instagram_clone/features/chat/domain/usecases/get_messages.dart';
 import 'package:instagram_clone/features/chat/domain/usecases/send_message.dart';
+import 'package:instagram_clone/features/chat/domain/usecases/mark_messages_as_read.dart';
 import 'package:instagram_clone/features/chat/domain/usecases/subscribe_to_chats.dart';
 import 'package:instagram_clone/features/chat/domain/usecases/subscribe_to_messages.dart';
 
@@ -15,6 +16,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final GetChats getChats;
   final GetMessages getMessages;
   final SendMessage sendMessage;
+  final MarkMessagesAsRead markMessagesAsRead;
   final SubscribeToChats subscribeToChats;
   final SubscribeToMessages subscribeToMessages;
 
@@ -22,6 +24,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     required this.getChats,
     required this.getMessages,
     required this.sendMessage,
+    required this.markMessagesAsRead,
     required this.subscribeToChats,
     required this.subscribeToMessages,
   }) : super(ChatInitial()) {
@@ -30,8 +33,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<SendMessageEvent>(_onSendMessage);
     on<SubscribeToChatsEvent>(_onSubscribeToChats);
     on<SubscribeToMessagesEvent>(_onSubscribeToMessages);
-    on<NewMessageReceivedEvent>(_onNewMessageReceived);
-    on<ChatsUpdatedEvent>(_onChatsUpdated);
+    on<MarkMessagesAsReadEvent>(_onMarkMessagesAsRead);
   }
 
   Future<void> _onLoadChats(
@@ -44,14 +46,36 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     );
   }
 
+  final _messages = <String, Message>{};
+  String? _openChatId;
+
+  void _emitMessages(String chatId, Emitter<ChatState> emit) {
+    final messages = _messages.values.toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    emit(MessagesLoaded(messages: messages, chatId: chatId));
+  }
+
+  void _addMessage(Message message, Emitter<ChatState> emit) {
+    if (message.chatId != _openChatId) return;
+    _messages[message.id] = message;
+    _emitMessages(message.chatId, emit);
+  }
+
   Future<void> _onLoadMessages(
       LoadMessagesEvent event, Emitter<ChatState> emit) async {
+    if (_openChatId != event.chatId) _messages.clear();
+    _openChatId = event.chatId;
     emit(MessagesLoading());
     final result = await getMessages(GetMessagesParams(chatId: event.chatId));
+    if (_openChatId != event.chatId) return;
     result.fold(
       (failure) => emit(ChatError(message: failure.message)),
-      (messages) =>
-          emit(MessagesLoaded(messages: messages, chatId: event.chatId)),
+      (messages) {
+        for (final message in messages) {
+          _messages.putIfAbsent(message.id, () => message);
+        }
+        _emitMessages(event.chatId, emit);
+      },
     );
   }
 
@@ -65,25 +89,30 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     ));
     result.fold(
       (failure) => emit(ChatError(message: failure.message)),
-      (message) => emit(MessageSent(message: message)),
+      (message) => _addMessage(message, emit),
     );
+  }
+
+  Future<void> _onMarkMessagesAsRead(
+      MarkMessagesAsReadEvent event, Emitter<ChatState> emit) async {
+    final result = await markMessagesAsRead(MarkMessagesAsReadParams(
+      chatId: event.chatId,
+      userId: event.userId,
+    ));
+    result.fold((failure) => emit(ChatError(message: failure.message)), (_) {});
   }
 
   Future<void> _onSubscribeToChats(
       SubscribeToChatsEvent event, Emitter<ChatState> emit) async {
     final result =
         await subscribeToChats(SubscribeToChatsParams(userId: event.userId));
-    result.fold(
-      (failure) => emit(ChatError(message: failure.message)),
-      (stream) {
-        // Handle stream subscription
-        stream.listen((chatResult) {
-          chatResult.fold(
-            (failure) => emit(ChatError(message: failure.message)),
-            (chats) => add(ChatsUpdatedEvent(chats: chats)),
-          );
-        });
-      },
+    await result.fold<Future<void>>(
+      (failure) async => emit(ChatError(message: failure.message)),
+      (stream) => emit.forEach(stream,
+          onData: (update) => update.fold(
+                (failure) => ChatError(message: failure.message),
+                (chats) => ChatsLoaded(chats: chats),
+              )),
     );
   }
 
@@ -91,37 +120,13 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       SubscribeToMessagesEvent event, Emitter<ChatState> emit) async {
     final result = await subscribeToMessages(
         SubscribeToMessagesParams(chatId: event.chatId));
-    result.fold(
-      (failure) => emit(ChatError(message: failure.message)),
-      (stream) {
-        // Handle stream subscription
-        stream.listen((messageResult) {
-          messageResult.fold(
-            (failure) => emit(ChatError(message: failure.message)),
-            (message) => add(NewMessageReceivedEvent(message: message)),
-          );
-        });
-      },
+    await result.fold<Future<void>>(
+      (failure) async => emit(ChatError(message: failure.message)),
+      (stream) => emit.onEach(stream,
+          onData: (update) => update.fold(
+                (failure) => emit(ChatError(message: failure.message)),
+                (message) => _addMessage(message, emit),
+              )),
     );
-  }
-
-  void _onNewMessageReceived(
-      NewMessageReceivedEvent event, Emitter<ChatState> emit) {
-    // Get current messages from state if available
-    List<Message> currentMessages = [];
-    if (state is MessagesLoaded) {
-      currentMessages = (state as MessagesLoaded).messages;
-    }
-    currentMessages.add(event.message);
-
-    emit(NewMessageReceived(
-      message: event.message,
-      allMessages: currentMessages,
-      chatId: event.message.chatId,
-    ));
-  }
-
-  void _onChatsUpdated(ChatsUpdatedEvent event, Emitter<ChatState> emit) {
-    emit(ChatsLoaded(chats: event.chats));
   }
 }

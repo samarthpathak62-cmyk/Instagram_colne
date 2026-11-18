@@ -17,6 +17,8 @@ Future<void> initFeedDependencies() async {
     () => FeedBloc(
       getFeed: sl(),
       refreshFeed: sl(),
+      likePost: sl(),
+      unlikePost: sl(),
     ),
   );
 

@@ -16,7 +16,9 @@ class ChatModel extends Chat {
       id: json['id'],
       user1Id: json['user1_id'],
       user2Id: json['user2_id'],
-      lastMessageTime: DateTime.parse(json['last_message_time']),
+      lastMessageTime:
+          DateTime.tryParse(json['last_message_time'] as String? ?? '') ??
+              DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
       hasUnreadMessages: json['has_unread_messages'] ?? false,
       otherUser: otherUser,
     );

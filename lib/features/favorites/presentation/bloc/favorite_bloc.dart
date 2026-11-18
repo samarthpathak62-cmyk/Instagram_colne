@@ -2,7 +2,7 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:instagram_clone/features/favorites/domain/entities/favorite.dart';
 import 'package:instagram_clone/features/favorites/domain/usecases/get_favorites.dart';
-import 'package:instagram_clone/features/favorites/domain/usecases/is_post_saved.dart';
+import 'package:instagram_clone/features/favorites/domain/usecases/get_saved_post_id.dart';
 import 'package:instagram_clone/features/favorites/domain/usecases/save_post.dart';
 import 'package:instagram_clone/features/favorites/domain/usecases/unsave_post.dart';
 
@@ -13,13 +13,13 @@ class FavoriteBloc extends Bloc<FavoriteEvent, FavoriteState> {
   final GetFavorites getFavorites;
   final SavePost savePost;
   final UnsavePost unsavePost;
-  final IsPostSaved isPostSaved;
+  final GetSavedPostId getSavedPostId;
 
   FavoriteBloc({
     required this.getFavorites,
     required this.savePost,
     required this.unsavePost,
-    required this.isPostSaved,
+    required this.getSavedPostId,
   }) : super(FavoriteInitial()) {
     on<LoadFavoritesEvent>(_onLoadFavorites);
     on<SavePostEvent>(_onSavePost);
@@ -61,13 +61,13 @@ class FavoriteBloc extends Bloc<FavoriteEvent, FavoriteState> {
 
   Future<void> _onCheckPostSaved(
       CheckPostSavedEvent event, Emitter<FavoriteState> emit) async {
-    final result = await isPostSaved(IsPostSavedParams(
+    final result = await getSavedPostId(GetSavedPostIdParams(
       userId: event.userId,
       postId: event.postId,
     ));
     result.fold(
       (failure) => emit(FavoritesError(message: failure.message)),
-      (isSaved) => emit(PostSavedStatusChecked(isSaved: isSaved)),
+      (id) => emit(PostSavedStatusChecked(favoriteId: id)),
     );
   }
 }

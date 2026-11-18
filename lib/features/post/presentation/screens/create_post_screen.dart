@@ -1,28 +1,32 @@
-import 'dart:io';
+import 'package:instagram_clone/core/media/picked_media_preview.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:instagram_clone/features/post/domain/entities/post.dart';
+import 'package:instagram_clone/features/feed/presentation/bloc/feed_bloc.dart';
+import 'package:instagram_clone/features/feed/presentation/bloc/feed_event.dart';
 import 'package:instagram_clone/features/post/presentation/bloc/post_bloc.dart';
 import 'package:instagram_clone/core/di/injection_container.dart' as di;
 import 'package:video_player/video_player.dart';
 import 'package:flutter/services.dart';
 
 class CreatePostScreen extends StatelessWidget {
-  const CreatePostScreen({super.key});
+  final VoidCallback? onCreated;
+  const CreatePostScreen({super.key, this.onCreated});
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider<PostBloc>(
       create: (_) => di.sl<PostBloc>(),
-      child: const _CreatePostScreenContent(),
+      child: _CreatePostScreenContent(onCreated: onCreated),
     );
   }
 }
 
 class _CreatePostScreenContent extends StatefulWidget {
-  const _CreatePostScreenContent();
+  final VoidCallback? onCreated;
+  const _CreatePostScreenContent({this.onCreated});
 
   @override
   State<_CreatePostScreenContent> createState() =>
@@ -51,17 +55,17 @@ class _CreatePostScreenContentState extends State<_CreatePostScreenContent> {
   Future<void> _pickMedia({required bool isVideo}) async {
     if (isVideo) {
       final XFile? video = await _picker.pickVideo(source: ImageSource.gallery);
-      if (video != null) {
+      if (video != null && mounted) {
         setState(() {
           _selectedMedia = [video];
           _postType = PostType.video;
           _currentMediaIndex = 0;
-          _initializeVideoPlayer(video.path);
+          _initializeVideoPlayer(video);
         });
       }
     } else {
       final List<XFile> images = await _picker.pickMultiImage();
-      if (images.isNotEmpty) {
+      if (images.isNotEmpty && mounted) {
         setState(() {
           _selectedMedia = images;
           _postType = PostType.image;
@@ -73,10 +77,11 @@ class _CreatePostScreenContentState extends State<_CreatePostScreenContent> {
     }
   }
 
-  void _initializeVideoPlayer(String path) {
+  void _initializeVideoPlayer(XFile file) {
     _videoController?.dispose();
-    _videoController = VideoPlayerController.file(File(path))
+    _videoController = pickedVideoController(file)
       ..initialize().then((_) {
+        if (!mounted) return;
         setState(() {});
         _videoController?.play();
         _videoController?.setLooping(true);
@@ -95,8 +100,7 @@ class _CreatePostScreenContentState extends State<_CreatePostScreenContent> {
       context.read<PostBloc>().add(CreateNewPost(
             authorId: userId,
             type: _postType,
-            mediaFiles:
-                _selectedMedia.map((xfile) => File(xfile.path)).toList(),
+            mediaFiles: List<XFile>.of(_selectedMedia),
             description: _descriptionController.text.trim(),
           ));
     }
@@ -133,7 +137,8 @@ class _CreatePostScreenContentState extends State<_CreatePostScreenContent> {
         } else if (state is PostUploadSuccess) {
           _showSnackBar('Post created successfully!');
           _resetState();
-          Navigator.of(context).pop(); // العودة للشاشة السابقة بعد النجاح
+          context.read<FeedBloc>().add(const RefreshFeedEvent());
+          widget.onCreated?.call();
         } else if (state is PostOperationFailure) {
           _showSnackBar('Failed to create post: ${state.message}',
               isError: true);
@@ -294,8 +299,8 @@ class _CreatePostScreenContentState extends State<_CreatePostScreenContent> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(4),
                 child: _postType == PostType.image
-                    ? Image.file(
-                        File(_selectedMedia[0].path),
+                    ? Image(
+                        image: pickedImageProvider(_selectedMedia[0]),
                         fit: BoxFit.cover,
                       )
                     : Container(
@@ -396,8 +401,8 @@ class _CreatePostScreenContentState extends State<_CreatePostScreenContent> {
         },
         itemCount: _selectedMedia.length,
         itemBuilder: (context, index) {
-          return Image.file(
-            File(_selectedMedia[index].path),
+          return Image(
+            image: pickedImageProvider(_selectedMedia[index]),
             fit: BoxFit.contain,
           );
         },

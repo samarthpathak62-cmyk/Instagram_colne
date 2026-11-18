@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:dartz/dartz.dart';
 import 'package:equatable/equatable.dart';
 import 'package:instagram_clone/core/error/failures.dart';
@@ -28,7 +28,7 @@ class UpdateProfileParams extends Equatable {
   final String? username;
   final String? fullName;
   final String? bio;
-  final File? profileImage; // File object for the new image
+  final XFile? profileImage; // XFile object for the new image
 
   const UpdateProfileParams({
     required this.userId,

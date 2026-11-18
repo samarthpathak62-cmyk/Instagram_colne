@@ -32,6 +32,12 @@ class _SavePostButtonState extends State<SavePostButton> {
     _checkSavedStatus();
   }
 
+  @override
+  void dispose() {
+    _favoriteBloc.close();
+    super.dispose();
+  }
+
   void _checkSavedStatus() {
     _favoriteBloc.add(CheckPostSavedEvent(
       userId: widget.userId,
@@ -47,6 +53,7 @@ class _SavePostButtonState extends State<SavePostButton> {
         if (state is PostSavedStatusChecked) {
           setState(() {
             _isSaved = state.isSaved;
+            _favoriteId = state.favoriteId;
           });
         } else if (state is PostSaved) {
           setState(() {

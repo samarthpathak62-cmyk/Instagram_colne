@@ -21,7 +21,7 @@ class StoryViewScreen extends StatefulWidget {
 }
 
 class _StoryViewScreenState extends State<StoryViewScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late PageController _pageController;
   late int _currentStoryIndex;
   VideoPlayerController? _videoController;
@@ -46,13 +46,19 @@ class _StoryViewScreenState extends State<StoryViewScreen>
     _animationController?.dispose();
 
     if (story.mediaType == 'video') {
-      _videoController = VideoPlayerController.networkUrl(
-          Uri.parse(story.mediaUrl ?? ''))
-        ..initialize().then((_) {
-          setState(() {});
-          _videoController!.play();
-          _startProgressAnimation(duration: _videoController!.value.duration);
-        });
+      final controller =
+          VideoPlayerController.networkUrl(Uri.parse(story.mediaUrl!));
+      _videoController = controller;
+      controller.initialize().then((_) {
+        if (!mounted || controller != _videoController) return;
+        setState(() {});
+        controller.play();
+        _startProgressAnimation(duration: controller.value.duration);
+      }).catchError((Object _) {
+        if (mounted && controller == _videoController) {
+          _startProgressAnimation(duration: const Duration(seconds: 2));
+        }
+      });
     } else {
       _startProgressAnimation(
           duration: const Duration(seconds: 5)); // Default for images
@@ -167,8 +173,10 @@ class _StoryViewScreenState extends State<StoryViewScreen>
               child: Row(
                 children: [
                   CircleAvatar(
-                    backgroundImage: CachedNetworkImageProvider(
-                        story.userProfileImageUrl ?? ''),
+                    backgroundImage: story.userProfileImageUrl?.isNotEmpty ==
+                            true
+                        ? CachedNetworkImageProvider(story.userProfileImageUrl!)
+                        : null,
                   ),
                   const SizedBox(width: 8),
                   Text(story.username ?? 'Unknown',

@@ -4,8 +4,7 @@ import 'package:get_it/get_it.dart';
 
 import '../data/datasources/profile_remote_datasource_impl.dart';
 import '../data/datasources/profile_remote_datasource.dart';
-import '../data/repositories/profile_repository_impl.dart'
-    hide ProfileRemoteDataSourceImpl;
+import '../data/repositories/profile_repository_impl.dart';
 import '../domain/repositories/profile_repository.dart';
 import '../domain/usecases/get_user_profile.dart';
 import '../domain/usecases/get_profile.dart';

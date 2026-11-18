@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:dartz/dartz.dart';
 import 'package:instagram_clone/core/error/failures.dart';
 import 'package:instagram_clone/features/story/domain/entities/story.dart';
@@ -6,7 +6,7 @@ import 'package:instagram_clone/features/story/domain/entities/story.dart';
 abstract class StoryRepository {
   Future<Either<Failure, void>> createStoryItem({
     required String userId,
-    required File mediaFile,
+    required XFile mediaFile,
     required StoryMediaType mediaType,
   });
 

@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 // For NoParams if needed
@@ -25,7 +25,7 @@ class StoryBloc extends Bloc<StoryEvent, StoryState> {
     final result =
         await getStories(GetStoriesParams(currentUserId: event.currentUserId));
     result.fold(
-      (failure) => emit(StoriesLoadFailure(failure.toString())),
+      (failure) => emit(StoriesLoadFailure(failure.message)),
       (stories) => emit(StoriesLoaded(stories)),
     );
   }
@@ -33,15 +33,14 @@ class StoryBloc extends Bloc<StoryEvent, StoryState> {
   Future<void> _onCreateNewStoryItem(
       CreateNewStoryItem event, Emitter<StoryState> emit) async {
     emit(const StoryUploadInProgress());
-    try {
-      await createStory.repository.createStoryItem(
-        userId: event.userId,
-        mediaFile: event.mediaFile,
-        mediaType: event.mediaType,
-      );
-      emit(const StoryUploadSuccess());
-    } catch (e) {
-      emit(StoryOperationFailure(e.toString()));
-    }
+    final result = await createStory.repository.createStoryItem(
+      userId: event.userId,
+      mediaFile: event.mediaFile,
+      mediaType: event.mediaType,
+    );
+    result.fold(
+      (failure) => emit(StoryOperationFailure(failure.message)),
+      (_) => emit(const StoryUploadSuccess()),
+    );
   }
 }

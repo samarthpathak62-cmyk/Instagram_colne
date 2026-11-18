@@ -3,10 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:instagram_clone/features/story/presentation/bloc/story_bloc.dart';
 import 'package:instagram_clone/features/common_widgets/loading_indicator.dart';
 import 'package:instagram_clone/features/common_widgets/error_widget.dart';
-import 'dart:io';
 import 'package:instagram_clone/features/story/domain/entities/story.dart';
 
 class CreateStoryScreen extends StatefulWidget {
@@ -18,28 +18,36 @@ class CreateStoryScreen extends StatefulWidget {
 
 class _CreateStoryScreenState extends State<CreateStoryScreen> {
   XFile? _pickedFile;
+  StoryMediaType _mediaType = StoryMediaType.image;
   final ImagePicker _picker = ImagePicker();
 
   Future<void> _pickImage() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (!mounted || image == null) return;
     setState(() {
+      _mediaType = StoryMediaType.image;
       _pickedFile = image;
     });
   }
 
   Future<void> _pickVideo() async {
     final XFile? video = await _picker.pickVideo(source: ImageSource.gallery);
+    if (!mounted || video == null) return;
     setState(() {
+      _mediaType = StoryMediaType.video;
       _pickedFile = video;
     });
   }
 
   void _uploadStory() {
-    if (_pickedFile != null) {
+    final auth = context.read<AuthBloc>().state;
+    if (_pickedFile != null &&
+        auth is Authenticated &&
+        context.read<StoryBloc>().state is! StoryUploadInProgress) {
       context.read<StoryBloc>().add(CreateNewStoryItem(
-            userId: 'currentUserId', // TODO: Replace with actual userId
-            mediaFile: File(_pickedFile!.path),
-            mediaType: StoryMediaType.image, // TODO: Detect type from file
+            userId: auth.user.id,
+            mediaFile: _pickedFile!,
+            mediaType: _mediaType,
           ));
     }
   }
@@ -63,7 +71,7 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Story uploaded successfully!')),
             );
-            Navigator.of(context).pop(); // Go back after successful upload
+            Navigator.of(context).pop(true);
           } else if (state is StoryOperationFailure) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(

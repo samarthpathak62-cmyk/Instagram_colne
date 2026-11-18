@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:instagram_clone/core/media/picked_media_preview.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
@@ -20,7 +20,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _usernameController;
   late TextEditingController _fullNameController;
   late TextEditingController _bioController;
-  File? _selectedImage;
+  XFile? _selectedImage;
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -44,9 +44,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _pickImage() async {
     final XFile? pickedFile =
         await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
+    if (pickedFile != null && mounted) {
       setState(() {
-        _selectedImage = File(pickedFile.path);
+        _selectedImage = pickedFile;
       });
     }
   }
@@ -107,7 +107,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     } else if (state is ProfileError) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                            content: Text('Update failed: {state.message}')),
+                            content: Text('Update failed: ${state.message}')),
                       );
                     }
                   },
@@ -146,11 +146,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       CircleAvatar(
                         radius: 44,
                         backgroundImage: _selectedImage != null
-                            ? FileImage(_selectedImage!)
+                            ? pickedImageProvider(_selectedImage!)
                             : (widget.currentProfile.profileImageUrl != null
                                 ? CachedNetworkImageProvider(
                                     widget.currentProfile.profileImageUrl!)
-                                : null) as ImageProvider?,
+                                : null),
                         child: (_selectedImage == null &&
                                 widget.currentProfile.profileImageUrl == null)
                             ? const Icon(Icons.person, size: 44)

@@ -37,10 +37,10 @@ class ProfileModel extends Profile {
 
     return ProfileModel(
       id: json['id'] as String,
-      username: json['username'] as String,
+      username: json['username'] as String? ?? 'User',
       fullName: json['full_name'] as String?,
       bio: json['bio'] as String?,
-      profileImageUrl: json['profile_image_url'] as String?,
+      profileImageUrl: json['profile_picture_url'] as String?,
       followerCount: followerCount,
       followingCount: followingCount,
       postCount: postCount,
@@ -55,7 +55,7 @@ class ProfileModel extends Profile {
       'username': username,
       'full_name': fullName,
       'bio': bio,
-      'profile_image_url': profileImageUrl,
+      'profile_picture_url': profileImageUrl,
       // We don't usually write counts back, but include if needed for local cache
       // 'follower_count': followerCount,
       // 'following_count': followingCount,

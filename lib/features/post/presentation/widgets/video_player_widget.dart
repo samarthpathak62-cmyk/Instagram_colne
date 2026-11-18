@@ -24,6 +24,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   late VideoPlayerController _videoPlayerController;
   ChewieController? _chewieController;
   bool _isInitialized = false;
+  bool _failed = false;
 
   @override
   void initState() {
@@ -37,6 +38,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
 
     try {
       await _videoPlayerController.initialize();
+      if (!mounted) return;
       _chewieController = ChewieController(
         videoPlayerController: _videoPlayerController,
         autoPlay: widget.autoPlay,
@@ -62,11 +64,8 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
       setState(() {
         _isInitialized = true;
       });
-    } catch (e) {
-      print("Error initializing video player: $e");
-      setState(() {
-        _isInitialized = false; // Indicate initialization failed
-      });
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
     }
   }
 
@@ -79,6 +78,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
 
   @override
   Widget build(BuildContext context) {
+    if (_failed) return const Center(child: Text('Could not play this video.'));
     return _isInitialized && _chewieController != null
         ? Chewie(
             controller: _chewieController!,

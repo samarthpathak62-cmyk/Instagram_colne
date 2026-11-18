@@ -29,24 +29,6 @@ class NotificationRepositoryImpl implements NotificationRepository {
   }
 
   @override
-  Future<Either<Failure, Notification>> createNotification({
-    required String userId,
-    String? actorId,
-    required NotificationType type,
-    String? resourceId,
-    required String message,
-  }) async {
-    return await _handleOperation<Notification>(
-        () => remoteDataSource.createNotification(
-              userId: userId,
-              actorId: actorId,
-              type: type,
-              resourceId: resourceId,
-              message: message,
-            ));
-  }
-
-  @override
   Future<Either<Failure, void>> deleteNotification(
       String notificationId) async {
     return await _handleOperation<void>(

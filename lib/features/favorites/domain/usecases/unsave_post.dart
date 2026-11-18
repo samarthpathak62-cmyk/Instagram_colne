@@ -1,5 +1,5 @@
 import 'package:instagram_clone/core/usecase/usecase.dart';
-import 'package:instagram_clone/features/favorites/domain/repositories/favorites_repository.dart';
+import 'package:instagram_clone/features/favorites/domain/repositories/favorite_repository.dart';
 import 'package:dartz/dartz.dart';
 import 'package:instagram_clone/core/error/failures.dart';
 
