@@ -19,7 +19,7 @@ const filters = new URLSearchParams({
   select: legacySelect,
   'liked_by_user.user_id': `eq.${viewer}`,
   'saved_by_user.user_id': `eq.${viewer}`,
-  order: 'created_at.desc.nullslast,id.desc', offset: '0', limit: '10',
+  order: 'created_at.desc.nullslast,id.desc.nullslast', offset: '0', limit: '10',
 });
 const secret = process.env.VEYRO_TEST_JWT_SECRET;
 assert.ok(secret && secret.length >= 32, 'Set the disposable DB JWT secret.');

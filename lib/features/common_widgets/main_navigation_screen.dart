@@ -22,7 +22,7 @@ class MainNavigationScreen extends StatefulWidget {
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  static const _home = 0, _explore = 1, _create = 2, _reels = 3;
+  static const _home = 0, _explore = 1, _create = 2, _reels = 3, _profile = 4;
   static const _destinations = [
     NavigationDestination(
       icon: Icon(Icons.home_outlined),
@@ -52,7 +52,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   ];
   int _selected = _home;
   bool _exploreVisited = false;
-  int _profileRevision = 0;
   FeedComposeMode _composeMode = FeedComposeMode.post;
 
   void _compose([FeedComposeMode mode = FeedComposeMode.post]) {
@@ -117,7 +116,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   photoMode: mode == FeedComposeMode.photo,
                   reelMode: mode == FeedComposeMode.reel,
                   onCreated: (_) {
-                    setState(() => _profileRevision++);
                     if (_selected == _create && _composeMode == mode)
                       _select(mode == FeedComposeMode.reel ? _reels : _home);
                   },
@@ -130,9 +128,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         _selected == _reels
             ? VideoExploreTab(onCreate: () => _compose(FeedComposeMode.reel))
             : const SizedBox.shrink(),
-        KeyedSubtree(
-            key: ValueKey(_profileRevision),
-            child: ProfileScreen.withProviders(auth.user.id)),
+        _selected == _profile
+            ? ProfileScreen.withProviders(auth.user.id)
+            : const SizedBox.shrink(),
       ],
     );
     return Scaffold(

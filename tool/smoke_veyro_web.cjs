@@ -279,11 +279,11 @@ async function testSocial(page, state, name) {
   await waitFor('Like post');
   await capture(page, `${name}-feed`);
   await changed('Like post', 'likes', 'POST');
-  await waitFor('Unlike post');
+  await waitFor(/^Unlike post\b/);
   assert.ok(state.liked.has(firstPost));
   await changed('Save post', 'saved_posts', 'POST');
   assert.ok(state.saved.has(firstPost));
-  await press('Comments');
+  await press(/^Comments\b/);
   await waitFor('Close comments');
   await enter('A real comment action in this test.');
   await changed('Send comment', 'comments', 'POST');
@@ -293,7 +293,7 @@ async function testSocial(page, state, name) {
   await press('Close comments');
   await press('Saved posts');
   await press(/Open text post/);
-  await waitFor('Unlike post');
+  await waitFor(/^Unlike post\b/);
   await waitFor('Remove from saved');
   await press('Share post');
   await waitFor('Copy link');
@@ -349,7 +349,7 @@ async function testSocial(page, state, name) {
     await press('Back');
     await waitFor('Refresh feed');
     await press('Following');
-    await waitFor('Unlike post');
+    await waitFor(/^Unlike post\b/);
     await press('Share post');
     await press('Send in message');
     await enter('veyro_friend', /Search by username/);
@@ -357,7 +357,7 @@ async function testSocial(page, state, name) {
     await changed('Send message', 'messages', 'POST');
     assert.equal(new URL(state.messages[0].content).searchParams.get('post'), firstPost);
     await press('View shared post');
-    await waitFor('Unlike post');
+    await waitFor(/^Unlike post\b/);
     await capture(page, 'desktop-shared-post');
     await press('Back');
     await waitFor('View shared post');
@@ -378,7 +378,7 @@ async function testSocial(page, state, name) {
       });
     });
     assert.ok(await video.evaluate((element) => element.duration > 0));
-    await waitFor('Comments');
+    await waitFor(/^Comments\b/);
     await capture(page, `${name}-reels`);
   } else {
     await waitFor('Create a reel');
@@ -387,7 +387,7 @@ async function testSocial(page, state, name) {
   // The same link works when opened afresh and reads persisted viewer flags.
   await openApp(page, copy);
   await waitFor('Back');
-  await waitFor('Unlike post');
+  await waitFor(/^Unlike post\b/);
   assert.ok(state.saved.has(firstPost));
 }
 

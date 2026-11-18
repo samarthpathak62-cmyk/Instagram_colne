@@ -24,63 +24,76 @@ class PostActions extends StatelessWidget {
       minimumSize: const Size(44, 44),
       padding: const EdgeInsets.symmetric(horizontal: 7),
     );
-    Widget withCount(Icon icon, int count) =>
-        Row(mainAxisSize: MainAxisSize.min, children: [
-          icon,
-          if (count > 0) ...[
-            const SizedBox(width: 4),
-            Text(_countLabel(count), style: style)
-          ],
-        ]);
+    Widget action({
+      required String tooltip,
+      required Icon icon,
+      required VoidCallback? onTap,
+      int? count,
+      String? countName,
+    }) =>
+        Expanded(
+          child: Semantics(
+            value: count == null ? null : '$count $countName',
+            child: IconButton(
+              tooltip: tooltip,
+              style: compact,
+              onPressed: onTap,
+              icon: count == null || count <= 0
+                  ? icon
+                  : ExcludeSemantics(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          icon,
+                          const SizedBox(width: 4),
+                          Text(_countLabel(count), style: style),
+                        ]),
+                      ),
+                    ),
+            ),
+          ),
+        );
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       child: Row(children: [
-        IconButton(
+        action(
           tooltip: liked ? 'Unlike post' : 'Like post',
-          style: compact,
-          icon: withCount(
-              Icon(
-                  liked
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  size: 22,
-                  color: liked ? colors.primary : null),
-              state.likes(post)),
-          onPressed: state.liking
+          icon: Icon(
+              liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+              size: 22,
+              color: liked ? colors.primary : null),
+          count: state.likes(post),
+          countName: 'likes',
+          onTap: state.liking
               ? null
               : () => showPostActionError(context, actions.toggleLike(post)),
         ),
-        IconButton(
+        action(
           tooltip: 'Comments',
-          style: compact,
-          icon: withCount(
-              const Icon(Icons.chat_bubble_outline_rounded, size: 21),
-              state.comments(post)),
-          onPressed: () => showPostComments(context, post.id),
+          icon: const Icon(Icons.chat_bubble_outline_rounded, size: 21),
+          count: state.comments(post),
+          countName: 'comments',
+          onTap: () => showPostComments(context, post.id),
         ),
-        IconButton(
+        action(
           tooltip: 'Repost options',
-          style: compact,
           icon: const Icon(Icons.repeat_rounded, size: 22),
-          onPressed: post.shareTargetId == null
+          onTap: post.shareTargetId == null
               ? null
               : () => showRepostOptions(context, post),
         ),
-        IconButton(
+        action(
           tooltip: 'Share post',
-          style: compact,
           icon: const Icon(Icons.ios_share_rounded, size: 21),
-          onPressed: () => showSharePost(context, post.id),
+          onTap: () => showSharePost(context, post.id),
         ),
-        const Spacer(),
-        IconButton(
-          style: compact,
+        action(
           tooltip: saved ? 'Remove from saved' : 'Save post',
           icon: Icon(
               saved ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
               size: 23,
               color: saved ? colors.primary : null),
-          onPressed: state.saving
+          onTap: state.saving
               ? null
               : () => showPostActionError(context, actions.toggleSave(post)),
         ),
