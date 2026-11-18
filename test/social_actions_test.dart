@@ -164,11 +164,11 @@ void main() {
     expect(paths.last, endsWith('.mp4'));
   });
 
-  test('following feed calls the server filter and still projects text posts',
+  test('following feed uses the scoped view with viewer-specific embeds',
       () async {
     final client = _client(MockClient((request) async {
       expect(request.method, 'GET');
-      expect(request.url.path, '/rest/v1/rpc/veyro_following_posts');
+      expect(request.url.path, '/rest/v1/veyro_following_feed');
       expect(request.url.queryParameters['select'],
           contains('author:users!posts_author_id_fkey'));
       expect(request.url.queryParameters['offset'], '10');

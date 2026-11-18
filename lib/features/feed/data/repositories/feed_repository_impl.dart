@@ -23,7 +23,11 @@ class FeedRepositoryImpl implements FeedRepository {
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message));
     } on SupabaseException catch (e) {
-      return Left(SupabaseFailure(message: e.message, code: e.code));
+      return Left(SupabaseFailure(
+          message: following
+              ? 'Could not load Following right now.'
+              : 'Could not load your feed right now.',
+          code: e.code));
     } on NetworkException catch (e) {
       return Left(NetworkFailure(message: e.message));
     } catch (e) {

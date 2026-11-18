@@ -108,9 +108,9 @@ async function mockSignedIn(page) {
           }));
           break;
         case 'posts':
-        case 'rpc/veyro_following_posts':
+        case 'veyro_following_feed':
           rows = posts.filter((post) =>
-            (resource !== 'rpc/veyro_following_posts' || follows.has(post.author_id) || post.author_id === viewerId) &&
+            (resource !== 'veyro_following_feed' || follows.has(post.author_id) || post.author_id === viewerId) &&
             (!eq('id') || post.id === eq('id')) && (!eq('author_id') || post.author_id === eq('author_id')) &&
             (!eq('type') || post.type === eq('type')) && (!contains('description') || post.description?.toLowerCase().includes(contains('description'))),
           ).map(postProjection);
@@ -313,7 +313,7 @@ async function testSocial(page, state, name) {
   assert.deepEqual(state.posts[0].media_urls, []);
   await waitFor('Refresh feed');
   const [following] = await Promise.all([
-    page.waitForResponse((response) => response.url().includes('/rest/v1/rpc/veyro_following_posts'), { timeout }),
+    page.waitForResponse((response) => response.url().includes('/rest/v1/veyro_following_feed'), { timeout }),
     press('Following'),
   ]);
   assert.ok(following.ok(), 'server-side Following request succeeds');

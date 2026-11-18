@@ -19,19 +19,17 @@ class FeedRemoteDataSourceImpl implements FeedRemoteDataSource {
       final viewer = supabaseClient.auth.currentUser?.id;
       final columns =
           viewer == null ? PostModel.columns : PostModel.columnsWithViewer;
-      PostgrestFilterBuilder<List<Map<String, dynamic>>> withViewer(
-              PostgrestFilterBuilder<List<Map<String, dynamic>>> query) =>
-          viewer == null
-              ? query
-              : query
-                  .eq('liked_by_user.user_id', viewer)
-                  .eq('saved_by_user.user_id', viewer);
-      final scoped = following
-          ? withViewer(supabaseClient.rpc('veyro_following_posts',
-              get: true, params: const <String, dynamic>{})).select(columns)
-          : withViewer(supabaseClient
-              .from(SupabaseConstants.postsTable)
-              .select(columns));
+      // The table-shaped endpoint avoids the PostgREST RPC projection bug
+      // when filtering the embedded likes and private saves by viewer.
+      final query = supabaseClient
+          .from(
+              following ? 'veyro_following_feed' : SupabaseConstants.postsTable)
+          .select(columns);
+      final scoped = viewer == null
+          ? query
+          : query
+              .eq('liked_by_user.user_id', viewer)
+              .eq('saved_by_user.user_id', viewer);
       final response = await scoped
           .order('created_at', ascending: false, nullsFirst: false)
           .order('id', ascending: false)
@@ -39,8 +37,8 @@ class FeedRemoteDataSourceImpl implements FeedRemoteDataSource {
       return response.map(FeedItemModel.fromJson).toList();
     } on PostgrestException catch (error) {
       throw SupabaseException(message: error.message, code: error.code);
-    } catch (error) {
-      throw ServerException(message: 'Could not load the feed: $error');
+    } catch (_) {
+      throw ServerException(message: 'Could not load the feed. Try again.');
     }
   }
 }

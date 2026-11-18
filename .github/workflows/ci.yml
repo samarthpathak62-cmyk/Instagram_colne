@@ -60,6 +60,53 @@ jobs:
           npm install --quiet --no-audit --no-fund --no-save --prefix "$RUNNER_TEMP/veyro-sql" @electric-sql/pglite@0.5.16
           NODE_PATH="$RUNNER_TEMP/veyro-sql/node_modules" node tool/test_social_schema.cjs
 
+  test-postgrest:
+    name: Following on PostgREST
+    runs-on: ubuntu-latest
+    env:
+      VEYRO_TEST_JWT_SECRET: local-only-veyro-postgrest-fixture-secret
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: veyro-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Verify the old APK and the new Following endpoint against PostgREST
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          psql_ci() { docker exec -i "$POSTGRES_CONTAINER" psql -U postgres -v ON_ERROR_STOP=1 "$@"; }
+          psql_ci < test/fixtures/veyro_social_schema.sql
+          for migration in supabase/migrations/*; do
+            [[ "$migration" == *_connect_veyro_clients.sql ]] && continue
+            psql_ci --single-transaction < "$migration"
+          done
+          psql_ci < test/fixtures/veyro_rest_seed.sql
+          psql_ci <<'SQL'
+          create role authenticator noinherit login password 'veyro-api';
+          grant anon, authenticated to authenticator;
+          SQL
+          docker run -d --name veyro-rest --network host \
+            -e PGRST_DB_URI=postgres://authenticator:veyro-api@127.0.0.1:5432/postgres \
+            -e PGRST_DB_ANON_ROLE=anon -e PGRST_DB_SCHEMAS=public \
+            -e PGRST_DB_AGGREGATES_ENABLED=true -e PGRST_JWT_SECRET="$VEYRO_TEST_JWT_SECRET" \
+            -e PGRST_SERVER_PORT=3100 -e PGRST_ADMIN_SERVER_PORT=3101 \
+            postgrest/postgrest:v14.13
+          trap 'docker logs veyro-rest && docker rm -f veyro-rest' EXIT
+          curl --fail --retry 15 --retry-delay 1 --retry-connrefused http://127.0.0.1:3101/ready
+          node tool/test_veyro_postgrest.cjs
+
   build-android-debug:
     name: Build Android debug APK
     runs-on: ubuntu-latest
