@@ -730,7 +730,9 @@ async function testQuickFlows(page, state, name) {
   }
   if (name === 'mobile') {
     await chooseVideo({ name: 'not_a_video.txt', mimeType: 'text/plain', buffer: Buffer.from('Invalid media fixture') });
-    await waitFor(/This media format is not supported/);
+    const invalid = 'This media format is not supported.';
+    await page.getByText(invalid, { exact: true }).or(page.getByLabel(invalid, { exact: true })).first()
+      .waitFor({ state: 'attached', timeout });
     assert.equal(state.writes.filter((write) => write.resource === 'media').length, uploadCount);
   }
   await chooseVideo(reelFile);
@@ -739,8 +741,19 @@ async function testQuickFlows(page, state, name) {
   await preview.waitFor({ state: 'attached', timeout });
   assert.ok(await preview.evaluate((element) => element.duration > 0), 'Selected clip has a local preview');
   await press('Play preview', true);
-  await waitFor('Pause preview');
-  await press('Pause preview');
+  await preview.evaluate((element) => {
+    if (element.currentTime > 0) return;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Local reel preview did not play')), 6500);
+      function advanced() {
+        if (element.currentTime <= 0) return;
+        clearTimeout(timer);
+        element.removeEventListener('timeupdate', advanced);
+        resolve();
+      }
+      element.addEventListener('timeupdate', advanced);
+    });
+  });
   const caption = `A ${name} reel, previewed before sharing.`;
   await enter(caption, /Caption/);
   await capture(page, `${name}-reel-composer`);
