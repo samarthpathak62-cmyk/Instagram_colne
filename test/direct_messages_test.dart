@@ -98,6 +98,7 @@ void main() {
         markMessagesAsRead: MarkMessagesAsRead(fixture),
         subscribeToMessages: SubscribeToMessages(fixture),
         subscribeToChats: SubscribeToChats(fixture));
+    addTearDown(bloc.close);
     var read = 0;
     var sent = 0;
     await tester.pumpWidget(MaterialApp(
@@ -134,6 +135,5 @@ void main() {
     expect(sent, 1);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
-    await bloc.close();
   });
 }
