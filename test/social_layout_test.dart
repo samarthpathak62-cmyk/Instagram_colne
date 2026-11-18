@@ -81,51 +81,55 @@ void main() {
       'story strip distinguishes unseen and viewed and supports discovery',
       (tester) async {
     final semantics = tester.ensureSemantics();
-    addTearDown(semantics.dispose);
-    var added = 0;
-    var discovered = 0;
-    String? selected;
-    final time = DateTime.utc(2026, 11, 18);
-    final story = Story(
-        id: 'friend',
-        userId: 'friend',
-        username: 'veyro_friend',
-        lastUpdatedAt: time,
-        items: [
-          StoryItem(
-              id: 'item',
-              mediaUrl: 'video_not_loaded_for_avatar',
-              mediaType: StoryMediaType.video,
-              createdAt: time)
-        ]);
-    final seen = <String>{};
-    Future<void> setup() => tester.pumpWidget(MaterialApp(
-          theme: VeyroTheme.dark,
-          home: Scaffold(
-              body: Center(
-                  child: SizedBox(
-                      width: 297,
-                      child: StoryStrip(
-                        stories: [story],
-                        ownName: 'Veyro User',
-                        seenItems: seen,
-                        onAddStoryTap: () => added++,
-                        onStoryCircleTap: (author) => selected = author,
-                        onDiscover: () => discovered++,
-                      )))),
-        ));
-    await setup();
-    await tester.tap(find.text('Add story'));
-    await tester.tap(find.text('Find people'));
-    expect(find.bySemanticsLabel('New story by veyro_friend'), findsOneWidget);
-    await tester.tap(find.text('veyro_friend'));
-    expect(selected, 'friend');
-    seen.add('item');
-    await setup();
-    expect(
-        find.bySemanticsLabel('Viewed story by veyro_friend'), findsOneWidget);
-    expect(added, 1);
-    expect(discovered, 1);
-    expect(tester.takeException(), isNull);
+    try {
+      var added = 0;
+      var discovered = 0;
+      String? selected;
+      final time = DateTime.utc(2026, 11, 18);
+      final story = Story(
+          id: 'friend',
+          userId: 'friend',
+          username: 'veyro_friend',
+          lastUpdatedAt: time,
+          items: [
+            StoryItem(
+                id: 'item',
+                mediaUrl: 'video_not_loaded_for_avatar',
+                mediaType: StoryMediaType.video,
+                createdAt: time)
+          ]);
+      final seen = <String>{};
+      Future<void> setup() => tester.pumpWidget(MaterialApp(
+            theme: VeyroTheme.dark,
+            home: Scaffold(
+                body: Center(
+                    child: SizedBox(
+                        width: 297,
+                        child: StoryStrip(
+                          stories: [story],
+                          ownName: 'Veyro User',
+                          seenItems: seen,
+                          onAddStoryTap: () => added++,
+                          onStoryCircleTap: (author) => selected = author,
+                          onDiscover: () => discovered++,
+                        )))),
+          ));
+      await setup();
+      await tester.tap(find.text('Add story'));
+      await tester.tap(find.text('Find people'));
+      expect(
+          find.bySemanticsLabel('New story by veyro_friend'), findsOneWidget);
+      await tester.tap(find.text('veyro_friend'));
+      expect(selected, 'friend');
+      seen.add('item');
+      await setup();
+      expect(find.bySemanticsLabel('Viewed story by veyro_friend'),
+          findsOneWidget);
+      expect(added, 1);
+      expect(discovered, 1);
+      expect(tester.takeException(), isNull);
+    } finally {
+      semantics.dispose();
+    }
   });
 }

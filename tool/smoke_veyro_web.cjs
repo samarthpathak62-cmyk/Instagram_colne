@@ -590,6 +590,11 @@ async function testViewport(browser, name, viewport) {
     const page = await browserContext.newPage();
     const issues = [];
     page.on('pageerror', (err) => issues.push(err.message));
+    page.on('console', (message) => {
+      if (message.type() === 'error' && /exception caught by|renderflex overflowed|renderbox was not laid out/i.test(message.text())) {
+        issues.push(message.text());
+      }
+    });
     page.on('response', (res) => {
       if (new URL(res.url()).origin === url.origin && res.status() >= 400) {
         issues.push(`${res.status()} ${new URL(res.url()).pathname}`);

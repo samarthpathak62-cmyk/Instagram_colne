@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:instagram_clone/core/theme/veyro_theme.dart';
 import 'package:instagram_clone/features/common_widgets/user_avatar.dart';
 import 'package:instagram_clone/features/story/domain/entities/story.dart';
 import 'package:timeago/timeago.dart' as timeago;
@@ -143,7 +144,7 @@ class _StoryViewScreenState extends State<StoryViewScreen>
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: VeyroTheme.midnight,
         body: SafeArea(
             child: Center(
                 child: ConstrainedBox(
@@ -258,7 +259,7 @@ class _StoryViewScreenState extends State<StoryViewScreen>
   Widget _bar(double value) => LinearProgressIndicator(
       minHeight: 3,
       value: value,
-      color: Colors.white,
+      color: VeyroTheme.lilac,
       backgroundColor: Colors.white30);
 
   Widget _media() {

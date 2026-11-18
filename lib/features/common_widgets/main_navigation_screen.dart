@@ -64,9 +64,17 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final desktop = MediaQuery.sizeOf(context).width >= 1040;
     // Keep the content in the same tree slot when the window is resized so
     // scroll positions, video/Groups state and the drafts aren't recreated.
-    return Scaffold(
-      bottomNavigationBar:
-          desktop || _composing || MediaQuery.viewInsetsOf(context).bottom > 0
+    return PopScope<Object?>(
+        canPop: !_composing && _selected == SocialSection.home,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && (_composing || _selected != SocialSection.home)) {
+            _select(_composing ? _selected : SocialSection.home);
+          }
+        },
+        child: Scaffold(
+          bottomNavigationBar: desktop ||
+                  _composing ||
+                  MediaQuery.viewInsetsOf(context).bottom > 0
               ? null
               : SocialBottomBar(
                   selected: _selected,
@@ -74,41 +82,46 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   onCompose: _compose,
                   avatar: user.profilePictureUrl,
                   name: user.name ?? user.username),
-      body: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        if (desktop)
-          SizedBox(
-              width: 210,
-              child: SocialDesktopRail(
-                selected: _selected,
-                onSelect: _select,
-                onCompose: _compose,
-                onMessages: () => _openMessages(user),
-                onNotifications: () =>
-                    _open((_) => const NotificationsScreen()),
-                onSaved: () => _open((_) => FavoritesScreen(userId: user.id)),
-                avatar: user.profilePictureUrl,
-                name: user.name,
-                username: user.username,
-              )),
-        Expanded(
-            key: const ValueKey('social-content'),
-            child: Column(children: [
-              if (!desktop && !_composing && _selected == SocialSection.home)
-                SocialNavigationHeader(
-                    onGroups: () => _select(SocialSection.groups),
-                    onMessages: () => _openMessages(user),
-                    onNotifications: () =>
-                        _open((_) => const NotificationsScreen())),
-              Expanded(
-                  key: const ValueKey('social-pages'),
+          body: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            if (desktop)
+              SizedBox(
+                  width: 210,
                   child: SafeArea(
-                    top: desktop,
-                    bottom: desktop || _composing,
-                    child: _pages(user),
-                  )),
-            ])),
-      ]),
-    );
+                      right: false,
+                      child: SocialDesktopRail(
+                        selected: _selected,
+                        onSelect: _select,
+                        onCompose: _compose,
+                        onMessages: () => _openMessages(user),
+                        onNotifications: () =>
+                            _open((_) => const NotificationsScreen()),
+                        onSaved: () =>
+                            _open((_) => FavoritesScreen(userId: user.id)),
+                        avatar: user.profilePictureUrl,
+                        name: user.name,
+                        username: user.username,
+                      ))),
+            Expanded(
+                key: const ValueKey('social-content'),
+                child: Column(children: [
+                  if (!desktop &&
+                      !_composing &&
+                      _selected == SocialSection.home)
+                    SocialNavigationHeader(
+                        onGroups: () => _select(SocialSection.groups),
+                        onMessages: () => _openMessages(user),
+                        onNotifications: () =>
+                            _open((_) => const NotificationsScreen())),
+                  Expanded(
+                      key: const ValueKey('social-pages'),
+                      child: SafeArea(
+                        top: desktop,
+                        bottom: desktop || _composing,
+                        child: _pages(user),
+                      )),
+                ])),
+          ]),
+        ));
   }
 
   Widget _pages(User user) => IndexedStack(
