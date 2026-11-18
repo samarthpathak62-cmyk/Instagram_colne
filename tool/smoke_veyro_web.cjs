@@ -65,7 +65,7 @@ async function mockSignedIn(page, theme) {
     actor: people[1], message: 'followed you.', is_read: false, created_at: timestamp,
   }];
   const publicPhoto = fs.readFileSync('web/icons/Icon-192.png');
-  const publicStory = fs.readFileSync('assets/brand/veyro_community.webp');
+  const publicStory = fs.readFileSync('test/fixtures/veyro-synthetic-story.webp');
   function postProjection(post, withOriginal = true) {
     const original = posts.find((entry) => entry.id === post.shared_post_id);
     return {
@@ -311,10 +311,14 @@ async function testSocial(page, state, name) {
   const { press, enter, waitFor, changed } = controls(page);
   const text = `New ${name} update from browser smoke.`;
   await waitFor('Like post');
+  const home = await page.getByRole('button', { name: 'Home', exact: true }).boundingBox();
+  const compose = await page.getByRole('button', { name: /What’s on your mind/ }).boundingBox();
+  assert.ok(home && compose && home.y < compose.y, 'Primary navigation is above the feed');
   await capture(page, `${name}-feed`);
   await changed('Like post', 'rpc/veyro_react', 'POST');
   await waitFor(/^Unlike post\b/);
   assert.ok(state.liked.has(firstPost));
+  await press('Post options');
   await changed('Save post', 'saved_posts', 'POST');
   assert.ok(state.saved.has(firstPost));
   await press(/^Comments\b/);
@@ -325,10 +329,12 @@ async function testSocial(page, state, name) {
   assert.ok(state.comments.some((item) => item.content === 'A real comment action in this test.' && item.post_id === firstPost));
   await capture(page, `${name}-comments`);
   await press('Close comments');
+  await press('Profile');
+  await waitFor('Edit Profile');
+  await capture(page, `${name}-profile`);
   await press('Saved posts');
   await press(/Open text post/);
   await waitFor(/^Unlike post\b/);
-  await waitFor('Remove from saved');
   await press('Share post');
   await waitFor('Copy link');
   await page.bringToFront();
@@ -342,6 +348,7 @@ async function testSocial(page, state, name) {
   await press('Back');
   await waitFor('Sort saved posts');
   await press('Back');
+  await press('Home');
   await waitFor('Refresh feed');
 
   await press(/What’s on your mind/);
@@ -429,17 +436,20 @@ async function testSharingAndDiscovery(page, state, name) {
   const { press, enter, waitFor, waitGone, changed } = controls(page);
   // The earlier deep-link check leaves the original open. This avoids relying
   // on the order of feed items after the fixture writes.
-  await press('Repost options');
+  await press('Post options');
+  await press('Repost or quote');
   await changed('Repost now', 'posts', 'POST');
   await waitGone('Close repost options');
   assert.equal(state.posts[0].shared_post_id, firstPost);
   assert.equal(state.posts[0].share_kind, 'repost');
   const repostId = state.posts[0].id;
-  await press('Repost options');
+  await press('Post options');
+  await press('Repost or quote');
   await changed('Undo repost', 'posts', 'DELETE');
   await waitGone('Close repost options');
   assert.ok(!state.posts.some((post) => post.id === repostId));
-  await press('Repost options');
+  await press('Post options');
+  await press('Repost or quote');
   await press('Quote post');
   await enter('I have another take. #veyro', /Your take/);
   await changed('Publish quote', 'posts', 'POST');
@@ -447,7 +457,7 @@ async function testSharingAndDiscovery(page, state, name) {
   assert.equal(state.posts[0].share_kind, 'quote');
   assert.equal(state.posts[0].description, 'I have another take. #veyro');
   assert.equal(state.posts[0].shared_post_id, firstPost);
-  await waitFor('Repost options');
+  await waitFor('Post options');
   await press('Back');
   await waitFor('Refresh feed');
   await waitFor('#veyro');
@@ -544,7 +554,7 @@ async function testCommunity(page, state, name) {
     page.waitForEvent('filechooser', { timeout }),
     press('Add photo', true),
   ]);
-  await chooser.setFiles('assets/brand/veyro_community.webp');
+  await chooser.setFiles('test/fixtures/veyro-synthetic-story.webp');
   await changed('Publish story', 'rpc/veyro_add_story_item', 'POST');
   assert.equal(state.storyItems[0].media_type, 'image');
   await waitFor('New story by veyro_preview');
@@ -563,7 +573,7 @@ async function testViewport(browser, name, viewport) {
       isMobile: name === 'mobile',
       hasTouch: name === 'mobile',
       locale: 'en-US',
-      colorScheme: name === 'mobile' ? 'light' : 'dark',
+      colorScheme: 'light',
     });
     await browserContext.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: url.origin });
     const page = await browserContext.newPage();
@@ -575,7 +585,7 @@ async function testViewport(browser, name, viewport) {
       }
     });
     try {
-      const social = signedIn ? await mockSignedIn(page, name === 'mobile' ? 'light' : 'dark') : null;
+      const social = signedIn ? await mockSignedIn(page, 'light') : null;
       await openApp(page);
       const button = (label) => page.getByRole('button', { name: label, exact: true }).first();
       const waitFor = (label) => button(label).waitFor({ state: 'attached', timeout });
@@ -608,6 +618,21 @@ async function testViewport(browser, name, viewport) {
   }
 }
 
+async function testDarkFeed(browser) {
+  const context = await browser.newContext({ viewport: { width: 1360, height: 860 }, colorScheme: 'dark' });
+  try {
+    const page = await context.newPage();
+    await mockSignedIn(page, 'dark');
+    const settings = page.waitForResponse(response => new URL(response.url()).pathname === '/rest/v1/settings');
+    await openApp(page);
+    assert.ok((await settings).ok(), 'Dark theme preference fixture loaded');
+    await controls(page).waitFor('Like post');
+    await capture(page, 'desktop-dark-feed');
+  } finally {
+    await context.close();
+  }
+}
+
 (async () => {
   const browser = await chromium.launch({
     executablePath: process.env.CHROME_BIN || '/usr/bin/google-chrome',
@@ -624,6 +649,7 @@ async function testViewport(browser, name, viewport) {
       catch (error) { failures.push(error.message); }
     }
     if (failures.length) throw new Error(failures.join('\n'));
+    await testDarkFeed(browser);
     console.log('::notice::Veyro auth and signed-in social flows verified in desktop and mobile Chrome (fixture backend).');
   } finally {
     await browser.close();

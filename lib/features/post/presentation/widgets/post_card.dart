@@ -33,7 +33,7 @@ class PostCard extends StatelessWidget {
     final theme = Theme.of(context);
     final media = post.mediaUrls.where((url) => url.isNotEmpty).toList();
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 7),
+      margin: const EdgeInsets.symmetric(vertical: 6),
       clipBehavior: Clip.antiAlias,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         if (post.shareKind != null)
@@ -96,7 +96,7 @@ class PostCard extends StatelessWidget {
           ColoredBox(
             color: Theme.of(context).colorScheme.surfaceContainerLowest,
             child: AspectRatio(
-              aspectRatio: post.type == PostType.video ? 16 / 10 : 1,
+              aspectRatio: post.type == PostType.video ? 16 / 9 : 4 / 3,
               child: post.type == PostType.video
                   ? VideoPlayerWidget(
                       key: ValueKey(media.first),
@@ -115,10 +115,6 @@ class PostCard extends StatelessWidget {
           const Padding(
               padding: EdgeInsets.all(18),
               child: Text('Media is no longer available.')),
-        Divider(
-            height: 1,
-            thickness: 1,
-            color: theme.colorScheme.outlineVariant.withValues(alpha: .65)),
         PostActions(post: post),
       ]),
     );

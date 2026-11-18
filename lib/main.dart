@@ -64,7 +64,7 @@ class MyApp extends StatelessWidget {
                     : null,
                 themeMode: state is SettingsLoaded
                     ? state.settings.flutterThemeMode
-                    : ThemeMode.dark,
+                    : ThemeMode.light,
               ),
             ),
           );

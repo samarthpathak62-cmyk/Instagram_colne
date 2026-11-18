@@ -6,10 +6,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Veyro is a place to connect with your people, share your moments, and explore what’s new.">
-  <meta name="theme-color" content="#0c0914">
-  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="color-scheme" content="light dark">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Veyro">
   <meta property="og:title" content="Veyro">
   <meta property="og:description" content="Connect with your people, share your moments, and explore what’s new.">
@@ -18,7 +18,7 @@
   <link rel="manifest" href="manifest.json">
   <title>Veyro</title>
   <style>
-    html, body { height: 100%; margin: 0; background: #0c0914; }
+    html, body { height: 100%; margin: 0; background: #f0f2f5; }
     #veyro-launch {
       position: fixed;
       inset: 0;
@@ -27,20 +27,17 @@
       justify-items: center;
       z-index: 1;
       pointer-events: none;
-      background:
-        radial-gradient(ellipse at 88% 10%, #331a59, transparent 58%),
-        linear-gradient(140deg, #1b1030, #0c0914 53%, #150d26);
-      color: #f8f3ff;
-      font: 800 43px/1.1 system-ui, sans-serif;
+      background: #f0f2f5;
+      color: #1d57d6;
+      font: 800 39px/1.1 system-ui, sans-serif;
       letter-spacing: -.05em;
     }
-    #veyro-launch p { margin: 13px 0 0; color: #cbb0ff; font-size: 10px; letter-spacing: .21em; }
     #veyro-progress {
-      margin-top: 36px;
+      margin-top: 18px;
       width: 60px;
       height: 4px;
       border-radius: 6px;
-      background: linear-gradient(90deg, #7036e5, #cbb0ff);
+      background: #1d57d6;
       animation: veyro-pulse 1.4s ease-in-out infinite alternate;
     }
     @keyframes veyro-pulse { from { opacity: .42; transform: scaleX(.58); } to { opacity: 1; } }
@@ -49,9 +46,8 @@
 </head>
 <body>
   <div id="veyro-launch" role="status" aria-label="Loading Veyro">
-    <img src="icons/veyro-mark.png" alt="" width="176" height="176">
+    <img src="icons/veyro-mark.png" alt="" width="112" height="112">
     <span aria-hidden="true">Veyro</span>
-    <p aria-hidden="true">CONNECT &nbsp;•&nbsp; SHARE &nbsp;•&nbsp; EXPLORE</p>
     <div id="veyro-progress" aria-hidden="true"></div>
   </div>
   <script>

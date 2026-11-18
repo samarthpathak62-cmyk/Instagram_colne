@@ -15,7 +15,7 @@ class AppView extends StatelessWidget {
   final ThemeMode themeMode;
   final Locale? locale;
 
-  const AppView({super.key, this.themeMode = ThemeMode.dark, this.locale});
+  const AppView({super.key, this.themeMode = ThemeMode.light, this.locale});
 
   @override
   Widget build(BuildContext context) {

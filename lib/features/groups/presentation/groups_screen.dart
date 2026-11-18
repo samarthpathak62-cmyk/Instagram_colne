@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:instagram_clone/core/di/injection_container.dart';
 import 'package:instagram_clone/core/theme/veyro_theme.dart';
 import 'package:instagram_clone/features/common_widgets/app_bar.dart';
-import 'package:instagram_clone/features/common_widgets/veyro_community_cover.dart';
 import 'package:instagram_clone/features/groups/data/group_repository.dart';
 import 'package:instagram_clone/features/groups/domain/veyro_group.dart';
 import 'package:instagram_clone/features/groups/presentation/group_components.dart';
@@ -89,6 +88,12 @@ class _GroupsScreenState extends State<GroupsScreen> {
     if (mounted && id != null) await _open(id);
   }
 
+  Widget _createButton() => FilledButton.icon(
+        onPressed: _create,
+        icon: const Icon(Icons.add_rounded, size: 19),
+        label: const Text('New group'),
+      );
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar:
@@ -114,52 +119,49 @@ class _GroupsScreenState extends State<GroupsScreen> {
                         sliver: SliverList.list(children: [
                           Card(
                             margin: EdgeInsets.zero,
-                            clipBehavior: Clip.antiAlias,
-                            child: VeyroCommunityCover(
-                                child: Padding(
-                              padding: EdgeInsets.all(wide ? 28 : 20),
+                            child: Padding(
+                              padding: EdgeInsets.all(wide ? 19 : 14),
                               child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('VEYRO COMMUNITIES',
-                                        style: context.veyroText.labelSmall
-                                            ?.copyWith(
-                                          color: VeyroTheme.lavender,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: 2,
-                                        )),
-                                    const SizedBox(height: 9),
-                                    Text('Find your people.',
-                                        style: (wide
-                                                ? context
-                                                    .veyroText.headlineLarge
-                                                : context
-                                                    .veyroText.headlineMedium)
-                                            ?.copyWith(
-                                          color: VeyroTheme.frost,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: -1,
-                                        )),
-                                    const SizedBox(height: 7),
-                                    ConstrainedBox(
-                                        constraints:
-                                            const BoxConstraints(maxWidth: 365),
-                                        child: Text(
-                                            'Join a public group to talk, learn and share what you love.',
-                                            style: context.veyroText.bodyMedium
-                                                ?.copyWith(
-                                                    color:
-                                                        const Color(0xFFE4D7F7),
-                                                    height: 1.5))),
-                                    const SizedBox(height: 16),
-                                    FilledButton.icon(
-                                        onPressed: _create,
-                                        icon: const Icon(Icons.add_rounded),
-                                        label: const Text('New group')),
+                                    Row(children: [
+                                      CircleAvatar(
+                                          radius: 22,
+                                          backgroundColor: context
+                                              .veyroColors.primaryContainer,
+                                          foregroundColor: context
+                                              .veyroColors.onPrimaryContainer,
+                                          child: const Icon(
+                                              Icons.groups_outlined,
+                                              size: 25)),
+                                      const SizedBox(width: 11),
+                                      Expanded(
+                                          child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                            Text('Find your groups',
+                                                style: context
+                                                    .veyroText.titleLarge),
+                                            const SizedBox(height: 3),
+                                            Text(
+                                                'Explore public communities by interest.',
+                                                style: context
+                                                    .veyroText.bodySmall),
+                                          ])),
+                                      if (wide) ...[
+                                        const SizedBox(width: 12),
+                                        _createButton()
+                                      ],
+                                    ]),
+                                    if (!wide) ...[
+                                      const SizedBox(height: 12),
+                                      _createButton()
+                                    ],
                                   ]),
-                            )),
+                            ),
                           ),
-                          const SizedBox(height: 18),
+                          const SizedBox(height: 12),
                           TextField(
                             controller: _search,
                             onChanged: (_) {

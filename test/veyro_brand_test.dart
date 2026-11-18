@@ -30,7 +30,7 @@ void main() {
         greaterThan(4.5),
       );
     }
-    expect(_contrast(Colors.white, VeyroTheme.violet), greaterThan(4.5));
+    expect(_contrast(Colors.white, VeyroTheme.blue), greaterThan(4.5));
   });
 
   group('Veyro entry screens', () {

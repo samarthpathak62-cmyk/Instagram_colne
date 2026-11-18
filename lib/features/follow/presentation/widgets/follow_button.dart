@@ -106,7 +106,7 @@ class _FollowButtonState extends State<FollowButton> {
                 padding: const EdgeInsets.symmetric(horizontal: 10),
               )
             : ElevatedButton.styleFrom(
-                backgroundColor: VeyroTheme.violet,
+                backgroundColor: VeyroTheme.blue,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 10),
               );

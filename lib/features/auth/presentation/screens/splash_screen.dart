@@ -7,42 +7,27 @@ class SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: VeyroTheme.ink,
-        body: VeyroAtmosphere(
-          rings: true,
-          child: SafeArea(
+        body: SafeArea(
             child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const VeyroMark(size: 176),
-                      const VeyroWordmark(
-                          size: 43, showMark: false, color: VeyroTheme.frost),
-                      const SizedBox(height: 14),
-                      const VeyroTagline(color: VeyroTheme.lavender),
-                      const SizedBox(height: 36),
-                      Container(
-                        width: 60,
-                        height: 4,
-                        clipBehavior: Clip.antiAlias,
-                        decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(4)),
-                        child: const LinearProgressIndicator(
-                          color: VeyroTheme.lavender,
-                          backgroundColor: Color(0xFF39265C),
-                          semanticsLabel: 'Loading Veyro',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
+                child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const VeyroMark(size: 112),
+                VeyroWordmark(
+                    size: 39,
+                    showMark: false,
+                    color: context.veyroColors.primary),
+                const SizedBox(height: 18),
+                const SizedBox(
+                    width: 56,
+                    child: LinearProgressIndicator(
+                      minHeight: 3,
+                      borderRadius: BorderRadius.all(Radius.circular(4)),
+                      semanticsLabel: 'Loading Veyro',
+                    )),
+              ])),
+        ))),
       );
 }

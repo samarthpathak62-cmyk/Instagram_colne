@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- The launch screen is branded independently of the system light/dark preference. -->
-    <style name="VeyroLaunchBase" parent="@android:style/Theme.Black.NoTitleBar">
+    <style name="VeyroLaunchBase" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">@drawable/launch_background</item>
-        <item name="android:statusBarColor">@color/veyro_ink</item>
-        <item name="android:navigationBarColor">@color/veyro_ink</item>
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:statusBarColor">@color/veyro_launch</item>
+        <item name="android:navigationBarColor">@color/veyro_launch</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
     <style name="LaunchTheme" parent="VeyroLaunchBase" />
-    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
-        <item name="android:windowBackground">@color/veyro_ink</item>
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@color/veyro_launch</item>
     </style>
 </resources>

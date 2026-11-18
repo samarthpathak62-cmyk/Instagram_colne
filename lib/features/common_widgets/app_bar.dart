@@ -8,7 +8,7 @@ import 'package:instagram_clone/features/favorites/presentation/screens/favorite
 import 'package:instagram_clone/features/notifications/presentation/screens/notifications_screen.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
-  static const _height = 64.0;
+  static const _height = 56.0;
 
   final String? title;
   final List<Widget> actions;

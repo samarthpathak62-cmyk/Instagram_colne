@@ -3,8 +3,8 @@
   "short_name": "Veyro",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#0c0914",
-  "theme_color": "#0c0914",
+  "background_color": "#f0f2f5",
+  "theme_color": "#ffffff",
   "description": "Connect with your people, share your moments, and explore what’s new.",
   "prefer_related_applications": false,
   "icons": [

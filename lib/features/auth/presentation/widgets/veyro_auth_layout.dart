@@ -3,228 +3,115 @@ import 'package:instagram_clone/core/constants/app_constants.dart';
 import 'package:instagram_clone/core/theme/veyro_theme.dart';
 import 'package:instagram_clone/features/common_widgets/veyro_brand.dart';
 
-/// Shared sign-in and registration frame. On phones, branding becomes a
-/// compact header so the form stays usable with the software keyboard open.
+/// Uses the same quiet canvas and simple white card as the social screens.
 class VeyroAuthLayout extends StatelessWidget {
   final String heading;
   final String description;
   final Widget form;
   final Widget footer;
 
-  const VeyroAuthLayout({
-    super.key,
-    required this.heading,
-    required this.description,
-    required this.form,
-    required this.footer,
-  });
+  const VeyroAuthLayout(
+      {super.key,
+      required this.heading,
+      required this.description,
+      required this.form,
+      required this.footer});
 
   @override
-  Widget build(BuildContext context) {
-    final colors = context.veyroColors;
-    return Scaffold(
-      body: VeyroAtmosphere(
-        child: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final wide = constraints.maxWidth >= 860;
-              final vertical = wide ? 36.0 : 16.0;
-              return SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                  horizontal: wide ? 32 : 16,
-                  vertical: vertical,
-                ),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: (constraints.maxHeight - vertical * 2)
-                        .clamp(0.0, double.infinity)
-                        .toDouble(),
-                  ),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: wide ? 1040 : 446),
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(28),
-                          border: Border.all(color: colors.outlineVariant),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x73040207),
-                              blurRadius: 48,
-                              offset: Offset(0, 18),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(27),
-                          child: wide
-                              ? _wideFrame(context)
-                              : Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const _CompactBrand(),
-                                    const Divider(),
-                                    _panel(context, false),
-                                  ],
-                                ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  // The form sets the height. The artwork fits that space instead of asking
-  // a text field or an expanding render box to estimate its intrinsic height.
-  Widget _wideFrame(BuildContext context) => LayoutBuilder(
+  Widget build(BuildContext context) =>
+      Scaffold(body: SafeArea(child: LayoutBuilder(
         builder: (context, constraints) {
-          final artWidth = (constraints.maxWidth - 1) * 11 / 21;
-          return Stack(
-            children: [
-              PositionedDirectional(
-                start: 0,
-                width: artWidth,
-                top: 0,
-                bottom: 0,
-                child: const _BrandPanel(),
-              ),
-              PositionedDirectional(
-                start: artWidth,
-                width: 1,
-                top: 0,
-                bottom: 0,
-                child: ColoredBox(color: context.veyroColors.outlineVariant),
-              ),
-              Padding(
-                padding: EdgeInsetsDirectional.only(start: artWidth + 1),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 518),
-                  child: _panel(context, true),
-                ),
-              ),
-            ],
+          final wide = constraints.maxWidth >= 860;
+          final vertical = wide ? 36.0 : 16.0;
+          return SingleChildScrollView(
+            padding: EdgeInsets.symmetric(
+                horizontal: wide ? 32 : 14, vertical: vertical),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                  minHeight: (constraints.maxHeight - vertical * 2)
+                      .clamp(0.0, double.infinity)
+                      .toDouble()),
+              child: Center(
+                  child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: wide ? 918 : 430),
+                child: wide
+                    ? Row(children: [
+                        const Expanded(flex: 6, child: _BrandIntro(wide: true)),
+                        const SizedBox(width: 40),
+                        Expanded(flex: 5, child: _panel(context)),
+                      ])
+                    : Column(mainAxisSize: MainAxisSize.min, children: [
+                        const _BrandIntro(wide: false),
+                        const SizedBox(height: 14),
+                        _panel(context),
+                      ]),
+              )),
+            ),
           );
         },
-      );
+      )));
 
-  Widget _panel(BuildContext context, bool wide) => ColoredBox(
-        color: context.veyroColors.surfaceContainerLow,
-        child: Center(
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: wide ? 42 : 22,
-              vertical: wide ? 40 : 26,
-            ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 370),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Semantics(
+  Widget _panel(BuildContext context) => SizedBox(
+      width: double.infinity,
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 23, 22, 13),
+          child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Semantics(
                     header: true,
-                    child: Text(
-                      heading,
-                      style: context.veyroText.headlineMedium?.copyWith(
-                        fontSize: wide ? 34 : 28,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    description,
+                    child:
+                        Text(heading, style: context.veyroText.headlineMedium)),
+                const SizedBox(height: 7),
+                Text(description,
                     style: context.veyroText.bodyMedium?.copyWith(
+                        color: context.veyroColors.onSurfaceVariant,
+                        height: 1.5)),
+                const SizedBox(height: 22),
+                form,
+                const SizedBox(height: 15),
+                const Divider(),
+                const SizedBox(height: 6),
+                footer,
+              ]),
+        ),
+      ));
+}
+
+class _BrandIntro extends StatelessWidget {
+  final bool wide;
+  const _BrandIntro({required this.wide});
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment:
+            wide ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          VeyroWordmark(
+              size: wide ? 58 : 33, color: context.veyroColors.primary),
+          if (wide) ...[
+            const SizedBox(height: 6),
+            Padding(
+                padding: const EdgeInsetsDirectional.only(start: 12),
+                child: Text(
+                  'Keep up with your people.',
+                  style: context.veyroText.headlineMedium
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                )),
+            Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(12, 9, 14, 0),
+                child: Text(
+                  AppConstants.appDescription,
+                  style: context.veyroText.bodyLarge?.copyWith(
                       color: context.veyroColors.onSurfaceVariant,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 27),
-                  form,
-                  const SizedBox(height: 18),
-                  const Divider(),
-                  const SizedBox(height: 8),
-                  footer,
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-}
-
-class _CompactBrand extends StatelessWidget {
-  const _CompactBrand();
-
-  @override
-  Widget build(BuildContext context) => VeyroAtmosphere(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const VeyroMark(size: 70),
-              const SizedBox(width: 3),
-              const Flexible(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    VeyroWordmark(
-                        size: 28, showMark: false, color: VeyroTheme.frost),
-                    SizedBox(height: 3),
-                    VeyroTagline(color: Color(0xFFD5BFF3)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-}
-
-class _BrandPanel extends StatelessWidget {
-  const _BrandPanel();
-
-  @override
-  Widget build(BuildContext context) => VeyroAtmosphere(
-        rings: true,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 25),
-          child: Center(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: SizedBox(
-                width: 320,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const VeyroMark(size: 228),
-                    const VeyroWordmark(
-                        size: 64, showMark: false, color: VeyroTheme.frost),
-                    const SizedBox(height: 14),
-                    const VeyroTagline(color: VeyroTheme.lavender),
-                    const SizedBox(height: 34),
-                    Text(
-                      AppConstants.appDescription,
-                      style: context.veyroText.bodyMedium?.copyWith(
-                        color: const Color(0xFFD5C6E8),
-                        fontSize: 15,
-                        height: 1.6,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
+                      height: 1.55),
+                )),
+          ],
+        ],
       );
 }
 

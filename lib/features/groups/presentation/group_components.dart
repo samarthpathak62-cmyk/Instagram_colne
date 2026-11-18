@@ -13,27 +13,12 @@ extension GroupCategoryVisual on GroupCategory {
         GroupCategory.learning => Icons.lightbulb_outline_rounded,
       };
 
-  (Color, Color) get palette => switch (this) {
-        GroupCategory.general => (
-            const Color(0xFF37205F),
-            const Color(0xFF6933B4)
-          ),
-        GroupCategory.creative => (
-            const Color(0xFF471C53),
-            const Color(0xFF9F446A)
-          ),
-        GroupCategory.local => (
-            const Color(0xFF153541),
-            const Color(0xFF216467)
-          ),
-        GroupCategory.gaming => (
-            const Color(0xFF252454),
-            const Color(0xFF454AB0)
-          ),
-        GroupCategory.learning => (
-            const Color(0xFF57312E),
-            const Color(0xFF9C5641)
-          ),
+  Color get accent => switch (this) {
+        GroupCategory.general => const Color(0xFF2B63CB),
+        GroupCategory.creative => const Color(0xFF9B4978),
+        GroupCategory.local => const Color(0xFF27836B),
+        GroupCategory.gaming => const Color(0xFF556BC5),
+        GroupCategory.learning => const Color(0xFFAD6724),
       };
 }
 
@@ -48,7 +33,15 @@ class GroupArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (first, second) = category.palette;
+    final colors = context.veyroColors;
+    final dark = colors.brightness == Brightness.dark;
+    final base = Color.alphaBlend(
+        category.accent.withValues(alpha: dark ? .24 : .08),
+        colors.surfaceContainerLow);
+    final strong = Color.alphaBlend(
+        category.accent.withValues(alpha: dark ? .62 : .23),
+        colors.surfaceContainerLow);
+    final ink = dark ? colors.onSurface : category.accent;
     return ExcludeSemantics(
       child: SizedBox(
         height: height,
@@ -58,22 +51,22 @@ class GroupArtwork extends StatelessWidget {
                   gradient: LinearGradient(
             begin: Alignment.bottomLeft,
             end: Alignment.topRight,
-            colors: [first, second],
+            colors: [base, strong],
           ))),
-          const CustomPaint(painter: _OrbitLines()),
+          CustomPaint(painter: _OrbitLines(category.accent)),
           Align(
             alignment: AlignmentDirectional.centerStart,
             child: Padding(
               padding: const EdgeInsetsDirectional.only(start: 16),
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white24),
-                  color: Colors.white.withValues(alpha: .09),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: colors.outlineVariant),
+                  color: colors.surfaceContainerLow,
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
-                  child: Icon(category.icon, color: Colors.white, size: 26),
+                  child: Icon(category.icon, color: ink, size: 24),
                 ),
               ),
             ),
@@ -85,7 +78,8 @@ class GroupArtwork extends StatelessWidget {
 }
 
 class _OrbitLines extends CustomPainter {
-  const _OrbitLines();
+  final Color accent;
+  const _OrbitLines(this.accent);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -97,7 +91,7 @@ class _OrbitLines extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.1;
     for (var i = 0; i < 6; i++) {
-      paint.color = Colors.white.withValues(alpha: .31 - i * .041);
+      paint.color = accent.withValues(alpha: .29 - i * .035);
       canvas.drawOval(
           Rect.fromCenter(
               center: Offset.zero,
@@ -109,7 +103,8 @@ class _OrbitLines extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _OrbitLines oldDelegate) => false;
+  bool shouldRepaint(covariant _OrbitLines oldDelegate) =>
+      oldDelegate.accent != accent;
 }
 
 class GroupStatusCard extends StatelessWidget {

@@ -319,6 +319,37 @@ void main() {
         {PostReaction.like: 2, PostReaction.love: 1});
   });
 
+  testWidgets(
+      'post card uses labelled actions and keeps save and repost in its menu',
+      (tester) async {
+    final post = PostModel.fromJson(_row());
+    final actions = PostInteractionsCubit(
+        repository: _PostRepository(post), userId: _viewer);
+    addTearDown(actions.close);
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(320, 650);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    await tester.pumpWidget(BlocProvider.value(
+        value: actions,
+        child: MaterialApp(
+          home: Scaffold(body: ListView(children: [PostCard(post: post)])),
+        )));
+    expect(find.text('Like'), findsOneWidget);
+    expect(find.text('Comment'), findsOneWidget);
+    expect(find.text('Share'), findsOneWidget);
+    await tester.tap(find.byTooltip('Post options'));
+    await tester.pumpAndSettle();
+    expect(find.text('Repost or quote'), findsOneWidget);
+    await tester.tap(find.text('Save post'));
+    await tester.pumpAndSettle();
+    expect(actions.forPost(post.id).isSaved(post), isTrue);
+    await tester.tap(find.byTooltip('Post options'));
+    await tester.pumpAndSettle();
+    expect(find.text('Remove from saved'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('post comments can be written, reloaded and removed',
       (tester) async {
     final post = PostModel.fromJson(_row());

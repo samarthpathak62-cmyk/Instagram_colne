@@ -11,7 +11,9 @@ import 'package:instagram_clone/features/story/presentation/screens/story_view_s
 import 'package:instagram_clone/features/story/presentation/widgets/story_strip.dart';
 
 class FeedStoriesBar extends StatefulWidget {
-  const FeedStoriesBar({super.key});
+  final VoidCallback onDiscover;
+
+  const FeedStoriesBar({super.key, required this.onDiscover});
 
   @override
   State<FeedStoriesBar> createState() => _FeedStoriesBarState();
@@ -47,6 +49,7 @@ class _FeedStoriesBarState extends State<FeedStoriesBar> {
               ownAvatar: auth.user.profileImageUrl,
               ownName: auth.user.name ?? auth.user.username,
               seenItems: _seenItems,
+              onDiscover: state is StoriesLoaded ? widget.onDiscover : null,
               onAddStoryTap: () async {
                 final created =
                     await Navigator.of(context).push<bool>(MaterialPageRoute(

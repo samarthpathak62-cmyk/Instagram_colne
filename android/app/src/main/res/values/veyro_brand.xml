@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name" translatable="false">Veyro</string>
-    <color name="veyro_ink">#0C0914</color>
+    <color name="veyro_launch">#F0F2F5</color>
 </resources>
