@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:instagram_clone/core/di/injection_container.dart';
+import 'package:instagram_clone/core/theme/veyro_theme.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_brand.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_empty_state.dart';
 import 'package:instagram_clone/features/auth/domain/entities/user.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:instagram_clone/features/common_widgets/error_widget.dart';
@@ -16,9 +19,13 @@ import 'package:instagram_clone/features/profile/presentation/screens/profile_sc
 class SearchScreen extends StatefulWidget {
   final bool startWithPeople;
   final String initialQuery;
+  final VoidCallback? onGroups;
 
   const SearchScreen(
-      {super.key, this.startWithPeople = false, this.initialQuery = ''});
+      {super.key,
+      this.startWithPeople = false,
+      this.initialQuery = '',
+      this.onGroups});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -115,6 +122,11 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Explore'), actions: [
+          if (widget.onGroups != null)
+            IconButton(
+                tooltip: 'Browse groups',
+                onPressed: widget.onGroups,
+                icon: const Icon(Icons.groups_outlined)),
           IconButton(
               tooltip: 'Refresh search',
               onPressed: _busy ? null : _load,
@@ -122,8 +134,21 @@ class _SearchScreenState extends State<SearchScreen> {
         ]),
         body: Center(
             child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 820),
+                constraints: const BoxConstraints(maxWidth: 896),
                 child: Column(children: [
+                  if (MediaQuery.sizeOf(context).width >= 800)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 15, 16, 2),
+                      child: Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const VeyroEyebrow('Discovery'),
+                                Text('Find something new',
+                                    style: context.veyroText.headlineMedium),
+                              ])),
+                    ),
                   Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
                       child: TextField(
@@ -136,6 +161,16 @@ class _SearchScreenState extends State<SearchScreen> {
                             labelText:
                                 _people ? 'Search by username' : 'Search posts',
                             counterText: '',
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24)),
+                            enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: BorderSide(
+                                    color: context.veyroColors.outlineVariant)),
+                            focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: BorderSide(
+                                    color: context.veyroColors.primary)),
                             prefixIcon: const Icon(Icons.search_rounded),
                             suffixIcon: IconButton(
                                 tooltip: 'Clear search',
@@ -145,16 +180,22 @@ class _SearchScreenState extends State<SearchScreen> {
                                   _load();
                                 })),
                       )),
-                  Wrap(spacing: 8, children: [
-                    ChoiceChip(
-                        label: const Text('Posts'),
-                        selected: !_people,
-                        onSelected: (_) => _toggle(false)),
-                    ChoiceChip(
-                        label: const Text('People'),
-                        selected: _people,
-                        onSelected: (_) => _toggle(true)),
-                  ]),
+                  Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Wrap(spacing: 8, children: [
+                            ChoiceChip(
+                                label: const Text('Posts'),
+                                showCheckmark: false,
+                                selected: !_people,
+                                onSelected: (_) => _toggle(false)),
+                            ChoiceChip(
+                                label: const Text('People'),
+                                showCheckmark: false,
+                                selected: _people,
+                                onSelected: (_) => _toggle(true)),
+                          ]))),
                   const SizedBox(height: 8),
                   Expanded(child: _results(context)),
                 ]))),
@@ -167,10 +208,12 @@ class _SearchScreenState extends State<SearchScreen> {
       return const Center(child: CircularProgressIndicator());
     if (_people) {
       if (_users.isEmpty)
-        return Center(
-            child: Text(_input.text.trim().isEmpty
-                ? 'No other people to show yet.'
-                : 'No people found.'));
+        return VeyroEmptyState(
+            icon: Icons.person_search_outlined,
+            title: 'No people found',
+            description: _input.text.trim().isEmpty
+                ? 'New people will appear here as Veyro grows.'
+                : 'Try a different username.');
       final browse = _input.text.trim().isEmpty;
       return ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -205,34 +248,43 @@ class _SearchScreenState extends State<SearchScreen> {
     final posts =
         _posts.where((post) => local[post.id]?.deleted != true).toList();
     if (posts.isEmpty && !_more)
-      return const Center(child: Text('No posts found.'));
+      return const VeyroEmptyState(
+          icon: Icons.grid_view_rounded,
+          title: 'No posts found',
+          description:
+              'New photos and posts will show up here, or try another search.');
     return RefreshIndicator(
         onRefresh: _load,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverPadding(
-                padding: const EdgeInsets.all(12),
-                sliver: SliverGrid.builder(
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 180,
-                      mainAxisSpacing: 8,
-                      crossAxisSpacing: 8),
-                  itemCount: posts.length,
-                  itemBuilder: (context, index) => PostGridItem(
-                      key: ValueKey(posts[index].id), post: posts[index]),
-                )),
-            if (_busy)
-              const SliverToBoxAdapter(child: LinearProgressIndicator())
-            else if (_more)
-              SliverToBoxAdapter(
-                  child: Center(
-                      child: TextButton(
-                onPressed: () => _load(append: true),
-                child: Text(
-                    _error == null ? 'Load more' : 'Retry loading more posts'),
-              ))),
-          ],
-        ));
+        child: LayoutBuilder(
+            builder: (context, constraints) => CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                        sliver: SliverGrid.builder(
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount:
+                                      constraints.maxWidth >= 660 ? 4 : 3,
+                                  mainAxisSpacing: 5,
+                                  crossAxisSpacing: 5),
+                          itemCount: posts.length,
+                          itemBuilder: (context, index) => PostGridItem(
+                              key: ValueKey(posts[index].id),
+                              post: posts[index]),
+                        )),
+                    if (_busy)
+                      const SliverToBoxAdapter(child: LinearProgressIndicator())
+                    else if (_more)
+                      SliverToBoxAdapter(
+                          child: Center(
+                              child: TextButton(
+                        onPressed: () => _load(append: true),
+                        child: Text(_error == null
+                            ? 'Load more'
+                            : 'Retry loading more posts'),
+                      ))),
+                  ],
+                )));
   }
 }

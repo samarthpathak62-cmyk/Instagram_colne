@@ -50,13 +50,18 @@ class SettingsScreen extends StatelessWidget {
                       child: const Column(children: [
                         RadioListTile(
                             value: AppThemeMode.dark,
-                            title: Text('Veyro Midnight')),
+                            title: Text('Veyro Midnight'),
+                            subtitle: Text('Deep plum with lilac accents'),
+                            secondary: Icon(Icons.dark_mode_outlined)),
                         RadioListTile(
                             value: AppThemeMode.light,
-                            title: Text('Veyro Light')),
+                            title: Text('Veyro Daylight'),
+                            subtitle: Text('Soft lavender and clean whites'),
+                            secondary: Icon(Icons.light_mode_outlined)),
                         RadioListTile(
                             value: AppThemeMode.system,
-                            title: Text('Use device setting')),
+                            title: Text('Use device setting'),
+                            secondary: Icon(Icons.devices_outlined)),
                       ]),
                     ),
                   ),

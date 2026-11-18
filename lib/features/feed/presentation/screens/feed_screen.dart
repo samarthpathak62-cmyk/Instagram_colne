@@ -4,6 +4,8 @@ import 'package:instagram_clone/core/theme/veyro_theme.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:instagram_clone/features/common_widgets/loading_indicator.dart';
 import 'package:instagram_clone/features/common_widgets/user_avatar.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_brand.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_empty_state.dart';
 import 'package:instagram_clone/features/explore/domain/post_topics.dart';
 import 'package:instagram_clone/features/explore/presentation/screens/search_screen.dart';
 import 'package:instagram_clone/features/feed/presentation/bloc/feed_bloc.dart';
@@ -59,16 +61,16 @@ class _FeedScreenState extends State<FeedScreen> {
           final wide = constraints.maxWidth >= 900;
           return Center(
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: wide ? 986 : 640),
+              constraints: BoxConstraints(maxWidth: wide ? 914 : 602),
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: wide ? 18 : 10),
+                padding: EdgeInsets.symmetric(horizontal: wide ? 19 : 10),
                 child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(child: _timeline()),
+                      Expanded(child: _timeline(wide: wide)),
                       if (wide) ...[
-                        const SizedBox(width: 20),
-                        SizedBox(width: 250, child: _discoveryPanel()),
+                        const SizedBox(width: 27),
+                        SizedBox(width: 264, child: _discoveryPanel()),
                       ],
                     ]),
               ),
@@ -77,7 +79,7 @@ class _FeedScreenState extends State<FeedScreen> {
         },
       );
 
-  Widget _timeline() {
+  Widget _timeline({required bool wide}) {
     final feed = context.read<FeedCubit>();
     return RefreshIndicator(
       onRefresh: feed.refresh,
@@ -91,7 +93,8 @@ class _FeedScreenState extends State<FeedScreen> {
             controller: _scroll,
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              SliverToBoxAdapter(child: _feedHeader(context, state)),
+              SliverToBoxAdapter(
+                  child: _feedHeader(context, state, wide: wide)),
               if (visible.isEmpty)
                 SliverToBoxAdapter(
                   child: state.loading
@@ -137,196 +140,137 @@ class _FeedScreenState extends State<FeedScreen> {
     );
   }
 
-  Widget _feedHeader(BuildContext context, FeedState state) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
+  Widget _feedHeader(BuildContext context, FeedState state,
+      {required bool wide}) {
+    final colors = context.veyroColors;
     final feed = context.read<FeedCubit>();
     final auth = context.watch<AuthBloc>().state;
     final user = auth is Authenticated ? auth.user : null;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      const SizedBox(height: 14),
+      if (wide) ...[
+        const SizedBox(height: 27),
+        const VeyroEyebrow('In your orbit'),
+        const SizedBox(height: 4),
+        Text('Your feed', style: context.veyroText.headlineMedium),
+        const SizedBox(height: 15),
+      ] else
+        const SizedBox(height: 13),
+      Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 5, 5),
+          child: Row(children: [
+            Expanded(
+                child: Text('Stories',
+                    style: context.veyroText.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w800))),
+            Text('24 hours', style: context.veyroText.bodySmall),
+          ])),
+      FeedStoriesBar(onDiscover: () => _browse(people: true)),
+      const SizedBox(height: 8),
       Card(
-        margin: EdgeInsets.zero,
-        clipBehavior: Clip.antiAlias,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 2),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Row(children: [
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(10, 5, 5, 5),
+            child: Row(children: [
               UserAvatar(
                   imageUrl: user?.profilePictureUrl,
                   name: user?.name ?? user?.username,
-                  radius: 20),
-              const SizedBox(width: 9),
+                  radius: 17),
+              const SizedBox(width: 7),
               Expanded(
                   child: TextButton(
-                style: TextButton.styleFrom(
-                  alignment: AlignmentDirectional.centerStart,
-                  backgroundColor: colors.surface,
-                  foregroundColor: colors.onSurfaceVariant,
-                  minimumSize: const Size(0, 44),
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  shape: const StadiumBorder(),
-                  textStyle: theme.textTheme.bodyMedium,
-                ),
-                onPressed: () => widget.onCompose(FeedComposeMode.post),
-                child: const Text('What’s on your mind?',
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-              )),
+                      onPressed: () => widget.onCompose(FeedComposeMode.post),
+                      style: TextButton.styleFrom(
+                          alignment: AlignmentDirectional.centerStart,
+                          foregroundColor: colors.onSurfaceVariant,
+                          minimumSize: const Size(0, 44),
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          textStyle: context.veyroText.bodyMedium),
+                      child: const Text('What’s on your mind?',
+                          maxLines: 1, overflow: TextOverflow.ellipsis))),
+              IconButton(
+                  tooltip: 'Photo',
+                  onPressed: () => widget.onCompose(FeedComposeMode.photo),
+                  color: colors.primary,
+                  icon: const Icon(Icons.photo_library_outlined, size: 21)),
+              IconButton(
+                  tooltip: 'Reel',
+                  onPressed: () => widget.onCompose(FeedComposeMode.reel),
+                  color: colors.primary,
+                  icon: const Icon(Icons.movie_outlined, size: 22)),
             ]),
-            const SizedBox(height: 10),
-            const Divider(),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-              _composeButton(FeedComposeMode.post, Icons.notes_rounded, 'Text',
-                  colors.primary),
-              _composeButton(
-                  FeedComposeMode.photo,
-                  Icons.photo_library_outlined,
-                  'Photo',
-                  colors.brightness == Brightness.dark
-                      ? const Color(0xFF84DEA8)
-                      : const Color(0xFF16764B)),
-              _composeButton(
-                  FeedComposeMode.reel,
-                  Icons.video_collection_outlined,
-                  'Reel',
-                  colors.brightness == Brightness.dark
-                      ? const Color(0xFFFFA1AE)
-                      : const Color(0xFFB73B54)),
-            ]),
-          ]),
-        ),
-      ),
-      const SizedBox(height: 14),
-      Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(3, 0, 4, 8),
-        child: Row(children: [
-          Expanded(child: Text('Stories', style: theme.textTheme.titleMedium)),
-          Text('24 hours',
-              style: theme.textTheme.labelSmall
-                  ?.copyWith(color: colors.onSurfaceVariant)),
-        ]),
-      ),
-      FeedStoriesBar(onDiscover: () => _browse(people: true)),
-      const SizedBox(height: 12),
+          )),
+      const SizedBox(height: 7),
       Row(children: [
-        Padding(
-            padding: const EdgeInsetsDirectional.only(start: 3, end: 10),
-            child: Text('Feed', style: theme.textTheme.titleMedium)),
         Expanded(
-            child: Wrap(
-                alignment: WrapAlignment.end,
-                spacing: 6,
-                runSpacing: 3,
-                children: [
-              for (final timeline in FeedTimeline.values)
-                ChoiceChip(
-                  showCheckmark: false,
-                  label: Text(
-                      timeline == FeedTimeline.latest ? 'Latest' : 'Following'),
-                  labelStyle: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: timeline == state.timeline
-                        ? colors.onPrimaryContainer
-                        : colors.onSurfaceVariant,
-                  ),
-                  selected: timeline == state.timeline,
-                  onSelected: (_) => feed.selectTimeline(timeline),
-                ),
-            ])),
+            child: Wrap(spacing: 7, runSpacing: 2, children: [
+          for (final timeline in FeedTimeline.values)
+            ChoiceChip(
+              showCheckmark: false,
+              label: Text(
+                  timeline == FeedTimeline.latest ? 'Latest' : 'Following'),
+              labelStyle: context.veyroText.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: timeline == state.timeline
+                      ? colors.onPrimaryContainer
+                      : colors.onSurfaceVariant),
+              selected: timeline == state.timeline,
+              onSelected: (_) => feed.selectTimeline(timeline),
+            ),
+        ])),
         IconButton(
             tooltip: 'Refresh feed',
             onPressed: feed.refresh,
-            icon: const Icon(Icons.refresh_rounded, size: 20)),
+            icon: const Icon(Icons.refresh_rounded, size: 21)),
       ]),
       if (state.refreshing && state.items.isNotEmpty)
         const LinearProgressIndicator(minHeight: 2),
     ]);
   }
 
-  Widget _composeButton(
-          FeedComposeMode mode, IconData icon, String label, Color tint) =>
-      Expanded(
-          child: TextButton(
-        onPressed: () => widget.onCompose(mode),
-        style: TextButton.styleFrom(
-          foregroundColor: context.veyroColors.onSurfaceVariant,
-          minimumSize: const Size(0, 44),
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-        ),
-        child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              ExcludeSemantics(child: Icon(icon, size: 20, color: tint)),
-              const SizedBox(width: 5),
-              Text(label),
-            ])),
-      ));
-
   Widget _feedStatus(FeedState state) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
     final following = state.timeline == FeedTimeline.following;
-    final error = state.error;
+    final hasError = state.error != null;
+    final feed = context.read<FeedCubit>();
     return Card(
-      margin: const EdgeInsets.only(top: 10),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
-        child: Column(children: [
-          CircleAvatar(
-            radius: 23,
-            backgroundColor: colors.primaryContainer,
-            foregroundColor: colors.onPrimaryContainer,
-            child: Icon(error != null
-                ? Icons.cloud_off_outlined
-                : following
-                    ? Icons.group_outlined
-                    : Icons.forum_outlined),
-          ),
-          const SizedBox(height: 10),
-          Text(
-              error ??
-                  (following
-                      ? 'Make this feed yours'
-                      : 'The conversation starts here'),
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleMedium),
-          const SizedBox(height: 6),
-          Text(
-              error != null
-                  ? 'Check your connection and try again.'
-                  : following
-                      ? 'Your posts and updates from people you follow appear here.'
-                      : 'Share a post or discover someone new on Veyro.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: colors.onSurfaceVariant)),
-          const SizedBox(height: 14),
-          Wrap(spacing: 6, alignment: WrapAlignment.center, children: [
-            if (error != null)
-              FilledButton(
-                  onPressed: context.read<FeedCubit>().refresh,
-                  child: const Text('Retry'))
-            else
-              FilledButton.icon(
-                  onPressed: () => _browse(people: true),
-                  icon: const Icon(Icons.person_search_outlined),
-                  label: const Text('Find people')),
-            if (following)
-              TextButton(
-                  onPressed: () => context
-                      .read<FeedCubit>()
-                      .selectTimeline(FeedTimeline.latest),
-                  child: const Text('See Latest')),
-          ]),
-        ]),
-      ),
-    );
+        margin: const EdgeInsets.only(top: 7),
+        child: VeyroEmptyState(
+          icon: hasError
+              ? Icons.cloud_off_outlined
+              : following
+                  ? Icons.group_outlined
+                  : Icons.collections_outlined,
+          title: hasError
+              ? 'Couldn’t load your feed'
+              : following
+                  ? 'Make this feed yours'
+                  : 'It’s quiet here for now',
+          description: hasError
+              ? 'Check your connection and try again.'
+              : following
+                  ? 'Your posts and updates from people you follow appear here.'
+                  : 'Share your first moment or find people to follow.',
+          action: Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 7,
+              runSpacing: 5,
+              children: [
+                if (hasError)
+                  FilledButton(
+                      onPressed: feed.refresh, child: const Text('Retry'))
+                else
+                  FilledButton(
+                      onPressed: () => _browse(people: true),
+                      child: const Text('Discover people')),
+                if (following)
+                  TextButton(
+                      onPressed: () => feed.selectTimeline(FeedTimeline.latest),
+                      child: const Text('See Latest')),
+              ]),
+        ));
   }
 
   Widget _discoveryPanel() {
     final theme = Theme.of(context);
-    final colors = theme.colorScheme;
     final posts = context.watch<FeedCubit>().state.items;
     final local = context.watch<PostInteractionsCubit>();
     final counts = <String, int>{};
@@ -343,77 +287,77 @@ class _FeedScreenState extends State<FeedScreen> {
         return popularity == 0 ? a.key.compareTo(b.key) : popularity;
       });
     return ListView(
-      padding: const EdgeInsets.only(top: 16, bottom: 18),
+      padding: const EdgeInsets.only(top: 29, bottom: 20),
       children: [
-        Card(
-          margin: EdgeInsets.zero,
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                CircleAvatar(
-                    radius: 17,
-                    backgroundColor: colors.primaryContainer,
-                    foregroundColor: colors.onPrimaryContainer,
-                    child: const Icon(Icons.groups_outlined, size: 21)),
-                const SizedBox(width: 9),
-                Expanded(
-                    child: Text('Communities',
-                        style: theme.textTheme.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w800))),
-              ]),
-              const SizedBox(height: 9),
-              Text('Find groups for the things you care about.',
-                  style: theme.textTheme.bodySmall),
-              const SizedBox(height: 11),
-              SizedBox(
-                  width: double.infinity,
-                  child: TextButton(
-                    onPressed: widget.onGroups,
-                    style: TextButton.styleFrom(
-                        backgroundColor: colors.primaryContainer,
-                        foregroundColor: colors.onPrimaryContainer),
-                    child: const Text('Browse groups'),
-                  )),
-            ]),
-          ),
-        ),
-        const SizedBox(height: 12),
+        const VeyroEyebrow('Discover'),
+        const SizedBox(height: 10),
         Card(
             margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Topics in this feed',
-                        style: theme.textTheme.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 8),
-                    if (topics.isEmpty)
-                      Text('Try adding a #topic to your next post.',
+            clipBehavior: Clip.antiAlias,
+            child: Stack(children: [
+              const Positioned.fill(
+                  child: ColoredBox(
+                      color: VeyroTheme.midnight,
+                      child:
+                          VeyroOrbitArtwork(alignment: Alignment.topCenter))),
+              const Positioned.fill(
+                  child: DecoratedBox(
+                      decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Color(0x93100D17),
+                  Color(0xFF100D17)
+                ],
+                stops: [0, .55, .91],
+              )))),
+              Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 115, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const VeyroEyebrow('Communities',
+                          color: VeyroTheme.lilac),
+                      const SizedBox(height: 5),
+                      Text('Find your people',
+                          style: theme.textTheme.titleLarge
+                              ?.copyWith(color: VeyroTheme.frost)),
+                      const SizedBox(height: 5),
+                      Text('Make space for what you love.',
                           style: theme.textTheme.bodySmall
-                              ?.copyWith(color: colors.onSurfaceVariant))
-                    else
-                      Wrap(spacing: 5, runSpacing: 3, children: [
-                        for (final entry in topics.take(5))
-                          ActionChip(
-                              label: Text(entry.key),
-                              onPressed: () => _browse(topic: entry.key)),
-                      ]),
-                    const SizedBox(height: 10),
-                    const Divider(),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.person_search_outlined,
-                          color: colors.primary),
-                      title: const Text('Discover people'),
-                      trailing:
-                          const Icon(Icons.chevron_right_rounded, size: 19),
-                      onTap: () => _browse(people: true),
-                    ),
-                  ]),
+                              ?.copyWith(color: const Color(0xFFDCCDEB))),
+                      const SizedBox(height: 13),
+                      FilledButton.icon(
+                          onPressed: widget.onGroups,
+                          icon: const Icon(Icons.groups_outlined, size: 18),
+                          label: const Text('Browse groups')),
+                    ],
+                  )),
+            ])),
+        const SizedBox(height: 17),
+        Text(topics.isNotEmpty ? 'Topics from your feed' : 'Grow your circle',
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 7),
+        if (topics.isNotEmpty)
+          Wrap(spacing: 6, runSpacing: 4, children: [
+            for (final topic in topics.take(6))
+              ActionChip(
+                  label: Text(topic.key),
+                  onPressed: () => _browse(topic: topic.key)),
+          ])
+        else
+          Text('Follow people you enjoy to see more of them in your feed.',
+              style: theme.textTheme.bodySmall?.copyWith(height: 1.55)),
+        const SizedBox(height: 6),
+        Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              onPressed: () => _browse(people: true),
+              icon: const Icon(Icons.person_search_outlined, size: 19),
+              label: const Text('Explore people'),
             )),
       ],
     );

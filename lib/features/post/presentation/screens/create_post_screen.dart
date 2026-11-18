@@ -5,6 +5,8 @@ import 'package:instagram_clone/core/di/injection_container.dart' as di;
 import 'package:instagram_clone/core/media/picked_media_preview.dart';
 import 'package:instagram_clone/core/theme/veyro_theme.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:instagram_clone/features/common_widgets/user_avatar.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_brand.dart';
 import 'package:instagram_clone/features/feed/presentation/bloc/feed_bloc.dart';
 import 'package:instagram_clone/features/post/domain/entities/post.dart';
 import 'package:instagram_clone/features/post/presentation/bloc/post_bloc.dart';
@@ -216,115 +218,182 @@ class _ComposerState extends State<_Composer> {
           ),
           body: Center(
               child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 645),
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                    children: [
-                      if (widget.groupName != null) ...[
-                        ListTile(
-                          leading: Icon(Icons.groups_outlined,
-                              color: context.veyroColors.primary),
-                          title: Text(widget.groupName!,
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
-                          subtitle:
-                              const Text('Public group • visible on Veyro'),
-                        ),
-                        const SizedBox(height: 8),
-                      ],
-                      Card(
-                          margin: EdgeInsets.zero,
-                          child: Padding(
-                              padding: const EdgeInsets.all(18),
-                              child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                        widget.reelMode
-                                            ? 'Share a short video'
-                                            : widget.photoMode
-                                                ? 'Share your photos'
-                                                : 'What’s on your mind?',
-                                        style: context.veyroText.headlineSmall),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                        widget.reelMode
-                                            ? 'Choose a video up to 50 MB. Add a caption if you like.'
-                                            : widget.photoMode
-                                                ? 'Choose up to eight photos and add a caption.'
-                                                : 'Write an update, add photos, or share a video.',
-                                        style: context.veyroText.bodyMedium),
-                                    const SizedBox(height: 18),
-                                    TextField(
-                                      controller: _text,
-                                      enabled: !_sending,
-                                      decoration: InputDecoration(
-                                          labelText: _media.isEmpty &&
-                                                  !widget.reelMode &&
-                                                  !widget.photoMode
-                                              ? 'Post text'
-                                              : 'Caption (optional)',
-                                          hintText: 'Start writing…',
-                                          alignLabelWithHint: true),
-                                      minLines: 3,
-                                      maxLines: 7,
-                                      maxLength: Post.maxDescriptionLength,
-                                      textCapitalization:
-                                          TextCapitalization.sentences,
-                                    ),
-                                    Wrap(spacing: 8, runSpacing: 8, children: [
-                                      if (!widget.reelMode)
-                                        OutlinedButton.icon(
-                                            onPressed: _picking || _sending
-                                                ? null
-                                                : () => _pick(),
-                                            icon: const Icon(
-                                                Icons.photo_library_outlined,
-                                                size: 19),
-                                            label: const Text('Add photos')),
-                                      if (!widget.photoMode)
-                                        OutlinedButton.icon(
-                                            onPressed: _picking || _sending
-                                                ? null
-                                                : () => _pick(video: true),
-                                            icon: const Icon(
-                                                Icons.videocam_outlined,
-                                                size: 19),
-                                            label: const Text('Add video')),
-                                      if (_media.isNotEmpty)
-                                        TextButton.icon(
-                                            onPressed: _picking || _sending
-                                                ? null
-                                                : () => setState(_clearMedia),
-                                            icon: const Icon(
-                                                Icons.close_rounded,
-                                                size: 18),
-                                            label: const Text('Remove media')),
-                                    ]),
-                                    if (_error != null)
-                                      Padding(
-                                          padding:
-                                              const EdgeInsets.only(top: 12),
-                                          child: Text(_error!,
-                                              style: TextStyle(
-                                                  color: context
-                                                      .veyroColors.error))),
-                                    if (_sending || _picking) ...[
-                                      const SizedBox(height: 16),
-                                      const LinearProgressIndicator(),
-                                      const SizedBox(height: 8),
-                                      Text(_sending
-                                          ? 'Publishing…'
-                                          : 'Preparing media…'),
-                                    ],
-                                  ]))),
-                      if (_media.isNotEmpty) ...[
-                        const SizedBox(height: 14),
-                        _preview()
-                      ],
-                    ],
-                  ))),
+            constraints: const BoxConstraints(maxWidth: 638),
+            child: ListView(
+                padding: const EdgeInsets.fromLTRB(13, 16, 13, 30),
+                children: [
+                  _author(),
+                  const SizedBox(height: 10),
+                  Card(
+                      margin: EdgeInsets.zero,
+                      clipBehavior: Clip.antiAlias,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              VeyroEyebrow(widget.reelMode
+                                  ? 'In motion'
+                                  : widget.photoMode
+                                      ? 'Photo post'
+                                      : 'A new moment'),
+                              const SizedBox(height: 6),
+                              Text(
+                                  widget.reelMode
+                                      ? 'Make it move'
+                                      : widget.photoMode
+                                          ? 'Share your photos'
+                                          : 'What’s on your mind?',
+                                  style: context.veyroText.headlineSmall),
+                              const SizedBox(height: 13),
+                              if (!(widget.reelMode || widget.photoMode)) ...[
+                                _captionField(),
+                                const SizedBox(height: 6)
+                              ],
+                              _mediaArea(),
+                              if (widget.reelMode || widget.photoMode) ...[
+                                const SizedBox(height: 14),
+                                _captionField()
+                              ],
+                              if (_error != null)
+                                Padding(
+                                    padding: const EdgeInsets.only(top: 12),
+                                    child: Text(_error!,
+                                        style: TextStyle(
+                                            color: context.veyroColors.error))),
+                              if (_sending || _picking) ...[
+                                const SizedBox(height: 14),
+                                const LinearProgressIndicator(),
+                                const SizedBox(height: 7),
+                                Text(
+                                    _sending
+                                        ? 'Publishing…'
+                                        : 'Preparing media…',
+                                    style: context.veyroText.bodySmall),
+                              ],
+                            ]),
+                      )),
+                ]),
+          )),
         ),
       );
+
+  Widget _author() {
+    final auth = context.watch<AuthBloc>().state;
+    final user = auth is Authenticated ? auth.user : null;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 6),
+      leading: UserAvatar(
+          imageUrl: user?.profilePictureUrl,
+          name: user?.name ?? user?.username,
+          radius: 20),
+      title: Text(user?.name ?? user?.username ?? 'Your post',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: context.veyroText.titleSmall
+              ?.copyWith(fontWeight: FontWeight.w800)),
+      subtitle: Text(
+          widget.groupName == null
+              ? 'Public post'
+              : 'Posting in ${widget.groupName}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: context.veyroText.bodySmall),
+      trailing: Icon(
+          widget.groupName == null
+              ? Icons.public_rounded
+              : Icons.groups_outlined,
+          color: context.veyroColors.onSurfaceVariant,
+          size: 20),
+    );
+  }
+
+  Widget _captionField() => TextField(
+        controller: _text,
+        enabled: !_sending,
+        decoration: InputDecoration(
+          labelText: _media.isEmpty && !widget.reelMode && !widget.photoMode
+              ? 'Post text'
+              : 'Caption (optional)',
+          hintText: 'Write something…',
+          alignLabelWithHint: true,
+        ),
+        minLines: 3,
+        maxLines: 7,
+        maxLength: Post.maxDescriptionLength,
+        textCapitalization: TextCapitalization.sentences,
+      );
+
+  Widget _mediaArea() {
+    final colors = context.veyroColors;
+    final mediaOnly = widget.reelMode || widget.photoMode;
+    final disabled = _picking || _sending;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+          color: colors.surfaceContainer,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.outlineVariant)),
+      child: Padding(
+          padding: const EdgeInsets.all(11),
+          child: Column(
+            crossAxisAlignment: mediaOnly
+                ? CrossAxisAlignment.center
+                : CrossAxisAlignment.start,
+            children: [
+              if (_media.isNotEmpty) ...[
+                _preview(),
+                const SizedBox(height: 10)
+              ] else if (mediaOnly) ...[
+                const SizedBox(height: 12),
+                VeyroOrbitRing(
+                    glowing: false,
+                    surface: colors.surfaceContainer,
+                    child: CircleAvatar(
+                        radius: 24,
+                        backgroundColor: colors.primaryContainer,
+                        foregroundColor: colors.onPrimaryContainer,
+                        child: Icon(
+                            widget.reelMode
+                                ? Icons.movie_outlined
+                                : Icons.photo_library_outlined,
+                            size: 23))),
+                const SizedBox(height: 7),
+                Text(
+                    widget.reelMode
+                        ? 'Choose a video up to 50 MB'
+                        : 'Choose up to eight photos',
+                    textAlign: TextAlign.center,
+                    style: context.veyroText.bodySmall),
+                const SizedBox(height: 10),
+              ],
+              Wrap(
+                  alignment:
+                      mediaOnly ? WrapAlignment.center : WrapAlignment.start,
+                  spacing: 6,
+                  runSpacing: 5,
+                  children: [
+                    if (!widget.reelMode)
+                      FilledButton.tonalIcon(
+                          onPressed: disabled ? null : () => _pick(),
+                          icon: const Icon(Icons.photo_library_outlined,
+                              size: 18),
+                          label: const Text('Add photos')),
+                    if (!widget.photoMode)
+                      FilledButton.tonalIcon(
+                          onPressed: disabled ? null : () => _pick(video: true),
+                          icon: const Icon(Icons.videocam_outlined, size: 18),
+                          label: const Text('Add video')),
+                    if (_media.isNotEmpty)
+                      TextButton.icon(
+                          onPressed:
+                              disabled ? null : () => setState(_clearMedia),
+                          icon: const Icon(Icons.close_rounded, size: 18),
+                          label: const Text('Remove media')),
+                  ]),
+            ],
+          )),
+    );
+  }
 
   Widget _preview() {
     if (_type == PostType.image) {

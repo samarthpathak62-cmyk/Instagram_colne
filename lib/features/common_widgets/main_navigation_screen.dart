@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:instagram_clone/core/di/injection_container.dart' as di;
-import 'package:instagram_clone/core/theme/veyro_theme.dart';
 import 'package:instagram_clone/features/auth/domain/entities/user.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:instagram_clone/features/chat/presentation/bloc/chat_bloc.dart';
 import 'package:instagram_clone/features/chat/presentation/screens/chats_list_screen.dart';
 import 'package:instagram_clone/features/common_widgets/social_navigation_header.dart';
-import 'package:instagram_clone/features/common_widgets/user_avatar.dart';
 import 'package:instagram_clone/features/explore/presentation/screens/search_screen.dart';
 import 'package:instagram_clone/features/favorites/presentation/screens/favorites_screen.dart';
 import 'package:instagram_clone/features/feed/presentation/screens/feed_screen.dart';
@@ -59,35 +57,58 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthBloc>().state;
-    if (auth is! Authenticated)
+    if (auth is! Authenticated) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     final user = auth.user;
-    final large = MediaQuery.sizeOf(context).width >= 1160;
+    final desktop = MediaQuery.sizeOf(context).width >= 1040;
+    // Keep the content in the same tree slot when the window is resized so
+    // scroll positions, video/Groups state and the drafts aren't recreated.
     return Scaffold(
-        body: Column(children: [
-      SocialNavigationHeader(
-        selected: _selected,
-        onSelect: _select,
-        onCompose: _compose,
-        onSearch: () => _open((_) => const SearchScreen()),
-        onMessages: () => _openMessages(user),
-        onNotifications: () => _open((_) => const NotificationsScreen()),
-      ),
-      Expanded(
-          child: SafeArea(
-              top: false,
-              child: Center(
-                  child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1352),
-                child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (large)
-                        SizedBox(width: 212, child: _shortcuts(context, user)),
-                      Expanded(child: _pages(user)),
-                    ]),
-              )))),
-    ]));
+      bottomNavigationBar:
+          desktop || _composing || MediaQuery.viewInsetsOf(context).bottom > 0
+              ? null
+              : SocialBottomBar(
+                  selected: _selected,
+                  onSelect: _select,
+                  onCompose: _compose,
+                  avatar: user.profilePictureUrl,
+                  name: user.name ?? user.username),
+      body: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        if (desktop)
+          SizedBox(
+              width: 210,
+              child: SocialDesktopRail(
+                selected: _selected,
+                onSelect: _select,
+                onCompose: _compose,
+                onMessages: () => _openMessages(user),
+                onNotifications: () =>
+                    _open((_) => const NotificationsScreen()),
+                onSaved: () => _open((_) => FavoritesScreen(userId: user.id)),
+                avatar: user.profilePictureUrl,
+                name: user.name,
+                username: user.username,
+              )),
+        Expanded(
+            key: const ValueKey('social-content'),
+            child: Column(children: [
+              if (!desktop && !_composing && _selected == SocialSection.home)
+                SocialNavigationHeader(
+                    onGroups: () => _select(SocialSection.groups),
+                    onMessages: () => _openMessages(user),
+                    onNotifications: () =>
+                        _open((_) => const NotificationsScreen())),
+              Expanded(
+                  key: const ValueKey('social-pages'),
+                  child: SafeArea(
+                    top: desktop,
+                    bottom: desktop || _composing,
+                    child: _pages(user),
+                  )),
+            ])),
+      ]),
+    );
   }
 
   Widget _pages(User user) => IndexedStack(
@@ -99,7 +120,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   onCompose: _compose,
                   onGroups: () => _select(SocialSection.groups))),
           _visited.contains(SocialSection.explore)
-              ? const SearchScreen()
+              ? SearchScreen(onGroups: () => _select(SocialSection.groups))
               : const SizedBox.shrink(),
           !_composing && _selected == SocialSection.reels
               ? VideoExploreTab(onCreate: () => _compose(FeedComposeMode.reel))
@@ -131,62 +152,4 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               ]),
         ],
       );
-
-  Widget _shortcuts(BuildContext context, User user) {
-    final colors = context.veyroColors;
-    Widget entry(String title, IconData icon, VoidCallback onTap) => ListTile(
-          dense: true,
-          contentPadding: const EdgeInsetsDirectional.only(start: 8, end: 5),
-          minLeadingWidth: 32,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
-          leading: CircleAvatar(
-              radius: 16,
-              backgroundColor: colors.primaryContainer,
-              foregroundColor: colors.onPrimaryContainer,
-              child: Icon(icon, size: 18)),
-          title: Text(title, style: context.veyroText.labelLarge),
-          onTap: onTap,
-        );
-    final name = user.name?.trim();
-    return ListView(
-        padding: const EdgeInsets.fromLTRB(12, 20, 0, 12),
-        children: [
-          ListTile(
-            contentPadding: const EdgeInsetsDirectional.only(start: 8, end: 5),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
-            leading: UserAvatar(
-                imageUrl: user.profilePictureUrl,
-                name: name ?? user.username,
-                radius: 19),
-            title: Text(
-                name?.isNotEmpty == true
-                    ? name!
-                    : user.username ?? 'Your profile',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.veyroText.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w800)),
-            subtitle:
-                Text('View your profile', style: context.veyroText.bodySmall),
-            onTap: () => _select(SocialSection.profile),
-          ),
-          const SizedBox(height: 10),
-          const Divider(indent: 8, endIndent: 8),
-          Padding(
-              padding: const EdgeInsets.fromLTRB(8, 16, 3, 5),
-              child: Text('Shortcuts',
-                  style: context.veyroText.labelMedium?.copyWith(
-                      color: colors.onSurfaceVariant,
-                      fontWeight: FontWeight.w800))),
-          entry('Saved posts', Icons.bookmark_outline_rounded,
-              () => _open((_) => FavoritesScreen(userId: user.id))),
-          entry('Communities', Icons.groups_outlined,
-              () => _select(SocialSection.groups)),
-          entry('Watch videos', Icons.play_circle_outline_rounded,
-              () => _select(SocialSection.reels)),
-          entry('Inbox', Icons.chat_bubble_outline_rounded,
-              () => _openMessages(user)),
-        ]);
-  }
 }

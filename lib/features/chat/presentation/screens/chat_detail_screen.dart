@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:instagram_clone/core/theme/veyro_theme.dart';
+import 'package:instagram_clone/features/common_widgets/user_avatar.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_empty_state.dart';
 import 'package:instagram_clone/generated/app_localizations.dart';
 import 'package:instagram_clone/features/post/presentation/post_links.dart';
 import 'package:instagram_clone/features/post/presentation/screens/post_detail_screen.dart';
@@ -113,7 +115,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.chat.otherUser?.username ?? 'Chat'),
+        title: Row(children: [
+          UserAvatar(
+              imageUrl: widget.chat.otherUser?.profileImageUrl,
+              name: widget.chat.otherUser?.username,
+              radius: 17),
+          const SizedBox(width: 9),
+          Flexible(
+              child: Text(widget.chat.otherUser?.username ?? 'Chat',
+                  maxLines: 1, overflow: TextOverflow.ellipsis)),
+        ]),
         actions: [
           IconButton(
               tooltip: 'Refresh messages',
@@ -181,9 +192,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   Widget _buildMessagesList(List<Message> messages) {
     if (messages.isEmpty) {
-      return Center(
-        child: Text(AppLocalizations.of(context)?.noMessages ?? 'No messages'),
-      );
+      return VeyroEmptyState(
+          icon: Icons.chat_bubble_outline_rounded,
+          title: AppLocalizations.of(context)?.noMessages ?? 'No messages',
+          description: 'Messages in this conversation will show up here.');
     }
 
     final colors = context.veyroColors;
@@ -214,7 +226,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               color: isCurrentUser
                   ? colors.primaryContainer
                   : colors.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(16.0),
+              borderRadius: BorderRadiusDirectional.only(
+                  topStart: const Radius.circular(17),
+                  topEnd: const Radius.circular(17),
+                  bottomStart: Radius.circular(isCurrentUser ? 17 : 5),
+                  bottomEnd: Radius.circular(isCurrentUser ? 5 : 17)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,7 +286,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               child: TextField(
                 controller: _messageController,
                 enabled: !_sending,
-                decoration: InputDecoration(hintText: hint),
+                decoration: InputDecoration(
+                    hintText: hint,
+                    enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(color: colors.outlineVariant)),
+                    focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(color: colors.primary))),
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => _sendMessage(),
               ),

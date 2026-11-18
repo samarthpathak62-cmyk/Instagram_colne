@@ -11,6 +11,7 @@ import 'package:instagram_clone/features/common_widgets/app_bar.dart';
 import 'package:instagram_clone/features/common_widgets/error_widget.dart';
 import 'package:instagram_clone/features/common_widgets/user_avatar.dart';
 import 'package:instagram_clone/features/common_widgets/veyro_brand.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_empty_state.dart';
 import 'package:instagram_clone/features/favorites/presentation/screens/favorites_screen.dart';
 import 'package:instagram_clone/features/follow/presentation/bloc/follow_bloc.dart';
 import 'package:instagram_clone/features/follow/presentation/screens/follow_list_screen.dart';
@@ -175,33 +176,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
             )),
             SliverToBoxAdapter(
                 child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                    child: Wrap(spacing: 8, runSpacing: 5, children: [
-                      for (final option in [
-                        null,
-                        PostType.image,
-                        PostType.video,
-                        PostType.text
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    Wrap(spacing: 6, runSpacing: 4, children: [
+                      for (final option
+                          in const <(PostType?, IconData, String)>[
+                        (null, Icons.grid_on_rounded, 'All posts'),
+                        (PostType.image, Icons.photo_outlined, 'Photos'),
+                        (PostType.video, Icons.movie_outlined, 'Reels'),
+                        (PostType.text, Icons.notes_rounded, 'Text'),
                       ])
                         ChoiceChip(
-                            selected: _filter == option,
-                            onSelected: (_) => setState(() => _filter = option),
-                            label: Text(switch (option) {
-                              null => 'All posts',
-                              PostType.image => 'Photos',
-                              PostType.video => 'Reels',
-                              PostType.text => 'Text',
-                            })),
-                    ]))),
+                          selected: _filter == option.$1,
+                          showCheckmark: false,
+                          avatar: Icon(option.$2,
+                              size: 15,
+                              color: _filter == option.$1
+                                  ? context.veyroColors.primary
+                                  : context.veyroColors.onSurfaceVariant),
+                          onSelected: (_) =>
+                              setState(() => _filter = option.$1),
+                          label: Text(option.$3),
+                        ),
+                    ]),
+                  ]),
+            )),
             if (postsState is PostsLoaded && posts.isNotEmpty)
               SliverPadding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
                   sliver: SliverGrid.builder(
                     gridDelegate:
-                        const SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent: 188,
-                            crossAxisSpacing: 8,
-                            mainAxisSpacing: 8),
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 5,
+                            mainAxisSpacing: 5),
                     itemCount: posts.length,
                     itemBuilder: (context, index) => PostGridItem(
                         key: ValueKey(posts[index].id), post: posts[index]),
@@ -214,8 +226,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ? CustomErrorWidget(
                         message: postsState.message, onRetry: _reloadPosts)
                     : postsState is PostsLoaded
-                        ? const Center(
-                            child: Text('No posts to show here yet.'))
+                        ? const VeyroEmptyState(
+                            icon: Icons.grid_on_rounded,
+                            title: 'No posts yet',
+                            description:
+                                'The moments shared here will appear in this grid.')
                         : const Center(child: CircularProgressIndicator()),
               )),
           ],
@@ -226,110 +241,105 @@ class _ProfileScreenState extends State<ProfileScreen> {
       Profile profile, User viewer, bool isOwn, int postsCount) {
     final colors = context.veyroColors;
     final name = profile.fullName?.trim();
-    final label = name?.isNotEmpty == true ? name! : profile.username;
+    final display = name?.isNotEmpty == true ? name! : profile.username;
     return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        SizedBox(
-            height: 130,
-            child: Stack(children: [
-              PositionedDirectional(
-                start: 0,
-                end: 0,
-                top: 0,
-                height: 102,
+        margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(
+                height: 3,
                 child: DecoratedBox(
-                    decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                      colors: [
-                        colors.primaryContainer,
-                        colors.surfaceContainerHigh
-                      ],
-                      begin: AlignmentDirectional.bottomStart,
-                      end: AlignmentDirectional.topEnd,
-                    )),
-                    child: Align(
-                      alignment: AlignmentDirectional.centerEnd,
-                      child: Padding(
-                          padding: const EdgeInsetsDirectional.only(end: 22),
-                          child: const VeyroMark(size: 84)),
-                    )),
-              ),
-              PositionedDirectional(
-                  start: 16,
-                  bottom: 0,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: colors.surfaceContainerLow),
-                    child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: UserAvatar(
-                            name: label,
-                            imageUrl: profile.profileImageUrl,
-                            radius: 34)),
-                  )),
-            ])),
-        Padding(
-            padding: const EdgeInsets.fromLTRB(17, 6, 17, 17),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.veyroText.headlineMedium),
-                Text('@${profile.username}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.veyroText.bodySmall),
-                if (profile.bio?.trim().isNotEmpty == true) ...[
-                  const SizedBox(height: 9),
-                  Text(profile.bio!)
-                ],
-                const SizedBox(height: 6),
-                Wrap(
-                    spacing: 3,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Padding(
-                          padding: const EdgeInsetsDirectional.only(end: 5),
-                          child: Text('$postsCount posts',
-                              style: context.veyroText.labelLarge)),
-                      TextButton(
-                          onPressed: () =>
-                              _connections(FollowListType.followers),
-                          child: Text('${profile.followerCount} followers')),
-                      TextButton(
-                          onPressed: () =>
-                              _connections(FollowListType.following),
-                          child: Text('${profile.followingCount} following')),
+                    decoration: BoxDecoration(gradient: VeyroTheme.orbit))),
+            Padding(
+                padding: const EdgeInsets.fromLTRB(13, 17, 13, 17),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      VeyroOrbitRing(
+                          glowing: false,
+                          surface: colors.surfaceContainerLow,
+                          child: UserAvatar(
+                              name: display,
+                              imageUrl: profile.profileImageUrl,
+                              radius: 30)),
+                      const SizedBox(width: 8),
+                      Expanded(child: _stat(postsCount, 'posts')),
+                      Expanded(
+                          child: _stat(profile.followerCount, 'followers',
+                              () => _connections(FollowListType.followers))),
+                      Expanded(
+                          child: _stat(profile.followingCount, 'following',
+                              () => _connections(FollowListType.following))),
                     ]),
-                const SizedBox(height: 6),
-                Wrap(spacing: 8, runSpacing: 6, children: [
-                  if (isOwn)
-                    OutlinedButton.icon(
-                        onPressed: _editProfile,
-                        icon: const Icon(Icons.edit_outlined, size: 18),
-                        label: const Text('Edit Profile'))
-                  else ...[
-                    BlocProvider(
-                        create: (_) => sl<FollowBloc>(),
-                        child: FollowButton(
-                            targetUserId: widget.userId,
-                            onChanged: _reloadProfile)),
-                    OutlinedButton.icon(
-                        onPressed:
-                            _openingChat ? null : () => _openChat(viewer),
-                        icon: const Icon(Icons.chat_bubble_outline_rounded,
-                            size: 18),
-                        label: const Text('Message')),
+                    const SizedBox(height: 12),
+                    Text(display,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.veyroText.titleLarge),
+                    Text('@${profile.username}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.veyroText.bodySmall),
+                    if (profile.bio?.trim().isNotEmpty == true) ...[
+                      const SizedBox(height: 6),
+                      Text(profile.bio!)
+                    ],
+                    const SizedBox(height: 14),
+                    if (isOwn)
+                      SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.tonalIcon(
+                              onPressed: _editProfile,
+                              icon: const Icon(Icons.edit_outlined, size: 18),
+                              label: const Text('Edit Profile')))
+                    else
+                      Wrap(spacing: 8, runSpacing: 6, children: [
+                        BlocProvider(
+                            create: (_) => sl<FollowBloc>(),
+                            child: FollowButton(
+                                targetUserId: widget.userId,
+                                onChanged: _reloadProfile)),
+                        OutlinedButton.icon(
+                            onPressed:
+                                _openingChat ? null : () => _openChat(viewer),
+                            icon: const Icon(Icons.send_outlined, size: 18),
+                            label: const Text('Message')),
+                      ]),
                   ],
-                ]),
-              ],
-            )),
-      ]),
-    );
+                )),
+          ],
+        ));
+  }
+
+  Widget _stat(int count, String label, [VoidCallback? tap]) {
+    final countLabel =
+        count < 1000 ? '$count' : '${(count / 1000).toStringAsFixed(1)}k';
+    final child = Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 1),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(countLabel, style: context.veyroText.titleLarge)),
+            FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(label, style: context.veyroText.bodySmall)),
+          ],
+        ));
+    return Semantics(
+        label: '$count $label',
+        button: tap != null,
+        onTap: tap,
+        excludeSemantics: true,
+        child: tap == null
+            ? child
+            : InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: tap,
+                child: child));
   }
 }

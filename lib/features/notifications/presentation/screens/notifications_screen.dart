@@ -2,6 +2,9 @@ import 'package:dartz/dartz.dart' show Either;
 import 'package:flutter/material.dart' hide Notification;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:instagram_clone/core/di/injection_container.dart';
+import 'package:instagram_clone/core/theme/veyro_theme.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_brand.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_empty_state.dart';
 import 'package:instagram_clone/core/error/failures.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:instagram_clone/features/common_widgets/error_widget.dart';
@@ -126,20 +129,22 @@ class _ActivityState extends State<_Activity> {
               : _error != null
                   ? CustomErrorWidget(message: _error!, onRetry: _load)
                   : _rows.isEmpty
-                      ? const Center(
-                          child: Padding(
-                              padding: EdgeInsets.all(24),
-                              child: Text(
-                                  'New follows, likes and comments will appear here.',
-                                  textAlign: TextAlign.center)))
+                      ? const VeyroEmptyState(
+                          icon: Icons.favorite_border_rounded,
+                          title: 'You’re all caught up',
+                          description:
+                              'New follows, reactions and comments will appear here.')
                       : RefreshIndicator(
                           onRefresh: _load,
                           child: ListView.builder(
                             padding: const EdgeInsets.all(12),
                             physics: const AlwaysScrollableScrollPhysics(),
-                            itemCount: _rows.length,
-                            itemBuilder: (context, index) =>
-                                _tile(_rows[index]),
+                            itemCount: _rows.length + 1,
+                            itemBuilder: (context, index) => index == 0
+                                ? const Padding(
+                                    padding: EdgeInsets.fromLTRB(10, 7, 10, 9),
+                                    child: VeyroEyebrow('Recent activity'))
+                                : _tile(_rows[index - 1]),
                           )),
         )),
       );
@@ -150,11 +155,22 @@ class _ActivityState extends State<_Activity> {
       key: ValueKey(item.id),
       color: item.isRead ? null : colors.surfaceContainerHigh,
       child: ListTile(
-        leading: UserAvatar(imageUrl: item.senderProfilePictureUrl, radius: 19),
-        title: Text([
-          if (item.senderUsername != null) '@${item.senderUsername}',
-          item.message.isEmpty ? 'New activity' : item.message
-        ].join(' ')),
+        leading: VeyroOrbitRing(
+            glowing: !item.isRead,
+            surface: item.isRead
+                ? colors.surfaceContainerLow
+                : colors.surfaceContainerHigh,
+            child: UserAvatar(
+                name: item.senderUsername,
+                imageUrl: item.senderProfilePictureUrl,
+                radius: 17)),
+        title: Text(
+            [
+              if (item.senderUsername != null) '@${item.senderUsername}',
+              item.message.isEmpty ? 'New activity' : item.message
+            ].join(' '),
+            style: context.veyroText.bodyMedium?.copyWith(
+                fontWeight: item.isRead ? FontWeight.w600 : FontWeight.w800)),
         subtitle: Text(timeago.format(item.createdAt)),
         onTap: _busy ||
                 (item.isRead && item.resourceId == null && item.actorId == null)

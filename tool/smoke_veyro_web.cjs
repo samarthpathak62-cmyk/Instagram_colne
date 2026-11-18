@@ -18,9 +18,10 @@ const firstText = 'A first update from the Veyro community.';
 const viewerId = '00000000-0000-4000-8000-000000000001';
 const otherId = '00000000-0000-4000-8000-000000000002';
 const reelFile = process.env.VEYRO_TEST_REEL;
+const photoFixture = 'test/fixtures/veyro-synthetic-photo.webp';
 const otherGroup = '00000000-0000-4000-8000-000000000700';
 
-async function mockSignedIn(page, theme) {
+async function mockSignedIn(page, theme, showcase = false) {
   const timestamp = new Date().toISOString();
   const b64 = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
   const exp = Math.floor(Date.now() / 1000) + 3600;
@@ -41,15 +42,19 @@ async function mockSignedIn(page, theme) {
   ];
   const nextId = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
   const mediaUrl = new URL('veyro-browser-test-reel.webm', url).href;
+  const photoUrl = new URL('veyro-browser-test-photo.webp', url).href;
   const writes = [];
   const topicSearches = [];
   const posts = [
+    ...(showcase ? [{ id: nextId(12), author_id: otherId, type: 'image',
+      description: 'The last light in the valley. #bluehour', media_urls: [photoUrl], created_at: timestamp }] : []),
     { id: firstPost, author_id: otherId, type: 'text', description: firstText, media_urls: [], created_at: timestamp },
     ...(reelFile ? [{ id: nextId(11), author_id: otherId, type: 'video', description: 'An example reel from our community.', media_urls: [mediaUrl], created_at: timestamp }] : []),
   ];
   if (reelFile) {
     await page.route(mediaUrl, (route) => route.fulfill({ path: reelFile, contentType: 'video/webm' }));
   }
+  if (showcase) await page.route(photoUrl, (route) => route.fulfill({ path: photoFixture, contentType: 'image/webp' }));
   const liked = new Map();
   const storyItems = [];
   const groups = [{ id: otherGroup, owner_id: otherId, name: 'Aperture Club',
@@ -57,14 +62,14 @@ async function mockSignedIn(page, theme) {
   const memberships = new Map([[otherGroup, new Set([otherId])]]);
   const saved = new Map();
   const comments = [];
-  const follows = new Set();
+  const follows = new Set(showcase ? [otherId] : []);
   const messages = [];
   const chats = [];
   const notifications = [{
     id: nextId(400), user_id: viewerId, actor_id: otherId, type: 'follow', resource_id: otherId,
     actor: people[1], message: 'followed you.', is_read: false, created_at: timestamp,
   }];
-  const publicPhoto = fs.readFileSync('web/icons/Icon-192.png');
+  const publicPhoto = fs.readFileSync(photoFixture);
   const publicStory = fs.readFileSync('test/fixtures/veyro-synthetic-story.webp');
   function postProjection(post, withOriginal = true) {
     const original = posts.find((entry) => entry.id === post.shared_post_id);
@@ -97,7 +102,7 @@ async function mockSignedIn(page, theme) {
     if (method === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
     if (resource === '/auth/v1/user') return json(session.user);
     if (resource.startsWith('/storage/v1/object/public/post-media/') && method === 'GET') {
-      return route.fulfill({ status: 200, contentType: 'image/png', body: publicPhoto, headers: cors });
+      return route.fulfill({ status: 200, contentType: 'image/webp', body: publicPhoto, headers: cors });
     }
     if (resource.startsWith('/storage/v1/object/public/story-media/') && method === 'GET') {
       return route.fulfill({ status: 200, contentType: 'image/webp', body: publicStory, headers: cors });
@@ -141,7 +146,11 @@ async function mockSignedIn(page, theme) {
           }));
           break;
         case 'stories':
-          rows = storyItems.length ? [{ user_id: viewerId, author: people[0], items: storyItems }] : [];
+          rows = [
+            ...(storyItems.length ? [{ user_id: viewerId, author: people[0], items: storyItems }] : []),
+            ...(showcase ? [{ user_id: otherId, author: people[1], items: [{ id: nextId(330),
+              media_url: photoUrl, media_type: 'image', created_at: timestamp }] }] : []),
+          ];
           break;
         case 'comments':
           rows = comments.filter((item) => item.post_id === eq('post_id'));
@@ -313,12 +322,12 @@ async function testSocial(page, state, name) {
   await waitFor('Like post');
   const home = await page.getByRole('button', { name: 'Home', exact: true }).boundingBox();
   const compose = await page.getByRole('button', { name: /What’s on your mind/ }).boundingBox();
-  assert.ok(home && compose && home.y < compose.y, 'Primary navigation is above the feed');
+  assert.ok(home && compose && (name === 'mobile' ? home.y > compose.y : home.x < compose.x),
+    'Primary navigation is below the mobile feed and beside the desktop feed');
   await capture(page, `${name}-feed`);
   await changed('Like post', 'rpc/veyro_react', 'POST');
   await waitFor(/^Unlike post\b/);
   assert.ok(state.liked.has(firstPost));
-  await press('Post options');
   await changed('Save post', 'saved_posts', 'POST');
   assert.ok(state.saved.has(firstPost));
   await press(/^Comments\b/);
@@ -468,7 +477,9 @@ async function testSharingAndDiscovery(page, state, name) {
   assert.ok(state.topicSearches.includes('#veyro'), 'The topic opens filtered Explore results');
   await press('Back');
   await waitFor('Refresh feed');
-  await press(/\bExplore\b/);
+  await press('Explore');
+  await waitFor('Refresh search');
+  await capture(page, `${name}-explore`);
   await press('People');
   await waitFor(/@veyro_friend/);
   await press(/@veyro_friend/);
@@ -485,7 +496,7 @@ async function testSharingAndDiscovery(page, state, name) {
       page.waitForEvent('filechooser', { timeout }),
       press('Add photos', true),
     ]);
-    await chooser.setFiles('web/icons/Icon-192.png');
+    await chooser.setFiles(photoFixture);
     await changed('Publish', 'posts', 'POST');
     const photo = state.posts[0];
     assert.equal(photo.type, 'image');
@@ -499,7 +510,7 @@ async function testSharingAndDiscovery(page, state, name) {
 
 async function testCommunity(page, state, name) {
   const { press, enter, waitFor, changed } = controls(page);
-  await press(/^Groups\b/);
+  await press('Groups');
   await waitFor('Refresh groups');
   await waitFor(/^Open Aperture Club/);
   await capture(page, `${name}-groups`);
@@ -573,7 +584,7 @@ async function testViewport(browser, name, viewport) {
       isMobile: name === 'mobile',
       hasTouch: name === 'mobile',
       locale: 'en-US',
-      colorScheme: 'light',
+      colorScheme: name === 'desktop' ? 'dark' : 'light',
     });
     await browserContext.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: url.origin });
     const page = await browserContext.newPage();
@@ -585,7 +596,7 @@ async function testViewport(browser, name, viewport) {
       }
     });
     try {
-      const social = signedIn ? await mockSignedIn(page, 'light') : null;
+      const social = signedIn ? await mockSignedIn(page, name === 'desktop' ? 'dark' : 'light') : null;
       await openApp(page);
       const button = (label) => page.getByRole('button', { name: label, exact: true }).first();
       const waitFor = (label) => button(label).waitFor({ state: 'attached', timeout });
@@ -618,16 +629,20 @@ async function testViewport(browser, name, viewport) {
   }
 }
 
-async function testDarkFeed(browser) {
-  const context = await browser.newContext({ viewport: { width: 1360, height: 860 }, colorScheme: 'dark' });
+async function testShowcase(browser, name, viewport, theme) {
+  const context = await browser.newContext({ viewport, colorScheme: theme,
+    deviceScaleFactor: 1, hasTouch: name === 'mobile', isMobile: name === 'mobile' });
   try {
     const page = await context.newPage();
-    await mockSignedIn(page, 'dark');
-    const settings = page.waitForResponse(response => new URL(response.url()).pathname === '/rest/v1/settings');
+    await mockSignedIn(page, theme, true);
+    const prefs = page.waitForResponse(response => new URL(response.url()).pathname === '/rest/v1/settings');
+    const image = page.waitForResponse(response => new URL(response.url()).pathname.endsWith('/veyro-browser-test-photo.webp'));
     await openApp(page);
-    assert.ok((await settings).ok(), 'Dark theme preference fixture loaded');
-    await controls(page).waitFor('Like post');
-    await capture(page, 'desktop-dark-feed');
+    assert.ok((await prefs).ok(), `${theme} preference loaded`);
+    assert.ok((await image).ok(), 'The fixture feed displays a portrait photograph');
+    await controls(page).waitFor('New story by veyro_friend');
+    await page.getByLabel('Post photo 1', { exact: true }).first().waitFor({ state: 'attached', timeout });
+    await capture(page, `${name}-photo-feed-${theme}`);
   } finally {
     await context.close();
   }
@@ -649,7 +664,9 @@ async function testDarkFeed(browser) {
       catch (error) { failures.push(error.message); }
     }
     if (failures.length) throw new Error(failures.join('\n'));
-    await testDarkFeed(browser);
+    await testShowcase(browser, 'desktop', { width: 1360, height: 860 }, 'dark');
+    await testShowcase(browser, 'mobile', { width: 390, height: 844 }, 'dark');
+    await testShowcase(browser, 'mobile', { width: 390, height: 844 }, 'light');
     console.log('::notice::Veyro auth and signed-in social flows verified in desktop and mobile Chrome (fixture backend).');
   } finally {
     await browser.close();

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:instagram_clone/core/di/injection_container.dart';
+import 'package:instagram_clone/core/theme/veyro_theme.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_empty_state.dart';
 import 'package:instagram_clone/features/common_widgets/error_widget.dart';
 import 'package:instagram_clone/features/post/domain/entities/post.dart';
 import 'package:instagram_clone/features/groups/presentation/group_post_origin.dart';
@@ -85,7 +87,7 @@ class _VideoExploreTabState extends State<VideoExploreTab> {
         ]),
         body: Center(
             child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 590),
+                constraints: const BoxConstraints(maxWidth: 510),
                 child: _body())),
       );
 
@@ -95,31 +97,14 @@ class _VideoExploreTabState extends State<VideoExploreTab> {
       if (_error != null)
         return CustomErrorWidget(
             message: _error!, onRetry: () => _load(reset: true));
-      return Center(
-          child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircleAvatar(
-                      radius: 32,
-                      child: Icon(Icons.play_arrow_rounded,
-                          color:
-                              Theme.of(context).colorScheme.onPrimaryContainer,
-                          size: 36)),
-                  const SizedBox(height: 16),
-                  Text('No reels yet',
-                      style: Theme.of(context).textTheme.headlineSmall),
-                  const SizedBox(height: 8),
-                  const Text('Share a video to start the Reels feed.',
-                      textAlign: TextAlign.center),
-                  const SizedBox(height: 18),
-                  FilledButton.icon(
-                      onPressed: widget.onCreate,
-                      icon: const Icon(Icons.video_call_outlined),
-                      label: const Text('Create a reel')),
-                ],
-              )));
+      return VeyroEmptyState(
+          icon: Icons.movie_outlined,
+          title: 'Make a little motion',
+          description: 'Share a video to start the Reels feed.',
+          action: FilledButton.icon(
+              onPressed: widget.onCreate,
+              icon: const Icon(Icons.video_call_outlined),
+              label: const Text('Create a reel')));
     }
     final tail = _index == _reels.length - 1;
     return Column(children: [
@@ -177,40 +162,94 @@ class _Reel extends StatelessWidget {
           child: Text('This reel was deleted. Swipe for another.'));
     final url = post.mediaUrls.firstOrNull;
     final description = state.text(post);
+    Widget video() => ColoredBox(
+          color: Colors.black,
+          child: url == null || url.isEmpty
+              ? const Center(
+                  child: Text('Video unavailable',
+                      style: TextStyle(color: Colors.white)))
+              : active
+                  ? VideoPlayerWidget(
+                      key: ValueKey(url),
+                      videoUrl: url,
+                      autoPlay: true,
+                      muted: true,
+                      loop: true)
+                  : const Center(
+                      child: Icon(Icons.play_circle_outline,
+                          color: Colors.white70, size: 42)),
+        );
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Card(
-          margin: EdgeInsets.zero,
-          clipBehavior: Clip.antiAlias,
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            PostHeader(post: post),
-            if (post.groupId != null) GroupPostOrigin(post: post),
-            Expanded(
-                child: ColoredBox(
-              color: Colors.black,
-              child: url == null || url.isEmpty
-                  ? const Center(
-                      child: Text('Video unavailable',
-                          style: TextStyle(color: Colors.white)))
-                  : active
-                      ? VideoPlayerWidget(
-                          key: ValueKey(url),
-                          videoUrl: url,
-                          autoPlay: true,
-                          muted: true,
-                          loop: true)
-                      : const Center(
-                          child: Icon(Icons.play_circle_outline,
-                              color: Colors.white, size: 42)),
-            )),
-            if (description.isNotEmpty)
-              Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 9, 14, 0),
-                  child: Text(description,
-                      maxLines: 2, overflow: TextOverflow.ellipsis)),
-            PostActions(post: post, showReactionSummary: false),
-          ])),
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+      child: Theme(
+          data: VeyroTheme.dark,
+          child: LayoutBuilder(builder: (context, constraints) {
+            final compact = constraints.maxHeight < 445 ||
+                MediaQuery.textScalerOf(context).scale(14) > 23;
+            return Card(
+              margin: EdgeInsets.zero,
+              clipBehavior: Clip.antiAlias,
+              child: compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                          PostHeader(post: post),
+                          Expanded(child: video()),
+                          PostActions(post: post),
+                        ])
+                  : Stack(fit: StackFit.expand, children: [
+                      video(),
+                      const IgnorePointer(
+                          child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Color(0xBE100D17),
+                          Colors.transparent,
+                          Colors.transparent,
+                          Color(0xF0100D17)
+                        ],
+                        stops: [0, .24, .55, 1],
+                      )))),
+                      PositionedDirectional(
+                          top: 0,
+                          start: 0,
+                          end: 0,
+                          child: Material(
+                            color: const Color(0x78100D17),
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  PostHeader(post: post),
+                                  if (post.groupId != null)
+                                    GroupPostOrigin(post: post),
+                                ]),
+                          )),
+                      PositionedDirectional(
+                          bottom: 55,
+                          end: 8,
+                          child: PostActions(post: post, forReel: true)),
+                      if (description.isNotEmpty)
+                        PositionedDirectional(
+                            start: 15,
+                            end: 69,
+                            bottom: 60,
+                            child: IgnorePointer(
+                              child: Text(description,
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: context.veyroText.bodyMedium?.copyWith(
+                                      color: VeyroTheme.frost,
+                                      shadows: [
+                                        const Shadow(
+                                            color: Colors.black, blurRadius: 6)
+                                      ])),
+                            )),
+                    ]),
+            );
+          })),
     );
   }
 }

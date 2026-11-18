@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:instagram_clone/core/theme/veyro_theme.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_empty_state.dart';
 import 'package:instagram_clone/features/groups/domain/veyro_group.dart';
 
 extension GroupCategoryVisual on GroupCategory {
@@ -14,11 +15,11 @@ extension GroupCategoryVisual on GroupCategory {
       };
 
   Color get accent => switch (this) {
-        GroupCategory.general => const Color(0xFF2B63CB),
-        GroupCategory.creative => const Color(0xFF9B4978),
-        GroupCategory.local => const Color(0xFF27836B),
-        GroupCategory.gaming => const Color(0xFF556BC5),
-        GroupCategory.learning => const Color(0xFFAD6724),
+        GroupCategory.general => VeyroTheme.violet,
+        GroupCategory.creative => const Color(0xFF9E448C),
+        GroupCategory.local => const Color(0xFF784DA0),
+        GroupCategory.gaming => const Color(0xFF612EA3),
+        GroupCategory.learning => const Color(0xFF874E8C),
       };
 }
 
@@ -123,25 +124,7 @@ class GroupStatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Card(
         margin: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            CircleAvatar(
-              radius: 23,
-              backgroundColor: context.veyroColors.primaryContainer,
-              foregroundColor: context.veyroColors.onPrimaryContainer,
-              child: Icon(icon),
-            ),
-            const SizedBox(height: 13),
-            Text(title,
-                style: context.veyroText.titleMedium,
-                textAlign: TextAlign.center),
-            const SizedBox(height: 5),
-            Text(description,
-                style: context.veyroText.bodySmall,
-                textAlign: TextAlign.center),
-            if (action != null) ...[const SizedBox(height: 14), action!],
-          ]),
-        ),
+        child: VeyroEmptyState(
+            icon: icon, title: title, description: description, action: action),
       );
 }

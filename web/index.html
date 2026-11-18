@@ -6,10 +6,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Veyro is a place to connect with your people, share your moments, and explore what’s new.">
-  <meta name="theme-color" content="#ffffff">
-  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#18131f">
+  <meta name="color-scheme" content="dark light">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Veyro">
   <meta property="og:title" content="Veyro">
   <meta property="og:description" content="Connect with your people, share your moments, and explore what’s new.">
@@ -18,7 +18,7 @@
   <link rel="manifest" href="manifest.json">
   <title>Veyro</title>
   <style>
-    html, body { height: 100%; margin: 0; background: #f0f2f5; }
+    html, body { height: 100%; margin: 0; background: #100d17; }
     #veyro-launch {
       position: fixed;
       inset: 0;
@@ -27,8 +27,8 @@
       justify-items: center;
       z-index: 1;
       pointer-events: none;
-      background: #f0f2f5;
-      color: #1d57d6;
+      background: radial-gradient(ellipse at center, #281741, #100d17 64%);
+      color: #fbf7ff;
       font: 800 39px/1.1 system-ui, sans-serif;
       letter-spacing: -.05em;
     }
@@ -37,7 +37,7 @@
       width: 60px;
       height: 4px;
       border-radius: 6px;
-      background: #1d57d6;
+      background: linear-gradient(90deg, #ad7bfa, #f0ccff);
       animation: veyro-pulse 1.4s ease-in-out infinite alternate;
     }
     @keyframes veyro-pulse { from { opacity: .42; transform: scaleX(.58); } to { opacity: 1; } }

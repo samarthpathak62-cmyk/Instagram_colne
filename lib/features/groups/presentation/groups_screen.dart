@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:instagram_clone/core/di/injection_container.dart';
 import 'package:instagram_clone/core/theme/veyro_theme.dart';
 import 'package:instagram_clone/features/common_widgets/app_bar.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_brand.dart';
 import 'package:instagram_clone/features/groups/data/group_repository.dart';
 import 'package:instagram_clone/features/groups/domain/veyro_group.dart';
 import 'package:instagram_clone/features/groups/presentation/group_components.dart';
@@ -94,6 +95,57 @@ class _GroupsScreenState extends State<GroupsScreen> {
         label: const Text('New group'),
       );
 
+  Widget _communityCover(bool wide) => Card(
+        margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
+        color: VeyroTheme.midnight,
+        child: Stack(children: [
+          PositionedDirectional(
+              top: 0,
+              bottom: 0,
+              end: 0,
+              width: wide ? 360 : 185,
+              child: const VeyroOrbitArtwork(alignment: Alignment(0, -.30))),
+          const Positioned.fill(
+              child: DecoratedBox(
+                  decoration: BoxDecoration(
+                      gradient: LinearGradient(
+            begin: AlignmentDirectional.centerStart,
+            end: AlignmentDirectional.centerEnd,
+            colors: [
+              VeyroTheme.midnight,
+              VeyroTheme.midnight,
+              Color(0x22100D17)
+            ],
+            stops: [0, .37, 1],
+          )))),
+          Padding(
+              padding: EdgeInsets.all(wide ? 22 : 15),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: wide ? 335 : 240),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const VeyroEyebrow('Public communities',
+                            color: VeyroTheme.lilac),
+                        const SizedBox(height: 5),
+                        Text('Find your kind of people',
+                            style: context.veyroText.headlineSmall
+                                ?.copyWith(color: VeyroTheme.frost)),
+                        const SizedBox(height: 5),
+                        Text('Make space for the things you love.',
+                            style: context.veyroText.bodySmall
+                                ?.copyWith(color: const Color(0xFFE7DAF2))),
+                        const SizedBox(height: 11),
+                        _createButton(),
+                      ]),
+                ),
+              )),
+        ]),
+      );
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar:
@@ -117,50 +169,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                         padding: EdgeInsets.fromLTRB(
                             wide ? 24 : 12, 16, wide ? 24 : 12, 24),
                         sliver: SliverList.list(children: [
-                          Card(
-                            margin: EdgeInsets.zero,
-                            child: Padding(
-                              padding: EdgeInsets.all(wide ? 19 : 14),
-                              child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(children: [
-                                      CircleAvatar(
-                                          radius: 22,
-                                          backgroundColor: context
-                                              .veyroColors.primaryContainer,
-                                          foregroundColor: context
-                                              .veyroColors.onPrimaryContainer,
-                                          child: const Icon(
-                                              Icons.groups_outlined,
-                                              size: 25)),
-                                      const SizedBox(width: 11),
-                                      Expanded(
-                                          child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                            Text('Find your groups',
-                                                style: context
-                                                    .veyroText.titleLarge),
-                                            const SizedBox(height: 3),
-                                            Text(
-                                                'Explore public communities by interest.',
-                                                style: context
-                                                    .veyroText.bodySmall),
-                                          ])),
-                                      if (wide) ...[
-                                        const SizedBox(width: 12),
-                                        _createButton()
-                                      ],
-                                    ]),
-                                    if (!wide) ...[
-                                      const SizedBox(height: 12),
-                                      _createButton()
-                                    ],
-                                  ]),
-                            ),
-                          ),
+                          _communityCover(wide),
                           const SizedBox(height: 12),
                           TextField(
                             controller: _search,

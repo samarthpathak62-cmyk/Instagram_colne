@@ -320,7 +320,7 @@ void main() {
   });
 
   testWidgets(
-      'post card uses labelled actions and keeps save and repost in its menu',
+      'post card makes like, comments, sharing and save directly accessible',
       (tester) async {
     final post = PostModel.fromJson(_row());
     final actions = PostInteractionsCubit(
@@ -335,18 +335,16 @@ void main() {
         child: MaterialApp(
           home: Scaffold(body: ListView(children: [PostCard(post: post)])),
         )));
-    expect(find.text('Like'), findsOneWidget);
-    expect(find.text('Comment'), findsOneWidget);
-    expect(find.text('Share'), findsOneWidget);
+    expect(find.byTooltip('Like post'), findsOneWidget);
+    expect(find.byTooltip('Comments'), findsOneWidget);
+    expect(find.byTooltip('Share post'), findsOneWidget);
+    await tester.tap(find.byTooltip('Save post'));
+    await tester.pumpAndSettle();
+    expect(actions.forPost(post.id).isSaved(post), isTrue);
+    expect(find.byTooltip('Remove from saved'), findsOneWidget);
     await tester.tap(find.byTooltip('Post options'));
     await tester.pumpAndSettle();
     expect(find.text('Repost or quote'), findsOneWidget);
-    await tester.tap(find.text('Save post'));
-    await tester.pumpAndSettle();
-    expect(actions.forPost(post.id).isSaved(post), isTrue);
-    await tester.tap(find.byTooltip('Post options'));
-    await tester.pumpAndSettle();
-    expect(find.text('Remove from saved'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

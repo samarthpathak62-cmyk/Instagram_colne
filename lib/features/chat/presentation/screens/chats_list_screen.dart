@@ -6,6 +6,8 @@ import 'package:instagram_clone/core/theme/veyro_theme.dart';
 import 'package:instagram_clone/core/di/injection_container.dart' as di;
 import 'package:instagram_clone/generated/app_localizations.dart';
 import 'package:instagram_clone/features/auth/domain/entities/user.dart';
+import 'package:instagram_clone/features/common_widgets/user_avatar.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_empty_state.dart';
 import 'package:instagram_clone/features/chat/domain/entities/chat.dart';
 import 'package:instagram_clone/features/chat/presentation/bloc/chat_bloc.dart';
 import 'package:instagram_clone/features/chat/presentation/screens/chat_detail_screen.dart';
@@ -117,28 +119,18 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
 
   Widget _buildChatsList(List<Chat> chats, AppLocalizations? l10n) {
     if (chats.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircleAvatar(
-              radius: 31,
-              backgroundColor: context.veyroColors.primaryContainer,
-              foregroundColor: context.veyroColors.onPrimaryContainer,
-              child: const Icon(Icons.chat_bubble_outline_rounded, size: 27),
-            ),
-            const SizedBox(height: 14),
-            Text(l10n?.noMessages ?? 'No messages',
-                style: context.veyroText.titleMedium),
-            const SizedBox(height: 12),
-            FilledButton(
-                onPressed: _newMessage,
-                child: const Text('Start a conversation')),
-          ],
-        ),
+      return VeyroEmptyState(
+        icon: Icons.send_outlined,
+        title: l10n?.noMessages ?? 'No messages',
+        description: 'Say hello or share a post with someone on Veyro.',
+        action: FilledButton.icon(
+            onPressed: _newMessage,
+            icon: const Icon(Icons.edit_outlined, size: 18),
+            label: const Text('Start a conversation')),
       );
     }
     return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(12, 9, 12, 18),
       itemCount: chats.length,
       itemBuilder: (context, index) {
         final chat = chats[index];
@@ -152,15 +144,20 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
           );
         }
         return ListTile(
-          leading: CircleAvatar(
-            backgroundImage: otherUser.profileImageUrl != null
-                ? NetworkImage(otherUser.profileImageUrl!)
-                : null,
-            child: otherUser.profileImageUrl == null
-                ? const Icon(Icons.person)
-                : null,
-          ),
-          title: Text(otherUser.username ?? 'Unknown User'),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          tileColor: chat.hasUnreadMessages
+              ? context.veyroColors.primaryContainer
+              : null,
+          leading: UserAvatar(
+              imageUrl: otherUser.profileImageUrl,
+              name: otherUser.name ?? otherUser.username,
+              radius: 22),
+          title: Text(otherUser.username ?? 'Veyro user',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.veyroText.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w800)),
           subtitle: Text(
             chat.hasUnreadMessages ? 'New messages' : 'No new messages',
             style: TextStyle(

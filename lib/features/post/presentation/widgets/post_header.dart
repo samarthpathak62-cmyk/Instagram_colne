@@ -10,7 +10,7 @@ import 'package:instagram_clone/features/post/presentation/widgets/post_actions.
 import 'package:instagram_clone/features/profile/presentation/screens/profile_screen.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
-enum _PostMenu { open, save, repost, edit, delete }
+enum _PostMenu { open, repost, edit, delete }
 
 class PostHeader extends StatelessWidget {
   final Post post;
@@ -28,17 +28,17 @@ class PostHeader extends StatelessWidget {
     final actions = context.read<PostInteractionsCubit>();
     final state =
         context.select((PostInteractionsCubit cubit) => cubit.forPost(post.id));
-    final saved = state.isSaved(post);
     final canManage = actions.userId == post.authorId;
     final username = post.user?.username ?? 'veyro_user';
     final name = post.user?.name?.trim();
     return ListTile(
-      minVerticalPadding: 10,
+      dense: true,
+      minVerticalPadding: 9,
       contentPadding: const EdgeInsetsDirectional.only(start: 14, end: 7),
       leading: UserAvatar(
           imageUrl: post.user?.profilePictureUrl,
           name: name ?? username,
-          radius: 20),
+          radius: 18),
       title: Text(name?.isNotEmpty == true ? name! : '@$username',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -59,87 +59,81 @@ class PostHeader extends StatelessWidget {
       ]),
       onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
           builder: (_) => ProfileScreen.withProviders(post.authorId))),
-      trailing: PopupMenuButton<_PostMenu>(
-        tooltip: 'Post options',
-        enabled: !state.editing,
-        icon: const Icon(Icons.more_horiz_rounded),
-        onSelected: (option) async {
-          switch (option) {
-            case _PostMenu.open:
-              Navigator.of(context).push(MaterialPageRoute<void>(
-                  builder: (_) => PostDetailScreen(postId: post.id)));
-            case _PostMenu.save:
-              final error = await actions.toggleSave(post);
-              if (context.mounted)
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text(
-                  error ?? (saved ? 'Removed from saved posts' : 'Post saved'),
-                )));
-            case _PostMenu.repost:
-              await showRepostOptions(context, post);
-            case _PostMenu.edit:
-              final value = await showDialog<String>(
-                  context: context,
-                  builder: (_) => _EditPostDialog(
-                      post: post,
-                      description: actions.forPost(post.id).text(post)));
-              if (value != null && context.mounted)
-                await showPostActionError(context, actions.edit(post, value));
-            case _PostMenu.delete:
-              final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                        title: Text(canManage
-                            ? 'Delete this post?'
-                            : 'Remove this group post?'),
-                        content: const Text(
-                            'This also removes its comments, reactions and saves.'),
-                        actions: [
-                          TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text('Cancel')),
-                          FilledButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              child: const Text('Delete post')),
-                        ],
-                      ));
-              if (confirmed == true && context.mounted)
-                await showPostActionError(
-                    context, actions.delete(post, asGroupOwner: canModerate));
-          }
-        },
-        itemBuilder: (_) => [
-          if (showOpenPost)
-            const PopupMenuItem(
-                value: _PostMenu.open,
-                child: _PostMenuLabel(
-                    icon: Icons.open_in_full_rounded, text: 'Open post')),
-          PopupMenuItem(
-              value: _PostMenu.save,
-              enabled: !state.saving,
-              child: _PostMenuLabel(
-                  icon: saved
-                      ? Icons.bookmark_rounded
-                      : Icons.bookmark_outline_rounded,
-                  text: saved ? 'Remove from saved' : 'Save post')),
-          if (post.shareTargetId != null)
-            const PopupMenuItem(
-                value: _PostMenu.repost,
-                child: _PostMenuLabel(
-                    icon: Icons.repeat_rounded, text: 'Repost or quote')),
-          if (canManage && post.shareKind != PostShareKind.repost)
-            const PopupMenuItem(
-                value: _PostMenu.edit,
-                child: _PostMenuLabel(
-                    icon: Icons.edit_outlined, text: 'Edit post')),
-          if (canManage || canModerate)
-            PopupMenuItem(
-                value: _PostMenu.delete,
-                child: _PostMenuLabel(
-                    icon: Icons.delete_outline_rounded,
-                    text: canManage ? 'Delete post' : 'Remove from group')),
-        ],
-      ),
+      trailing: !showOpenPost &&
+              post.shareTargetId == null &&
+              !canManage &&
+              !canModerate
+          ? null
+          : PopupMenuButton<_PostMenu>(
+              tooltip: 'Post options',
+              enabled: !state.editing,
+              icon: const Icon(Icons.more_horiz_rounded),
+              onSelected: (option) async {
+                switch (option) {
+                  case _PostMenu.open:
+                    Navigator.of(context).push(MaterialPageRoute<void>(
+                        builder: (_) => PostDetailScreen(postId: post.id)));
+                  case _PostMenu.repost:
+                    await showRepostOptions(context, post);
+                  case _PostMenu.edit:
+                    final value = await showDialog<String>(
+                        context: context,
+                        builder: (_) => _EditPostDialog(
+                            post: post,
+                            description: actions.forPost(post.id).text(post)));
+                    if (value != null && context.mounted)
+                      await showPostActionError(
+                          context, actions.edit(post, value));
+                  case _PostMenu.delete:
+                    final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                              title: Text(canManage
+                                  ? 'Delete this post?'
+                                  : 'Remove this group post?'),
+                              content: const Text(
+                                  'This also removes its comments, reactions and saves.'),
+                              actions: [
+                                TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
+                                    child: const Text('Cancel')),
+                                FilledButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
+                                    child: const Text('Delete post')),
+                              ],
+                            ));
+                    if (confirmed == true && context.mounted)
+                      await showPostActionError(context,
+                          actions.delete(post, asGroupOwner: canModerate));
+                }
+              },
+              itemBuilder: (_) => [
+                if (showOpenPost)
+                  const PopupMenuItem(
+                      value: _PostMenu.open,
+                      child: _PostMenuLabel(
+                          icon: Icons.open_in_full_rounded, text: 'Open post')),
+                if (post.shareTargetId != null)
+                  const PopupMenuItem(
+                      value: _PostMenu.repost,
+                      child: _PostMenuLabel(
+                          icon: Icons.repeat_rounded, text: 'Repost or quote')),
+                if (canManage && post.shareKind != PostShareKind.repost)
+                  const PopupMenuItem(
+                      value: _PostMenu.edit,
+                      child: _PostMenuLabel(
+                          icon: Icons.edit_outlined, text: 'Edit post')),
+                if (canManage || canModerate)
+                  PopupMenuItem(
+                      value: _PostMenu.delete,
+                      child: _PostMenuLabel(
+                          icon: Icons.delete_outline_rounded,
+                          text:
+                              canManage ? 'Delete post' : 'Remove from group')),
+              ],
+            ),
     );
   }
 }

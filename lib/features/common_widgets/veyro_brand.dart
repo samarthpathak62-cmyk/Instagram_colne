@@ -76,3 +76,62 @@ class VeyroTagline extends StatelessWidget {
         ),
       );
 }
+
+/// Decorative artwork; UI text is always rendered separately for accessibility.
+class VeyroOrbitArtwork extends StatelessWidget {
+  final AlignmentGeometry alignment;
+  final BoxFit fit;
+
+  const VeyroOrbitArtwork(
+      {super.key, this.alignment = Alignment.center, this.fit = BoxFit.cover});
+
+  @override
+  Widget build(BuildContext context) => Image.asset(
+        AppConstants.orbitArtworkPath,
+        fit: fit,
+        alignment: alignment,
+        excludeFromSemantics: true,
+      );
+}
+
+class VeyroOrbitRing extends StatelessWidget {
+  final Widget child;
+  final bool glowing;
+  final Color? surface;
+
+  const VeyroOrbitRing(
+      {super.key, required this.child, this.glowing = true, this.surface});
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: glowing ? null : context.veyroColors.outlineVariant,
+          gradient: glowing ? VeyroTheme.orbit : null,
+        ),
+        child: Padding(
+            padding: const EdgeInsets.all(2.5),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: surface ?? context.veyroColors.surface),
+              child: Padding(padding: const EdgeInsets.all(3), child: child),
+            )),
+      );
+}
+
+class VeyroEyebrow extends StatelessWidget {
+  final String label;
+  final Color? color;
+
+  const VeyroEyebrow(this.label, {super.key, this.color});
+
+  @override
+  Widget build(BuildContext context) => Text(
+        label.toUpperCase(),
+        style: context.veyroText.labelSmall?.copyWith(
+            color: color ?? context.veyroColors.primary,
+            letterSpacing: 1.65,
+            fontWeight: FontWeight.w800),
+      );
+}

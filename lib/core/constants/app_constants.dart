@@ -5,6 +5,7 @@ class AppConstants {
   static const appDescription = 'Connect with your people, share your moments, '
       'and explore what’s new.';
   static const appLogoPath = 'assets/brand/veyro_mark.png';
+  static const orbitArtworkPath = 'assets/brand/veyro_orbit.webp';
   static const maxUsernameLength = 30;
   static const minPasswordLength = 6;
 }

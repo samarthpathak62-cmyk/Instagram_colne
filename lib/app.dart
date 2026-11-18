@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:instagram_clone/core/constants/app_constants.dart';
 import 'package:instagram_clone/core/theme/veyro_theme.dart';
@@ -15,7 +16,7 @@ class AppView extends StatelessWidget {
   final ThemeMode themeMode;
   final Locale? locale;
 
-  const AppView({super.key, this.themeMode = ThemeMode.light, this.locale});
+  const AppView({super.key, this.themeMode = ThemeMode.dark, this.locale});
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +26,10 @@ class AppView extends StatelessWidget {
       darkTheme: VeyroTheme.dark,
       themeMode: themeMode,
       debugShowCheckedModeBanner: false,
+      builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: VeyroTheme.overlay(context.veyroColors),
+        child: child ?? const SizedBox.shrink(),
+      ),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       locale: locale,
       supportedLocales: AppLocalizations.supportedLocales,

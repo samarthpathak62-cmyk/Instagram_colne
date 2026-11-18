@@ -92,6 +92,7 @@ flutter:
 
   assets:
     - assets/brand/veyro_mark.png
+    - assets/brand/veyro_orbit.webp
     - assets/fonts/manrope/OFL.txt
     - assets/images/placeholder_avatar.png
 

@@ -22,15 +22,24 @@ class PostGridItem extends StatelessWidget {
       color: post.type == PostType.text
           ? colors.surfaceContainerHigh
           : colors.surfaceContainer,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(8),
       clipBehavior: Clip.antiAlias,
       child: Stack(fit: StackFit.expand, children: [
         if (mediaPost.type == PostType.image && url != null && url.isNotEmpty)
           Image.network(url,
               fit: BoxFit.cover,
+              cacheWidth: 520,
+              excludeFromSemantics: true,
               errorBuilder: (_, __, ___) =>
                   const Center(child: Icon(Icons.broken_image_outlined)))
-        else
+        else ...[
+          DecoratedBox(
+              decoration: BoxDecoration(
+                  gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [colors.surfaceContainer, colors.primaryContainer],
+          ))),
           Center(
               child: Padding(
                   padding: const EdgeInsets.all(10),
@@ -53,6 +62,21 @@ class PostGridItem extends StatelessWidget {
                               style: Theme.of(context).textTheme.labelMedium)),
                     ],
                   ]))),
+        ],
+        if (mediaPost.mediaUrls.length > 1)
+          const PositionedDirectional(
+              top: 6,
+              end: 6,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                    decoration: BoxDecoration(
+                        color: Color(0xA0100D17),
+                        borderRadius: BorderRadius.all(Radius.circular(6))),
+                    child: Padding(
+                        padding: EdgeInsets.all(4),
+                        child: Icon(Icons.collections_outlined,
+                            color: Colors.white, size: 13))),
+              )),
         Semantics(
           label:
               'Open ${post.type == PostType.text ? 'text post' : post.type == PostType.video ? 'video' : 'photo post'}',
