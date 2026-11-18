@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, arena/26108c72-instagram-colne]
   pull_request:
     branches: [main]
   workflow_dispatch:
