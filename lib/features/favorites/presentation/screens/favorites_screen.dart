@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:instagram_clone/core/theme/veyro_theme.dart';
 import 'package:instagram_clone/features/favorites/domain/entities/favorite.dart';
 import 'package:instagram_clone/features/favorites/presentation/bloc/favorite_bloc.dart';
 import 'package:instagram_clone/core/di/injection_container.dart' as di;
@@ -56,12 +57,9 @@ class _FavoritesScreenContentState extends State<_FavoritesScreenContent>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF000000) : const Color(0xFFFAFAFA),
-      appBar: _buildModernAppBar(context, isDark),
+      backgroundColor: context.veyroColors.surface,
+      appBar: _buildModernAppBar(context),
       body: BlocConsumer<FavoriteBloc, FavoriteState>(
         listener: (context, state) {
           if (state is FavoritesError && state is! FavoritesLoaded) {
@@ -79,39 +77,40 @@ class _FavoritesScreenContentState extends State<_FavoritesScreenContent>
           } else if (state is FavoritesLoaded) {
             final favorites = state.favorites;
             if (favorites.isEmpty) {
-              return _buildEmptyState(isDark);
+              return _buildEmptyState();
             }
-            return _buildFavoritesList(favorites, isDark);
+            return _buildFavoritesList(favorites);
           } else if (state is FavoritesError) {
             return Center(
-                child:
-                    Text(state.message, style: TextStyle(color: Colors.red)));
+                child: Text(state.message,
+                    style: TextStyle(color: context.veyroColors.error)));
           }
           // fallback for any other state
           return Center(
-              child: Text('No data.', style: TextStyle(color: Colors.grey)));
+              child:
+                  Text('No saved posts.', style: context.veyroText.bodySmall));
         },
       ),
     );
   }
 
-  PreferredSizeWidget _buildModernAppBar(BuildContext context, bool isDark) {
+  PreferredSizeWidget _buildModernAppBar(BuildContext context) {
     return AppBar(
-      backgroundColor: isDark ? const Color(0xFF000000) : Colors.white,
+      backgroundColor: context.veyroColors.surface,
       elevation: 0,
       scrolledUnderElevation: 0,
       leading: IconButton(
         icon: Icon(
           Icons.arrow_back_ios,
-          color: isDark ? Colors.white : Colors.black,
+          color: context.veyroColors.onSurface,
           size: 22,
         ),
         onPressed: () => Navigator.of(context).pop(),
       ),
       title: Text(
-        'Saved',
+        'Saved posts',
         style: TextStyle(
-          color: isDark ? Colors.white : Colors.black,
+          color: context.veyroColors.onSurface,
           fontWeight: FontWeight.w700,
           fontSize: 20,
           letterSpacing: -0.3,
@@ -121,11 +120,11 @@ class _FavoritesScreenContentState extends State<_FavoritesScreenContent>
         IconButton(
           icon: Icon(
             Icons.more_vert,
-            color: isDark ? Colors.white : Colors.black,
+            color: context.veyroColors.onSurface,
             size: 24,
           ),
           onPressed: () {
-            _showOptionsBottomSheet(context, isDark);
+            _showOptionsBottomSheet(context);
           },
         ),
       ],
@@ -133,13 +132,13 @@ class _FavoritesScreenContentState extends State<_FavoritesScreenContent>
         preferredSize: const Size.fromHeight(0.5),
         child: Container(
           height: 0.5,
-          color: isDark ? const Color(0xFF262626) : const Color(0xFFDBDBDB),
+          color: context.veyroColors.outlineVariant,
         ),
       ),
     );
   }
 
-  Widget _buildEmptyState(bool isDark) {
+  Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -148,20 +147,20 @@ class _FavoritesScreenContentState extends State<_FavoritesScreenContent>
             width: 96,
             height: 96,
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF262626) : const Color(0xFFF0F0F0),
+              color: context.veyroColors.surfaceContainerHigh,
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.bookmark_outline,
               size: 48,
-              color: isDark ? const Color(0xFF8E8E8E) : const Color(0xFF8E8E8E),
+              color: context.veyroColors.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 24),
           Text(
             'Save posts for later',
             style: TextStyle(
-              color: isDark ? Colors.white : Colors.black,
+              color: context.veyroColors.onSurface,
               fontSize: 24,
               fontWeight: FontWeight.w700,
               letterSpacing: -0.5,
@@ -174,8 +173,7 @@ class _FavoritesScreenContentState extends State<_FavoritesScreenContent>
               'Bookmark posts to easily find them again in the future.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color:
-                    isDark ? const Color(0xFF8E8E8E) : const Color(0xFF8E8E8E),
+                color: context.veyroColors.onSurfaceVariant,
                 fontSize: 16,
                 fontWeight: FontWeight.w400,
                 height: 1.4,
@@ -187,7 +185,7 @@ class _FavoritesScreenContentState extends State<_FavoritesScreenContent>
     );
   }
 
-  Widget _buildFavoritesList(List<Favorite> favorites, bool isDark) {
+  Widget _buildFavoritesList(List<Favorite> favorites) {
     return AnimatedBuilder(
       animation: _animationController,
       builder: (context, child) {
@@ -202,18 +200,18 @@ class _FavoritesScreenContentState extends State<_FavoritesScreenContent>
                   .read<FavoriteBloc>()
                   .add(LoadFavoritesEvent(userId: widget.userId));
             },
-            color: const Color(0xFF0095F6),
-            backgroundColor: isDark ? const Color(0xFF262626) : Colors.white,
+            color: context.veyroColors.primary,
+            backgroundColor: context.veyroColors.surfaceContainer,
             child: CustomScrollView(
               slivers: [
                 SliverPadding(
-                  padding: const EdgeInsets.all(1.0),
+                  padding: const EdgeInsets.all(16.0),
                   sliver: SliverGrid(
                     gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 2.0,
-                      mainAxisSpacing: 2.0,
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 235,
+                      crossAxisSpacing: 8.0,
+                      mainAxisSpacing: 8.0,
                       childAspectRatio: 1.0,
                     ),
                     delegate: SliverChildBuilderDelegate(
@@ -224,7 +222,6 @@ class _FavoritesScreenContentState extends State<_FavoritesScreenContent>
                           curve: Curves.easeOutCubic,
                           child: EnhancedFavoritePostItem(
                             favorite: favorite,
-                            isDark: isDark,
                             onTap: () {
                               _handlePostTap(favorite);
                             },
@@ -259,10 +256,10 @@ class _FavoritesScreenContentState extends State<_FavoritesScreenContent>
     context.read<FavoriteBloc>().add(UnsavePostEvent(favoriteId: favorite.id));
   }
 
-  void _showOptionsBottomSheet(BuildContext context, bool isDark) {
+  void _showOptionsBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: isDark ? const Color(0xFF262626) : Colors.white,
+      backgroundColor: context.veyroColors.surfaceContainer,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -275,15 +272,13 @@ class _FavoritesScreenContentState extends State<_FavoritesScreenContent>
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color:
-                    isDark ? const Color(0xFF8E8E8E) : const Color(0xFFDBDBDB),
+                color: context.veyroColors.outline,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 16),
             _buildBottomSheetOption(
               context,
-              isDark,
               Icons.folder_outlined,
               'Create Collection',
               () {
@@ -293,7 +288,6 @@ class _FavoritesScreenContentState extends State<_FavoritesScreenContent>
             ),
             _buildBottomSheetOption(
               context,
-              isDark,
               Icons.sort,
               'Sort Posts',
               () {
@@ -303,7 +297,6 @@ class _FavoritesScreenContentState extends State<_FavoritesScreenContent>
             ),
             _buildBottomSheetOption(
               context,
-              isDark,
               Icons.select_all,
               'Select Posts',
               () {
@@ -319,7 +312,6 @@ class _FavoritesScreenContentState extends State<_FavoritesScreenContent>
 
   Widget _buildBottomSheetOption(
     BuildContext context,
-    bool isDark,
     IconData icon,
     String title,
     VoidCallback onTap,
@@ -332,14 +324,14 @@ class _FavoritesScreenContentState extends State<_FavoritesScreenContent>
           children: [
             Icon(
               icon,
-              color: isDark ? Colors.white : Colors.black,
+              color: context.veyroColors.onSurface,
               size: 24,
             ),
             const SizedBox(width: 16),
             Text(
               title,
               style: TextStyle(
-                color: isDark ? Colors.white : Colors.black,
+                color: context.veyroColors.onSurface,
                 fontSize: 16,
                 fontWeight: FontWeight.w400,
               ),
@@ -353,11 +345,9 @@ class _FavoritesScreenContentState extends State<_FavoritesScreenContent>
   void _showErrorSnackBar(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: const Color(0xFFE74C3C),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        margin: const EdgeInsets.all(16),
+        content: Text(message,
+            style: TextStyle(color: context.veyroColors.onErrorContainer)),
+        backgroundColor: context.veyroColors.errorContainer,
       ),
     );
   }
@@ -366,10 +356,6 @@ class _FavoritesScreenContentState extends State<_FavoritesScreenContent>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: const Color(0xFF27AE60),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        margin: const EdgeInsets.all(16),
       ),
     );
   }
@@ -377,14 +363,12 @@ class _FavoritesScreenContentState extends State<_FavoritesScreenContent>
 
 class EnhancedFavoritePostItem extends StatefulWidget {
   final Favorite favorite;
-  final bool isDark;
   final VoidCallback onTap;
   final VoidCallback onUnsave;
 
   const EnhancedFavoritePostItem({
     Key? key,
     required this.favorite,
-    required this.isDark,
     required this.onTap,
     required this.onUnsave,
   }) : super(key: key);
@@ -447,7 +431,7 @@ class _EnhancedFavoritePostItemState extends State<EnhancedFavoritePostItem>
             },
             child: Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(12),
                 boxShadow: _isPressed
                     ? []
                     : [
@@ -459,7 +443,7 @@ class _EnhancedFavoritePostItemState extends State<EnhancedFavoritePostItem>
                       ],
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(12),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -495,8 +479,7 @@ class _EnhancedFavoritePostItemState extends State<EnhancedFavoritePostItem>
       loadingBuilder: (context, child, loadingProgress) {
         if (loadingProgress == null) return child;
         return Container(
-          color:
-              widget.isDark ? const Color(0xFF262626) : const Color(0xFFF0F0F0),
+          color: context.veyroColors.surfaceContainerHigh,
           child: Center(
             child: SizedBox(
               width: 20,
@@ -504,7 +487,7 @@ class _EnhancedFavoritePostItemState extends State<EnhancedFavoritePostItem>
               child: CircularProgressIndicator(
                 strokeWidth: 2,
                 valueColor: AlwaysStoppedAnimation<Color>(
-                  widget.isDark ? Colors.white : Colors.black,
+                  context.veyroColors.onSurface,
                 ),
               ),
             ),
@@ -513,25 +496,20 @@ class _EnhancedFavoritePostItemState extends State<EnhancedFavoritePostItem>
       },
       errorBuilder: (context, error, stackTrace) {
         return Container(
-          color:
-              widget.isDark ? const Color(0xFF262626) : const Color(0xFFF0F0F0),
+          color: context.veyroColors.surfaceContainerHigh,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 Icons.broken_image_outlined,
-                color: widget.isDark
-                    ? const Color(0xFF8E8E8E)
-                    : const Color(0xFF8E8E8E),
+                color: context.veyroColors.onSurfaceVariant,
                 size: 32,
               ),
               const SizedBox(height: 4),
               Text(
                 'Unable to load',
                 style: TextStyle(
-                  color: widget.isDark
-                      ? const Color(0xFF8E8E8E)
-                      : const Color(0xFF8E8E8E),
+                  color: context.veyroColors.onSurfaceVariant,
                   fontSize: 10,
                 ),
               ),
@@ -630,12 +608,12 @@ class _EnhancedFavoritePostItemState extends State<EnhancedFavoritePostItem>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: widget.isDark ? const Color(0xFF262626) : Colors.white,
+        backgroundColor: context.veyroColors.surfaceContainer,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Remove from Saved?',
           style: TextStyle(
-            color: widget.isDark ? Colors.white : Colors.black,
+            color: context.veyroColors.onSurface,
             fontWeight: FontWeight.w600,
             fontSize: 18,
           ),
@@ -643,9 +621,7 @@ class _EnhancedFavoritePostItemState extends State<EnhancedFavoritePostItem>
         content: Text(
           'This post will be removed from your saved posts.',
           style: TextStyle(
-            color: widget.isDark
-                ? const Color(0xFF8E8E8E)
-                : const Color(0xFF8E8E8E),
+            color: context.veyroColors.onSurfaceVariant,
             fontSize: 14,
           ),
         ),
@@ -655,7 +631,7 @@ class _EnhancedFavoritePostItemState extends State<EnhancedFavoritePostItem>
             child: Text(
               'Cancel',
               style: TextStyle(
-                color: widget.isDark ? Colors.white : Colors.black,
+                color: context.veyroColors.onSurface,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -665,10 +641,10 @@ class _EnhancedFavoritePostItemState extends State<EnhancedFavoritePostItem>
               Navigator.pop(context);
               widget.onUnsave();
             },
-            child: const Text(
+            child: Text(
               'Remove',
               style: TextStyle(
-                color: Color(0xFFE74C3C),
+                color: context.veyroColors.error,
                 fontWeight: FontWeight.w600,
               ),
             ),

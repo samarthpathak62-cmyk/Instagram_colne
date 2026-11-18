@@ -1,3 +1,4 @@
+import 'package:instagram_clone/core/theme/veyro_theme.dart';
 import 'package:instagram_clone/features/auth/domain/entities/user.dart';
 import 'package:instagram_clone/features/chat/domain/usecases/get_or_create_chat.dart';
 import 'package:instagram_clone/features/chat/presentation/bloc/chat_bloc.dart';
@@ -12,7 +13,6 @@ import 'package:instagram_clone/core/di/injection_container.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:instagram_clone/features/profile/presentation/bloc/profile_bloc.dart';
 import 'package:instagram_clone/features/profile/presentation/screens/edit_profile_screen.dart'; // To be created
-import 'package:instagram_clone/features/settings/presentation/bloc/settings_bloc.dart';
 import 'package:instagram_clone/features/settings/presentation/screens/settings_screen.dart';
 import 'package:instagram_clone/features/common_widgets/app_bar.dart';
 import 'package:cached_network_image/cached_network_image.dart'; // For network images
@@ -84,38 +84,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final auth = context.watch<AuthBloc>().state;
     final viewer = auth is Authenticated ? auth.user : null;
     final isOwnProfile = viewer?.id == widget.userId;
+    final profileState = context.watch<ProfileBloc>().state;
 
     return Scaffold(
       appBar: CustomAppBar(
-        title: (context.read<ProfileBloc>().state is ProfileLoaded)
-            ? (context.read<ProfileBloc>().state as ProfileLoaded)
-                .profile
-                .username
+        title: profileState is ProfileLoaded
+            ? profileState.profile.username
             : 'Profile',
         actions: [
           if (isOwnProfile)
             IconButton(
-              icon: const Icon(Icons.edit),
+              tooltip: 'Edit profile',
+              icon: const Icon(Icons.edit_outlined),
               onPressed: _editProfile,
             ),
           if (isOwnProfile)
             IconButton(
-              icon: const Icon(Icons.settings),
+              tooltip: 'Settings',
+              icon: const Icon(Icons.settings_outlined),
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => BlocProvider(
-                      create: (_) => sl<SettingsBloc>(),
-                      child: SettingsScreen(userId: widget.userId),
-                    ),
+                    builder: (_) => SettingsScreen(userId: widget.userId),
                   ),
                 );
               },
             ),
           if (isOwnProfile)
             IconButton(
-              icon: const Icon(Icons.logout),
+              tooltip: 'Log out',
+              icon: const Icon(Icons.logout_rounded),
               onPressed: () {
                 context.read<AuthBloc>().add(AuthLogoutRequested());
               },
@@ -263,8 +262,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           margin: const EdgeInsets.only(top: 4),
           child: Text(
             label,
-            style: const TextStyle(
-                fontSize: 15, fontWeight: FontWeight.w400, color: Colors.grey),
+            style: context.veyroText.bodySmall?.copyWith(fontSize: 13),
           ),
         ),
       ],

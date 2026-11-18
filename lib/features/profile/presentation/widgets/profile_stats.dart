@@ -51,10 +51,7 @@ class ProfileStats extends StatelessWidget {
             margin: const EdgeInsets.only(top: 4.0),
             child: Text(
               label,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: Colors.grey[600]),
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
         ],

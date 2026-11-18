@@ -19,7 +19,7 @@ import 'package:instagram_clone/features/profile/data/models/profile_model.dart'
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 void main() {
-  testWidgets('auth startup can leave the splash before its animations begin',
+  testWidgets('auth startup can leave the splash without a pending animation',
       (tester) async {
     await tester.pumpWidget(const MaterialApp(home: SplashScreen()));
     await tester.pump(const Duration(milliseconds: 100));

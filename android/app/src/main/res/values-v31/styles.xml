@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="LaunchTheme" parent="VeyroLaunchBase">
+        <item name="android:windowBackground">@color/veyro_ink</item>
+        <item name="android:windowSplashScreenBackground">@color/veyro_ink</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/veyro_icon_foreground</item>
+    </style>
+</resources>

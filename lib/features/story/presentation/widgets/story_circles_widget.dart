@@ -1,3 +1,4 @@
+import 'package:instagram_clone/core/theme/veyro_theme.dart';
 // lib/features/story/presentation/widgets/story_circles_widget.dart
 
 import 'package:flutter/material.dart';
@@ -19,9 +20,10 @@ class StoryCirclesWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 100, // Height for the story circles row
+      height: 84 + MediaQuery.textScalerOf(context).scale(14),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
+        itemExtent: 80,
         itemCount: stories.length +
             (onAddStoryTap != null
                 ? 1
@@ -48,7 +50,7 @@ class StoryCirclesWidget extends StatelessWidget {
                           right: 0,
                           child: Container(
                             decoration: BoxDecoration(
-                              color: Colors.blue,
+                              color: VeyroTheme.violet,
                               shape: BoxShape.circle,
                               border: Border.all(
                                   color:
@@ -68,6 +70,7 @@ class StoryCirclesWidget extends StatelessWidget {
                     Text(
                       'Your Story',
                       style: Theme.of(context).textTheme.bodySmall,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
@@ -89,9 +92,8 @@ class StoryCirclesWidget extends StatelessWidget {
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: story.isViewed
-                              ? Colors.grey
-                              : Colors
-                                  .pink, // Example: grey if viewed, pink if not
+                              ? context.veyroColors.outline
+                              : context.veyroColors.primary,
                           width: 3,
                         ),
                       ),
@@ -104,6 +106,7 @@ class StoryCirclesWidget extends StatelessWidget {
                     Text(
                       story.username ?? '',
                       style: Theme.of(context).textTheme.bodySmall,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],

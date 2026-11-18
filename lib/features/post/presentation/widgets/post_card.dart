@@ -29,7 +29,7 @@ class PostCard extends StatelessWidget {
     final caption = post.description ?? post.caption;
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8.0),
-      elevation: 0.5,
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -162,10 +162,7 @@ class PostCard extends StatelessWidget {
               },
               child: Text(
                 'View all ${post.commentsCount} comments',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: Colors.grey[600]),
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
           ),
@@ -176,10 +173,7 @@ class PostCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
             child: Text(
               timeago.format(post.createdAt),
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: Colors.grey[600]),
+              style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
           const SizedBox(height: 8),

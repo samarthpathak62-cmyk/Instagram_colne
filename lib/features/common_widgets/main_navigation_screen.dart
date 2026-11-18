@@ -1,230 +1,176 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:instagram_clone/core/di/injection_container.dart' as di;
+import 'package:instagram_clone/core/theme/veyro_theme.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:instagram_clone/features/auth/domain/entities/user.dart';
+import 'package:instagram_clone/features/chat/presentation/bloc/chat_bloc.dart';
+import 'package:instagram_clone/features/chat/presentation/screens/chats_list_screen.dart';
+import 'package:instagram_clone/features/common_widgets/app_bar.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_brand.dart';
 import 'package:instagram_clone/features/feed/presentation/screens/feed_screen.dart';
 import 'package:instagram_clone/features/post/presentation/screens/create_post_screen.dart';
 import 'package:instagram_clone/features/post/presentation/screens/video_explore_tab.dart';
 import 'package:instagram_clone/features/profile/presentation/screens/profile_screen.dart';
-import 'package:instagram_clone/features/common_widgets/app_bar.dart';
-import 'package:instagram_clone/core/di/injection_container.dart' as di;
-import 'package:instagram_clone/features/chat/presentation/bloc/chat_bloc.dart';
-import 'package:instagram_clone/features/chat/presentation/screens/chats_list_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
-  const MainNavigationScreen({Key? key}) : super(key: key);
+  const MainNavigationScreen({super.key});
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
 }
 
-class _MainNavigationScreenState extends State<MainNavigationScreen>
-    with TickerProviderStateMixin {
-  int _selectedIndex = 0;
-  late AnimationController _animationController;
-  late Animation<double> _scaleAnimation;
+class _MainNavigationScreenState extends State<MainNavigationScreen> {
+  static const _destinations = [
+    NavigationDestination(
+      icon: Icon(Icons.home_outlined),
+      selectedIcon: Icon(Icons.home_rounded),
+      label: 'Home',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.add_box_outlined),
+      selectedIcon: Icon(Icons.add_box_rounded),
+      label: 'Create',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.video_collection_outlined),
+      selectedIcon: Icon(Icons.video_collection_rounded),
+      label: 'Reels',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.person_outline_rounded),
+      selectedIcon: Icon(Icons.person_rounded),
+      label: 'Profile',
+    ),
+  ];
+  int _selected = 0;
 
-  @override
-  void initState() {
-    super.initState();
-
-    // تهيئة AnimationController
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 200),
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.95,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
+  void _select(int index) {
+    if (_selected == index) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() => _selected = index);
   }
 
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
-
-  void _onItemTapped(int index) {
-    if (_selectedIndex != index) {
-      _animationController.forward().then((_) {
-        if (!mounted) return;
-        setState(() {
-          _selectedIndex = index;
-        });
-        _animationController.reverse();
-      });
-    }
-  }
+  void _openMessages(User user) => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => BlocProvider<ChatBloc>(
+            create: (_) => di.sl<ChatBloc>(),
+            child: ChatsListScreen(currentUser: user),
+          ),
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: BlocBuilder<AuthBloc, AuthState>(
-        builder: (context, state) {
-          if (state is Authenticated) {
-            final user = state.user;
-            // **التعديل الثاني: تم نقل Scaffold إلى هنا**
-            return Scaffold(
-              backgroundColor: Colors.white,
-              appBar: _getAppBarForScreen(_selectedIndex),
-              body: AnimatedBuilder(
-                animation: _scaleAnimation,
-                builder: (context, child) {
-                  return Transform.scale(
-                    scale: _scaleAnimation.value,
-                    child: IndexedStack(
-                      index: _selectedIndex,
-                      children: [
-                        const FeedScreen(),
-                        CreatePostScreen(onCreated: () => _onItemTapped(0)),
-                        VideoExploreTab(),
-                        ProfileScreen.withProviders(user.id),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              bottomNavigationBar: _buildInstagramBottomNavBar(),
-            );
-          }
-          // شاشة التحميل
-          return const Scaffold(
-            backgroundColor: Colors.white,
-            body: Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF262626)),
-                strokeWidth: 2,
+    final auth = context.watch<AuthBloc>().state;
+    if (auth is! Authenticated) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    final colors = context.veyroColors;
+    final size = MediaQuery.sizeOf(context);
+    final wide = size.width >= 880 && size.height >= 520;
+    final pages = IndexedStack(
+      index: _selected,
+      children: [
+        Scaffold(
+          appBar: CustomAppBar(
+            title: wide ? 'Home' : null,
+            onMessagesTap: () => _openMessages(auth.user),
+          ),
+          body: const FeedScreen(),
+        ),
+        CreatePostScreen(
+            onCreated: () => _select(0), onClose: () => _select(0)),
+        const VideoExploreTab(),
+        ProfileScreen.withProviders(auth.user.id),
+      ],
+    );
+    return Scaffold(
+      body: SafeArea(
+        bottom: wide,
+        child: Row(
+          children: [
+            if (wide) ...[
+              _buildSidebar(context),
+              VerticalDivider(
+                  width: 1, thickness: 1, color: colors.outlineVariant),
+            ],
+            Expanded(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 960),
+                  child: pages,
+                ),
               ),
             ),
-          );
-        },
-      ),
-    );
-  }
-
-  PreferredSizeWidget? _getAppBarForScreen(int index) {
-    // بناء AppBar بناءً على الشاشة المحددة
-    switch (index) {
-      case 0: // Feed Screen
-        return CustomAppBar(
-          title: 'Instagram',
-          showDefaultActions: true,
-          onMessagesTap: () {
-            final authState = BlocProvider.of<AuthBloc>(context).state;
-            if (authState is Authenticated) {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => BlocProvider<ChatBloc>(
-                    create: (_) => di.sl<ChatBloc>(),
-                    child: ChatsListScreen(currentUser: authState.user),
-                  ),
-                ),
-              );
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('You must be logged in to view messages.')),
-              );
-            }
-          },
-        );
-      case 1: // Create Post Screen
-        return const CustomAppBar(
-          title: 'New Post',
-          showDefaultActions: false,
-          showBackButton: true,
-        );
-      case 2: // Video Explore Screen
-        return const CustomAppBar(
-          title: 'Reels',
-          showDefaultActions: false,
-        );
-      case 3: // Profile Screen
-        // يمكنك تخصيص شريط الملف الشخصي هنا إذا أردت
-        return const CustomAppBar(
-          title: 'Profile',
-          showDefaultActions: false,
-        );
-      default:
-        return null; // لا يوجد شريط علوي للشاشات الأخرى
-    }
-  }
-
-  Widget _buildInstagramBottomNavBar() {
-    return Container(
-      height: 60,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Color(0xFFDBDBDB),
-            width: 0.5,
-          ),
+          ],
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildNavItem(
-            icon: Icons.home_outlined,
-            filledIcon: Icons.home,
-            index: 0,
-            label: 'Home',
-          ),
-          _buildNavItem(
-            icon: Icons.add_box_outlined,
-            filledIcon: Icons.add_box,
-            index: 1,
-            label: 'Create',
-          ),
-          _buildNavItem(
-            icon: Icons.video_collection_outlined,
-            filledIcon: Icons.video_collection,
-            index: 2,
-            label: 'Reels',
-          ),
-          _buildNavItem(
-            icon: Icons.person_outline,
-            filledIcon: Icons.person,
-            index: 3,
-            label: 'Profile',
-          ),
-        ],
-      ),
+      bottomNavigationBar: wide
+          ? null
+          : DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: colors.outlineVariant)),
+              ),
+              child: NavigationBar(
+                selectedIndex: _selected,
+                onDestinationSelected: _select,
+                destinations: _destinations,
+              ),
+            ),
     );
   }
 
-  Widget _buildNavItem({
-    required IconData icon,
-    required IconData filledIcon,
-    required int index,
-    required String label,
-  }) {
-    final isSelected = _selectedIndex == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => _onItemTapped(index),
-        behavior: HitTestBehavior.opaque,
+  Widget _buildSidebar(BuildContext context) {
+    final colors = context.veyroColors;
+    return ColoredBox(
+      color: colors.surfaceContainerLow,
+      child: SizedBox(
+        width: 208,
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              isSelected ? filledIcon : icon,
-              size: 28,
-              color: isSelected
-                  ? const Color(0xFF262626)
-                  : const Color(0xFF8E8E8E),
+            const Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Padding(
+                padding: EdgeInsetsDirectional.fromSTEB(15, 17, 15, 11),
+                child: VeyroWordmark(size: 27),
+              ),
             ),
-            const SizedBox(height: 4),
-            // يمكنك إزالة النقطة أو الإبقاء عليها حسب التصميم
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              height: isSelected ? 2 : 0,
-              width: 20,
-              color: const Color(0xFF262626),
+            const Divider(indent: 16, endIndent: 16),
+            Expanded(
+              child: NavigationRail(
+                extended: true,
+                minExtendedWidth: 208,
+                backgroundColor: colors.surfaceContainerLow,
+                selectedIndex: _selected,
+                onDestinationSelected: _select,
+                useIndicator: true,
+                indicatorColor: colors.primaryContainer,
+                selectedIconTheme:
+                    IconThemeData(color: colors.onPrimaryContainer),
+                unselectedIconTheme:
+                    IconThemeData(color: colors.onSurfaceVariant),
+                selectedLabelTextStyle: TextStyle(
+                  color: colors.primary,
+                  fontWeight: FontWeight.w800,
+                ),
+                unselectedLabelTextStyle: TextStyle(
+                  color: colors.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+                destinations: [
+                  for (final item in _destinations)
+                    NavigationRailDestination(
+                      icon: item.icon,
+                      selectedIcon: item.selectedIcon,
+                      label: Text(item.label),
+                    ),
+                ],
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(12, 8, 12, 22),
+              child: VeyroTagline(),
             ),
           ],
         ),

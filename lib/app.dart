@@ -1,23 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:instagram_clone/core/constants/app_constants.dart';
+import 'package:instagram_clone/core/theme/veyro_theme.dart';
+import 'package:instagram_clone/generated/app_localizations.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:instagram_clone/features/auth/presentation/screens/login_screen.dart';
 import 'package:instagram_clone/features/auth/presentation/screens/splash_screen.dart';
 import 'package:instagram_clone/features/common_widgets/main_navigation_screen.dart';
 
 class AppView extends StatelessWidget {
-  const AppView({super.key});
+  final ThemeMode themeMode;
+  final Locale? locale;
+
+  const AppView({super.key, this.themeMode = ThemeMode.dark, this.locale});
 
   @override
   Widget build(BuildContext context) {
-    // Define light and dark themes later in core/theme
     return MaterialApp(
-      title: 'Instagram Clone',
-      theme: ThemeData.light(), // Placeholder
-      darkTheme: ThemeData.dark(), // Placeholder
-      themeMode: ThemeMode.system, // Or load from settings
+      title: AppConstants.appName,
+      theme: VeyroTheme.light,
+      darkTheme: VeyroTheme.dark,
+      themeMode: themeMode,
       debugShowCheckedModeBanner: false,
-      // Add localization delegates later
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      locale: locale,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: BlocBuilder<AuthBloc, AuthState>(
         builder: (context, state) {
           if (state is Authenticated) {

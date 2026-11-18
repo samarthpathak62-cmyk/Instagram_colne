@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:instagram_clone/core/theme/veyro_theme.dart';
 import 'package:instagram_clone/core/di/injection_container.dart' as di;
 import 'package:instagram_clone/generated/app_localizations.dart';
 import 'package:instagram_clone/features/auth/domain/entities/user.dart';
@@ -44,23 +45,28 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
       appBar: AppBar(
         title: Text(l10n?.messages ?? 'Messages'),
       ),
-      body: BlocConsumer<ChatBloc, ChatState>(
-        listener: (context, state) {
-          if (state is ChatError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
-            );
-          }
-        },
-        builder: (context, state) {
-          if (state is ChatsLoading) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (state is ChatsLoaded) {
-            return _buildChatsList(state.chats, l10n);
-          } else {
-            return _buildChatsList([], l10n);
-          }
-        },
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: BlocConsumer<ChatBloc, ChatState>(
+            listener: (context, state) {
+              if (state is ChatError) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(state.message)),
+                );
+              }
+            },
+            builder: (context, state) {
+              if (state is ChatsLoading) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (state is ChatsLoaded) {
+                return _buildChatsList(state.chats, l10n);
+              } else {
+                return _buildChatsList([], l10n);
+              }
+            },
+          ),
+        ),
       ),
     );
   }
@@ -68,7 +74,20 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
   Widget _buildChatsList(List<Chat> chats, AppLocalizations? l10n) {
     if (chats.isEmpty) {
       return Center(
-        child: Text(l10n?.noMessages ?? 'No messages'),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 31,
+              backgroundColor: context.veyroColors.primaryContainer,
+              foregroundColor: context.veyroColors.onPrimaryContainer,
+              child: const Icon(Icons.chat_bubble_outline_rounded, size: 27),
+            ),
+            const SizedBox(height: 14),
+            Text(l10n?.noMessages ?? 'No messages',
+                style: context.veyroText.titleMedium),
+          ],
+        ),
       );
     }
     return ListView.builder(
@@ -78,7 +97,8 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
         final otherUser = chat.otherUser;
         if (otherUser == null) {
           return ListTile(
-            leading: const Icon(Icons.error, color: Colors.red),
+            leading:
+                Icon(Icons.error_outline, color: context.veyroColors.error),
             title: const Text('Unknown user'),
             subtitle: const Text('User data is missing'),
           );
@@ -104,8 +124,8 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
               ? Container(
                   width: 10,
                   height: 10,
-                  decoration: const BoxDecoration(
-                    color: Colors.blue,
+                  decoration: BoxDecoration(
+                    color: context.veyroColors.primary,
                     shape: BoxShape.circle,
                   ),
                 )

@@ -1,7 +1,7 @@
-// lib/features/feed/presentation/screens/feed_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:instagram_clone/core/theme/veyro_theme.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_brand.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:instagram_clone/features/common_widgets/error_widget.dart';
 import 'package:instagram_clone/features/common_widgets/loading_indicator.dart';
@@ -68,193 +68,138 @@ class _FeedScreenState extends State<FeedScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Stories Section - Clean design without any app bar elements
-        Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            border: Border(
-              bottom: BorderSide(
-                color: Color(0xFFDBDBDB),
-                width: 0.5,
-              ),
-            ),
-          ),
-          child: const FeedStoriesBar(),
-        ),
-
-        // Feed Posts
-        Expanded(
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 650),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: FeedRefreshIndicator(
             onRefresh: _onRefresh,
             child: BlocBuilder<FeedBloc, FeedState>(
               builder: (context, state) {
-                if (state is FeedLoading) {
-                  return const LoadingIndicator();
-                } else if (state is FeedError) {
-                  return CustomErrorWidget(
-                    message: state.message,
-                    onRetry: () =>
-                        context.read<FeedBloc>().add(const LoadFeed(page: 0)),
-                  );
-                } else if (state is FeedLoaded) {
-                  if (state.feedItems.isEmpty) {
-                    return _buildEmptyFeedState();
-                  }
-                  return ListView.builder(
-                    controller: _scrollController,
-                    physics: const ClampingScrollPhysics(),
-                    itemCount:
-                        state.feedItems.length + (state.hasReachedMax ? 0 : 1),
-                    itemBuilder: (context, index) {
-                      final isLast = index == state.feedItems.length;
-                      if (isLast && !state.hasReachedMax) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(vertical: 20.0),
-                          child: const Center(
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Color(0xFF262626),
-                                ),
+                return CustomScrollView(
+                  controller: _scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Card(
+                        margin: const EdgeInsets.only(top: 16, bottom: 8),
+                        clipBehavior: Clip.antiAlias,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 14, 8, 0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding:
+                                    const EdgeInsetsDirectional.only(start: 8),
+                                child: Text('Stories',
+                                    style: context.veyroText.titleMedium),
                               ),
-                            ),
-                          ),
-                        );
-                      }
-                      final feedItem = state.feedItems[index];
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 0),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          border: Border(
-                            bottom: BorderSide(
-                              color: Color(0xFFDBDBDB),
-                              width: 0.5,
-                            ),
+                              const SizedBox(height: 9),
+                              const FeedStoriesBar(),
+                            ],
                           ),
                         ),
-                        child: FeedItemCard(
-                          feedItem: feedItem,
-                          onPostTap: (postId) {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    PostDetailScreen(postId: postId),
-                              ),
+                      ),
+                    ),
+                    if (state is FeedError)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: CustomErrorWidget(
+                          message: state.message,
+                          onRetry: () => context
+                              .read<FeedBloc>()
+                              .add(const LoadFeed(page: 0)),
+                        ),
+                      )
+                    else if (state is FeedLoaded && state.feedItems.isEmpty)
+                      SliverToBoxAdapter(child: _buildEmptyFeedState(context))
+                    else if (state is FeedLoaded)
+                      SliverList.builder(
+                        itemCount: state.feedItems.length +
+                            (state.hasReachedMax ? 0 : 1),
+                        itemBuilder: (context, index) {
+                          if (index == state.feedItems.length) {
+                            return const Padding(
+                              padding: EdgeInsets.all(20),
+                              child: LoadingIndicator(),
                             );
-                          },
-                          onLikeToggle: (postId, isLiked, likesCount) {
-                            final auth = context.read<AuthBloc>().state;
-                            if (auth is! Authenticated) return;
-                            context.read<FeedBloc>().add(
-                                  UpdateFeedPostLikeStatus(
+                          }
+                          return FeedItemCard(
+                            feedItem: state.feedItems[index],
+                            onPostTap: (postId) {
+                              Navigator.of(context)
+                                  .push(MaterialPageRoute<void>(
+                                builder: (_) =>
+                                    PostDetailScreen(postId: postId),
+                              ));
+                            },
+                            onLikeToggle: (postId, isLiked, likesCount) {
+                              final auth = context.read<AuthBloc>().state;
+                              if (auth is! Authenticated) return;
+                              context
+                                  .read<FeedBloc>()
+                                  .add(UpdateFeedPostLikeStatus(
                                     postId: postId,
                                     userId: auth.user.id,
                                     isLiked: isLiked,
                                     likesCount: likesCount,
-                                  ),
-                                );
-                          },
-                        ),
-                      );
-                    },
-                  );
-                }
-                return const SizedBox.shrink();
+                                  ));
+                            },
+                          );
+                        },
+                      )
+                    else
+                      const SliverFillRemaining(
+                          hasScrollBody: false, child: LoadingIndicator()),
+                    const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                  ],
+                );
               },
             ),
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildEmptyFeedState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 96,
-            height: 96,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: const Color(0xFF262626),
-                width: 2,
-              ),
-            ),
-            child: const Icon(
-              Icons.camera_alt_outlined,
-              size: 48,
-              color: Color(0xFF262626),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          const Text(
-            'Welcome to Instagram',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w300,
-              color: Color(0xFF262626),
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 40),
-            child: Text(
-              'When you follow people, you\'ll see the photos and videos they post here.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Color(0xFF8E8E8E),
-                height: 1.4,
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Find People Button
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 40),
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const SearchScreen(),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0095F6),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                minimumSize: const Size(double.infinity, 44),
-              ),
-              child: const Text(
-                'Find People to Follow',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
+
+  Widget _buildEmptyFeedState(BuildContext context) => Card(
+        margin: const EdgeInsets.only(top: 8),
+        clipBehavior: Clip.antiAlias,
+        child: VeyroAtmosphere(
+          rings: true,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 27),
+            child: Column(
+              children: [
+                const VeyroMark(size: 110),
+                Text(
+                  'Welcome to Veyro',
+                  textAlign: TextAlign.center,
+                  style: context.veyroText.headlineMedium?.copyWith(
+                    color: VeyroTheme.frost,
+                    fontSize: 26,
+                  ),
+                ),
+                const SizedBox(height: 9),
+                const Text(
+                  'Follow people to see their photos and videos here.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Color(0xFFD5C6E8), height: 1.55),
+                ),
+                const SizedBox(height: 22),
+                FilledButton.icon(
+                  onPressed: () =>
+                      Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => const SearchScreen(),
+                  )),
+                  icon: const Icon(Icons.search_rounded, size: 19),
+                  label: const Text('Find people'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
 }

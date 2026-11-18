@@ -48,7 +48,9 @@ class ProfilePostsGrid extends StatelessWidget {
           },
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.grey[300], // Placeholder background color
+              color: Theme.of(context)
+                  .colorScheme
+                  .surfaceContainerHighest, // Placeholder background color
               image: (post.type == PostType.image &&
                       post.mediaUrl?.isNotEmpty == true)
                   ? DecorationImage(

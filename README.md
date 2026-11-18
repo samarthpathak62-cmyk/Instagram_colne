@@ -1,7 +1,9 @@
-# Instagram Clone Flutter App
+# Veyro
 
 ## Overview
-A Flutter social app for Android and the web. Both clients use the same **Veyro Social Platform** Supabase project for accounts, social data, and media.
+Veyro is a Flutter social app for Android and the web. Both clients use the same **Veyro Social Platform** Supabase project for accounts, social data, and media.
+
+The orbit-V logo and violet palettes are shared across the website and app. The vector master is [`assets/brand/veyro_mark.svg`](assets/brand/veyro_mark.svg). To regenerate the launcher, splash, and browser icons, install `Pillow` and `resvg-py` and run `python3 tool/generate_veyro_icons.py`. Manrope is bundled locally under its [SIL Open Font License](assets/fonts/manrope/OFL.txt). Existing application IDs, web paths, and sign-in callbacks are unchanged.
 
 ---
 
@@ -184,7 +186,7 @@ lib/
 2. **Clone the repository:**
    ```bash
    git clone <repo-url>
-   cd instagram_clone
+   cd Instagram_colne
    ```
 3. **Install dependencies:**
    ```bash

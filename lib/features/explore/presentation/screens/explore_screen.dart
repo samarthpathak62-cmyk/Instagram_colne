@@ -91,7 +91,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         prefixIcon: const Icon(Icons.search),
         border: InputBorder.none,
         filled: true,
-        fillColor: Colors.grey[200], // Adjust color as needed
+        fillColor: Theme.of(context).colorScheme.surfaceContainerHigh,
         contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
         suffixIcon: _searchController.text.isNotEmpty
             ? IconButton(
@@ -131,7 +131,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
       },
       child: GridView.builder(
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3, // Standard Instagram grid
+          crossAxisCount: 3,
           crossAxisSpacing: 2,
           mainAxisSpacing: 2,
         ),

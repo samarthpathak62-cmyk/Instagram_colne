@@ -79,9 +79,10 @@ class _SavePostButtonState extends State<SavePostButton> {
       },
       builder: (context, state) {
         return IconButton(
+          tooltip: _isSaved ? 'Remove from saved' : 'Save post',
           icon: Icon(
             _isSaved ? Icons.bookmark : Icons.bookmark_border,
-            color: _isSaved ? Colors.black : null,
+            color: _isSaved ? Theme.of(context).colorScheme.primary : null,
           ),
           onPressed: () {
             if (_isSaved && _favoriteId != null) {

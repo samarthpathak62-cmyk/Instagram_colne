@@ -23,13 +23,14 @@ class PostGridItem extends StatelessWidget {
       },
       child: Container(
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
+          border:
+              Border.all(color: Theme.of(context).colorScheme.outlineVariant),
         ),
         child: Stack(
           fit: StackFit.expand,
           children: [
             // Post media
-            _buildMediaWidget(),
+            _buildMediaWidget(context),
 
             // Overlay for video indicator
             if (post.mediaType == 'video')
@@ -74,13 +75,13 @@ class PostGridItem extends StatelessWidget {
     );
   }
 
-  Widget _buildMediaWidget() {
+  Widget _buildMediaWidget(BuildContext context) {
     if (post.mediaUrls.isEmpty) {
       return Container(
-        color: Colors.grey[200],
-        child: const Icon(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        child: Icon(
           Icons.image,
-          color: Colors.grey,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       );
     }
@@ -104,17 +105,17 @@ class PostGridItem extends StatelessWidget {
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           return Container(
-            color: Colors.grey[200],
-            child: const Icon(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            child: Icon(
               Icons.broken_image,
-              color: Colors.grey,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           );
         },
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
           return Container(
-            color: Colors.grey[200],
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             child: const Center(
               child: CircularProgressIndicator(),
             ),

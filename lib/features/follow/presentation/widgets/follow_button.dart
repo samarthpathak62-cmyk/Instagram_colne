@@ -1,3 +1,4 @@
+import 'package:instagram_clone/core/theme/veyro_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
@@ -91,18 +92,20 @@ class _FollowButtonState extends State<FollowButton> {
         // Determine button style and text
         final buttonStyle = _isFollowing
             ? OutlinedButton.styleFrom(
-                side: BorderSide(color: Colors.grey.shade400),
-                foregroundColor: Colors.black,
+                side: BorderSide(color: context.veyroColors.outlineVariant),
+                foregroundColor: context.veyroColors.onSurface,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
               )
             : ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
+                backgroundColor: VeyroTheme.violet,
                 foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
               );
         final buttonText = _isFollowing ? 'Following' : 'Follow';
 
         return SizedBox(
-          width: 100, // Adjust width as needed
-          height: 35, // Adjust height as needed
+          width: 106,
+          height: 44,
           child: _isLoading
               ? const Center(
                   child: SizedBox(

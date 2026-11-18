@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:instagram_clone/core/theme/veyro_theme.dart';
 import 'package:instagram_clone/generated/app_localizations.dart';
 import 'package:instagram_clone/features/auth/domain/entities/user.dart';
 import 'package:instagram_clone/features/chat/domain/entities/chat.dart';
@@ -95,42 +96,47 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: BlocConsumer<ChatBloc, ChatState>(
-              listener: (context, state) {
-                if (state is ChatError) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(state.message)),
-                  );
-                } else if (state is MessagesLoaded &&
-                    state.messages.isNotEmpty) {
-                  final last = state.messages.last;
-                  if (last.id == _lastMessageId) return;
-                  _lastMessageId = last.id;
-                  if (last.receiverId == widget.currentUser.id &&
-                      !last.isRead) {
-                    _markMessagesAsRead();
-                  }
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) _scrollToBottom();
-                  });
-                }
-              },
-              builder: (context, state) {
-                if (state is MessagesLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                } else if (state is MessagesLoaded) {
-                  return _buildMessagesList(state.messages);
-                } else {
-                  return _buildMessagesList([]);
-                }
-              },
-            ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: Column(
+            children: [
+              Expanded(
+                child: BlocConsumer<ChatBloc, ChatState>(
+                  listener: (context, state) {
+                    if (state is ChatError) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(state.message)),
+                      );
+                    } else if (state is MessagesLoaded &&
+                        state.messages.isNotEmpty) {
+                      final last = state.messages.last;
+                      if (last.id == _lastMessageId) return;
+                      _lastMessageId = last.id;
+                      if (last.receiverId == widget.currentUser.id &&
+                          !last.isRead) {
+                        _markMessagesAsRead();
+                      }
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) _scrollToBottom();
+                      });
+                    }
+                  },
+                  builder: (context, state) {
+                    if (state is MessagesLoading) {
+                      return const Center(child: CircularProgressIndicator());
+                    } else if (state is MessagesLoaded) {
+                      return _buildMessagesList(state.messages);
+                    } else {
+                      return _buildMessagesList([]);
+                    }
+                  },
+                ),
+              ),
+              _buildMessageInput(l10n?.typeMessage ?? 'Type a message'),
+            ],
           ),
-          _buildMessageInput(l10n ?? AppLocalizationsEn()),
-        ],
+        ),
       ),
     );
   }
@@ -142,6 +148,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       );
     }
 
+    final colors = context.veyroColors;
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.all(8.0),
@@ -151,14 +158,23 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         final isCurrentUser = message.senderId == widget.currentUser.id;
 
         return Align(
-          alignment:
-              isCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
+          alignment: isCurrentUser
+              ? AlignmentDirectional.centerEnd
+              : AlignmentDirectional.centerStart,
           child: Container(
-            margin: const EdgeInsets.symmetric(vertical: 4.0),
+            constraints: const BoxConstraints(maxWidth: 500),
+            margin: EdgeInsetsDirectional.only(
+              top: 4,
+              bottom: 4,
+              start: isCurrentUser ? 30 : 4,
+              end: isCurrentUser ? 4 : 30,
+            ),
             padding:
                 const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
             decoration: BoxDecoration(
-              color: isCurrentUser ? Colors.blue : Colors.grey[300],
+              color: isCurrentUser
+                  ? colors.primaryContainer
+                  : colors.surfaceContainerHigh,
               borderRadius: BorderRadius.circular(16.0),
             ),
             child: Column(
@@ -167,14 +183,18 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 Text(
                   message.content,
                   style: TextStyle(
-                    color: isCurrentUser ? Colors.white : Colors.black,
+                    color: isCurrentUser
+                        ? colors.onPrimaryContainer
+                        : colors.onSurface,
                   ),
                 ),
                 const SizedBox(height: 4.0),
                 Text(
                   _formatTime(message.timestamp),
                   style: TextStyle(
-                    color: isCurrentUser ? Colors.white70 : Colors.black54,
+                    color: isCurrentUser
+                        ? colors.onPrimaryContainer
+                        : colors.onSurfaceVariant,
                     fontSize: 10.0,
                   ),
                 ),
@@ -186,52 +206,34 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
-  Widget _buildMessageInput(AppLocalizations l10n) {
-    return Container(
-      padding: const EdgeInsets.all(8.0),
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4.0,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _messageController,
-              decoration: InputDecoration(
-                hintText: l10n.typeMessage,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24.0),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Theme.of(context).brightness == Brightness.light
-                    ? Colors.grey[200]
-                    : Colors.grey[800],
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 8.0,
-                ),
+  Widget _buildMessageInput(String hint) {
+    final colors = context.veyroColors;
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerLow,
+          border: Border(top: BorderSide(color: colors.outlineVariant)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _messageController,
+                decoration: InputDecoration(hintText: hint),
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => _sendMessage(),
               ),
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _sendMessage(),
             ),
-          ),
-          const SizedBox(width: 8.0),
-          CircleAvatar(
-            backgroundColor: Colors.blue,
-            child: IconButton(
-              icon: const Icon(Icons.send, color: Colors.white),
+            const SizedBox(width: 8),
+            IconButton.filled(
+              tooltip: 'Send message',
+              icon: const Icon(Icons.send_rounded, size: 20),
               onPressed: _sendMessage,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -239,13 +241,4 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   String _formatTime(DateTime dateTime) {
     return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
-}
-
-// Add a fallback AppLocalizationsEn class for English strings
-class AppLocalizationsEn implements AppLocalizations {
-  @override
-  String get noMessages => 'No messages';
-  // Implement all other getters to throw UnimplementedError
-  @override
-  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }
