@@ -1,0 +1,77 @@
+name: Flutter repair diagnostics
+
+on:
+  push:
+    branches: [arena/26108c72-instagram-colne]
+
+permissions:
+  contents: read
+
+jobs:
+  toolchain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.50.0'
+          cache: true
+      - name: Diagnose formatting, dependency resolution, and analysis
+        shell: bash
+        run: |
+          publish() {
+            local title="$1"
+            local chunk=0
+            while IFS= read -r line; do
+              printf '::notice title=%s %04d::%s\n' "$title" "$chunk" "$line"
+              chunk=$((chunk + 1))
+            done < <(gzip -c | base64 -w0 | fold -w 7000 | awk '1')
+          }
+          flutter --version | publish flutter-version
+          if ! flutter pub get > "$RUNNER_TEMP/pub.log" 2>&1; then
+            cat "$RUNNER_TEMP/pub.log"
+            publish pub-log < "$RUNNER_TEMP/pub.log"
+            exit 1
+          fi
+          find lib -name '*.dart' -not -path 'lib/generated/*' -print0 | xargs -0 dart format
+          git diff --binary -- pubspec.lock lib ':!lib/generated' | publish generated-patch
+          flutter analyze --no-pub > "$RUNNER_TEMP/analyze.log" 2>&1 || true
+          cat "$RUNNER_TEMP/analyze.log"
+          publish analyze-log < "$RUNNER_TEMP/analyze.log"
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.50.0'
+          cache: true
+      - name: Diagnose debug APK build
+        shell: bash
+        run: |
+          (
+            flutter pub get &&
+            flutter build apk --debug --no-pub
+          ) > "$RUNNER_TEMP/android.log" 2>&1 || result=$?
+          cat "$RUNNER_TEMP/android.log"
+          if [[ ${result:-0} != 0 ]]; then
+            chunk=0
+            while IFS= read -r line; do
+              printf '::notice title=android-log %04d::%s\n' "$chunk" "$line"
+              chunk=$((chunk + 1))
+            done < <(gzip -c "$RUNNER_TEMP/android.log" | base64 -w0 | fold -w 7000 | awk '1')
+            exit "$result"
+          fi
