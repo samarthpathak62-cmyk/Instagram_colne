@@ -18,6 +18,7 @@ const firstText = 'A first update from the Veyro community.';
 const viewerId = '00000000-0000-4000-8000-000000000001';
 const otherId = '00000000-0000-4000-8000-000000000002';
 const reelFile = process.env.VEYRO_TEST_REEL;
+const otherGroup = '00000000-0000-4000-8000-000000000700';
 
 async function mockSignedIn(page, theme) {
   const timestamp = new Date().toISOString();
@@ -49,7 +50,11 @@ async function mockSignedIn(page, theme) {
   if (reelFile) {
     await page.route(mediaUrl, (route) => route.fulfill({ path: reelFile, contentType: 'video/webm' }));
   }
-  const liked = new Set();
+  const liked = new Map();
+  const storyItems = [];
+  const groups = [{ id: otherGroup, owner_id: otherId, name: 'Aperture Club',
+    description: 'A place for street photography and visual storytelling.', category: 'creative' }];
+  const memberships = new Map([[otherGroup, new Set([otherId])]]);
   const saved = new Map();
   const comments = [];
   const follows = new Set();
@@ -60,13 +65,15 @@ async function mockSignedIn(page, theme) {
     actor: people[1], message: 'followed you.', is_read: false, created_at: timestamp,
   }];
   const publicPhoto = fs.readFileSync('web/icons/Icon-192.png');
+  const publicStory = fs.readFileSync('assets/brand/veyro_community.webp');
   function postProjection(post, withOriginal = true) {
     const original = posts.find((entry) => entry.id === post.shared_post_id);
     return {
       ...post, caption: null, source: withOriginal && original ? postProjection(original, false) : null, author: people.find((person) => person.id === post.author_id),
-      likes: [{ count: Number(liked.has(post.id)) }],
+      group: groups.find((group) => group.id === post.group_id) || null,
+      reaction_counts: liked.has(post.id) ? { [liked.get(post.id)]: 1 } : {},
       comments: [{ count: comments.filter((comment) => comment.post_id === post.id).length }],
-      liked_by_user: liked.has(post.id) ? [{ user_id: viewerId }] : [],
+      liked_by_user: liked.has(post.id) ? [{ user_id: viewerId, reaction: liked.get(post.id) }] : [],
       saved_by_user: saved.has(post.id) ? [{ id: saved.get(post.id) }] : [],
     };
   }
@@ -92,7 +99,10 @@ async function mockSignedIn(page, theme) {
     if (resource.startsWith('/storage/v1/object/public/post-media/') && method === 'GET') {
       return route.fulfill({ status: 200, contentType: 'image/png', body: publicPhoto, headers: cors });
     }
-    if (resource.startsWith('/storage/v1/object/post-media/') && method === 'POST') {
+    if (resource.startsWith('/storage/v1/object/public/story-media/') && method === 'GET') {
+      return route.fulfill({ status: 200, contentType: 'image/webp', body: publicStory, headers: cors });
+    }
+    if (/^\/storage\/v1\/object\/(post|story)-media\//.test(resource) && method === 'POST') {
       writes.push({ resource: 'media', method });
       return json({ Key: resource.split('/object/')[1] });
     }
@@ -116,10 +126,22 @@ async function mockSignedIn(page, theme) {
             (resource !== 'veyro_following_feed' || follows.has(post.author_id) || post.author_id === viewerId) &&
             (!eq('id') || post.id === eq('id')) && (!eq('author_id') || post.author_id === eq('author_id')) &&
             (!eq('type') || post.type === eq('type')) &&
+            (!eq('group_id') || post.group_id === eq('group_id')) &&
             (!eq('share_kind') || post.share_kind === eq('share_kind')) &&
             (!eq('shared_post_id') || post.shared_post_id === eq('shared_post_id')) &&
             (!contains('description') || post.description?.toLowerCase().includes(contains('description'))),
           ).map((post) => postProjection(post));
+          break;
+        case 'veyro_groups':
+          rows = groups.filter((group) => (!eq('id') || group.id === eq('id')) &&
+            (!contains('name') || group.name.toLowerCase().includes(contains('name'))) &&
+            (!resourceUrl.searchParams.get('select')?.includes('veyro_group_members!inner') || memberships.get(group.id).has(viewerId)),
+          ).map((group) => ({ ...group, members: [{ count: memberships.get(group.id).size }],
+            membership: memberships.get(group.id).has(viewerId) ? [{ user_id: viewerId }] : [],
+          }));
+          break;
+        case 'stories':
+          rows = storyItems.length ? [{ user_id: viewerId, author: people[0], items: storyItems }] : [];
           break;
         case 'comments':
           rows = comments.filter((item) => item.post_id === eq('post_id'));
@@ -130,7 +152,7 @@ async function mockSignedIn(page, theme) {
           }));
           break;
         case 'followers':
-          rows = [...follows].filter((id) => !eq('following_id') || id === eq('following_id')).map((id) => ({ id: nextId(500), person: people.find((person) => person.id === id) }));
+          rows = [...follows].filter((id) => !eq('following_id') || id === eq('following_id')).map((id) => ({ id: nextId(500), follower_id: viewerId, following_id: id, person: people.find((person) => person.id === id) }));
           break;
         case 'notifications': rows = notifications; break;
         case 'chats': rows = chats; break;
@@ -149,11 +171,22 @@ async function mockSignedIn(page, theme) {
     if (method === 'POST') {
       switch (resource) {
         case 'posts': {
+          if (body.group_id && !memberships.get(body.group_id)?.has(viewerId)) return json({ message: 'Membership required' }, 403);
           const post = { ...body, id: nextId(12 + posts.length + writes.length), created_at: new Date().toISOString() };
           posts.unshift(post);
           return json(postProjection(post), 201);
         }
-        case 'likes': liked.add(body.post_id); return json({}, 201);
+        case 'rpc/veyro_react': liked.set(body.p_post_id, body.p_reaction); return route.fulfill({ status: 204, headers: cors });
+        case 'veyro_groups': {
+          const group = { ...body, id: nextId(700 + groups.length) };
+          groups.unshift(group);
+          memberships.set(group.id, new Set([viewerId]));
+          return json({ id: group.id }, 201);
+        }
+        case 'veyro_group_members': memberships.get(body.group_id).add(body.user_id); return json({}, 201);
+        case 'rpc/veyro_add_story_item':
+          storyItems.push({ id: nextId(800 + storyItems.length), media_url: body.p_media_url, media_type: body.p_media_type, created_at: new Date().toISOString() });
+          return route.fulfill({ status: 204, headers: cors });
         case 'saved_posts': saved.set(body.post_id, nextId(600 + saved.size)); return json({}, 201);
         case 'comments': {
           const item = { ...body, id: nextId(200 + comments.length), author: people[0], created_at: timestamp };
@@ -175,6 +208,7 @@ async function mockSignedIn(page, theme) {
       }
     } else if (method === 'DELETE') {
       if (resource === 'likes') liked.delete(eq('post_id'));
+      if (resource === 'veyro_group_members') memberships.get(eq('group_id')).delete(eq('user_id'));
       if (resource === 'saved_posts') saved.delete(eq('post_id'));
       if (resource === 'followers') follows.delete(eq('following_id'));
       const list = { posts, comments, notifications }[resource];
@@ -201,7 +235,7 @@ async function mockSignedIn(page, theme) {
   await page.addInitScript(({ origin, key, value }) => {
     if (location.origin === origin) localStorage.setItem(key, value);
   }, { origin: url.origin, key: `sb-${backend.hostname.split('.')[0]}-auth-token`, value: JSON.stringify(session) });
-  return { posts, saved, liked, comments, follows, messages, notifications, writes, topicSearches };
+  return { posts, saved, liked, comments, follows, messages, notifications, writes, topicSearches, groups, memberships, storyItems };
 }
 
 async function openApp(page, address = url.href) {
@@ -278,7 +312,7 @@ async function testSocial(page, state, name) {
   const text = `New ${name} update from browser smoke.`;
   await waitFor('Like post');
   await capture(page, `${name}-feed`);
-  await changed('Like post', 'likes', 'POST');
+  await changed('Like post', 'rpc/veyro_react', 'POST');
   await waitFor(/^Unlike post\b/);
   assert.ok(state.liked.has(firstPost));
   await changed('Save post', 'saved_posts', 'POST');
@@ -453,6 +487,74 @@ async function testSharingAndDiscovery(page, state, name) {
   }
 }
 
+async function testCommunity(page, state, name) {
+  const { press, enter, waitFor, changed } = controls(page);
+  await press(/^Groups\b/);
+  await waitFor('Refresh groups');
+  await waitFor(/^Open Aperture Club/);
+  await capture(page, `${name}-groups`);
+  await enter('Aperture', /Search groups/);
+  await waitFor(/^Open Aperture Club/);
+  await press(/^Open Aperture Club/);
+  await waitFor('Join group');
+  await changed('Join group', 'veyro_group_members', 'POST');
+  assert.ok(state.memberships.get(otherGroup).has(viewerId));
+  await press('Write a post');
+  await waitFor('Publish');
+  await enter(`A group update from ${name}.`);
+  await changed('Publish', 'posts', 'POST');
+  const update = state.posts[0];
+  assert.equal(update.group_id, otherGroup);
+  assert.equal(update.description, `A group update from ${name}.`);
+  await waitFor('Refresh group');
+  await press('Choose reaction');
+  await changed('Love', 'rpc/veyro_react', 'POST');
+  await waitFor('Remove Love reaction');
+  assert.equal(state.liked.get(update.id), 'love');
+  await press('Choose reaction');
+  await changed('Wow', 'rpc/veyro_react', 'POST');
+  await waitFor('Remove Wow reaction');
+  assert.equal(state.liked.get(update.id), 'wow');
+  await capture(page, `${name}-group-discussion`);
+  await changed('Remove Wow reaction', 'likes', 'DELETE');
+  assert.ok(!state.liked.has(update.id));
+  await press('Leave group');
+  await waitFor('Cancel');
+  await changed('Leave group', 'veyro_group_members', 'DELETE');
+  await waitFor('Join group');
+  assert.ok(!state.memberships.get(otherGroup).has(viewerId));
+  await press('Back');
+  await waitFor('Refresh groups');
+  await press('Clear group search');
+  await press('New group');
+  await enter(`${name} Lens Lab`, /Group name/);
+  await changed('Create group', 'veyro_groups', 'POST');
+  await waitFor('Edit group');
+  const created = state.groups[0];
+  assert.equal(created.name, `${name} Lens Lab`);
+  assert.ok(state.memberships.get(created.id).has(viewerId));
+  await press('Back');
+  await waitFor('Refresh groups');
+  await press('My groups');
+  await waitFor(new RegExp(`^Open ${name} Lens Lab`));
+  await press(/^Home\b/);
+  await waitFor('Refresh feed');
+  await press('Add story');
+  const [chooser] = await Promise.all([
+    page.waitForEvent('filechooser', { timeout }),
+    press('Add photo', true),
+  ]);
+  await chooser.setFiles('assets/brand/veyro_community.webp');
+  await changed('Publish story', 'rpc/veyro_add_story_item', 'POST');
+  assert.equal(state.storyItems[0].media_type, 'image');
+  await waitFor('New story by veyro_preview');
+  await capture(page, `${name}-stories`);
+  await press('New story by veyro_preview');
+  await waitFor('Close story');
+  await press('Close story');
+  await waitFor('Viewed story by veyro_preview');
+}
+
 async function testViewport(browser, name, viewport) {
   for (const signedIn of [false, true]) {
     const browserContext = await browser.newContext({
@@ -480,6 +582,7 @@ async function testViewport(browser, name, viewport) {
       if (social) {
         await testSocial(page, social, name);
         await testSharingAndDiscovery(page, social, name);
+        await testCommunity(page, social, name);
       } else {
         await waitFor('Log in');
         await capture(page, `${name}-login`);

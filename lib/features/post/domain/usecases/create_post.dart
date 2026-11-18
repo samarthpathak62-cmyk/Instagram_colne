@@ -18,6 +18,7 @@ class CreatePost implements UseCase<Post, CreatePostParams> {
       type: params.type,
       mediaFiles: params.mediaFiles,
       description: params.description,
+      groupId: params.groupId,
     );
   }
 }
@@ -27,14 +28,16 @@ class CreatePostParams extends Equatable {
   final PostType type;
   final List<XFile> mediaFiles; // List of images or single video file
   final String? description;
+  final String? groupId;
 
   const CreatePostParams({
     required this.authorId,
     required this.type,
     required this.mediaFiles,
     this.description,
+    this.groupId,
   });
 
   @override
-  List<Object?> get props => [authorId, type, mediaFiles, description];
+  List<Object?> get props => [authorId, type, mediaFiles, description, groupId];
 }

@@ -1,3 +1,4 @@
+import 'package:instagram_clone/features/post/domain/entities/post_reaction.dart';
 import 'package:instagram_clone/features/post/domain/entities/post_comment.dart';
 import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:instagram_clone/features/post/data/models/post_model.dart'; // To be created
@@ -9,6 +10,7 @@ abstract class PostRemoteDataSource {
     required PostType type,
     required List<XFile> mediaFiles,
     String? description,
+    String? groupId,
   });
 
   Future<PostModel?> findRepost(String postId, String userId);
@@ -24,6 +26,7 @@ abstract class PostRemoteDataSource {
   Future<void> likePost(String postId, String userId);
 
   Future<void> unlikePost(String postId, String userId);
+  Future<void> setReaction(String postId, PostReaction reaction);
 
   Future<CommentPage> getComments(String postId, {int offset = 0});
   Future<PostComment> addComment(String postId, String userId, String content);

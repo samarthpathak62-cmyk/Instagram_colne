@@ -22,6 +22,7 @@ import 'package:instagram_clone/features/feed/presentation/bloc/feed_state.dart'
 import 'package:instagram_clone/features/post/data/datasources/post_remote_datasource_impl.dart';
 import 'package:instagram_clone/features/post/data/models/post_model.dart';
 import 'package:instagram_clone/features/post/domain/entities/post.dart';
+import 'package:instagram_clone/features/post/domain/entities/post_reaction.dart';
 import 'package:instagram_clone/features/post/domain/entities/post_comment.dart';
 import 'package:instagram_clone/features/post/domain/repositories/post_repository.dart';
 import 'package:instagram_clone/features/post/domain/usecases/create_post.dart';
@@ -283,6 +284,38 @@ void main() {
     expect(current.likes(refreshed), 3);
   });
 
+  test(
+      'changing a reaction moves its count, never duplicates it, and rolls back',
+      () async {
+    final post = FeedItemModel.fromJson({
+      ..._row(),
+      'group_id': 'community-id',
+      'group': {'name': 'Aperture Club'},
+      'reaction_counts': {'like': 2, 'love': 1},
+      'liked_by_user': [
+        {'user_id': _viewer, 'reaction': 'love'}
+      ],
+    }).toPost();
+    final repository = _PostRepository(post);
+    final actions =
+        PostInteractionsCubit(repository: repository, userId: _viewer);
+    addTearDown(actions.close);
+    expect(post.groupName, 'Aperture Club');
+    expect(post.myReaction, PostReaction.love);
+    expect(post.likeCount, 3);
+    final pending = actions.setReaction(post, PostReaction.wow);
+    final optimism = actions.forPost(post.id);
+    expect(optimism.selectedReaction(post), PostReaction.wow);
+    expect(optimism.tally(post), {PostReaction.like: 2, PostReaction.wow: 1});
+    expect(optimism.likes(post), 3);
+    repository.reaction
+        .complete(const Left(ServerFailure(message: 'Try again')));
+    expect(await pending, 'Try again');
+    expect(actions.forPost(post.id).selectedReaction(post), PostReaction.love);
+    expect(actions.forPost(post.id).tally(post),
+        {PostReaction.like: 2, PostReaction.love: 1});
+  });
+
   testWidgets('post comments can be written, reloaded and removed',
       (tester) async {
     final post = PostModel.fromJson(_row());
@@ -344,6 +377,7 @@ class _PostRepository implements PostRepository {
   final Post post;
   final comments = <PostComment>[];
   final like = Completer<Either<Failure, void>>();
+  final reaction = Completer<Either<Failure, void>>();
   int likeCalls = 0;
 
   _PostRepository(this.post);
@@ -356,6 +390,11 @@ class _PostRepository implements PostRepository {
     likeCalls++;
     return like.future;
   }
+
+  @override
+  Future<Either<Failure, void>> setReaction(
+          String postId, PostReaction reaction) =>
+      this.reaction.future;
 
   @override
   Future<Either<Failure, void>> setSaved(

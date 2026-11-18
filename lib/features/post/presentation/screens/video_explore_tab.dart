@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:instagram_clone/core/di/injection_container.dart';
 import 'package:instagram_clone/features/common_widgets/error_widget.dart';
 import 'package:instagram_clone/features/post/domain/entities/post.dart';
+import 'package:instagram_clone/features/groups/presentation/group_post_origin.dart';
 import 'package:instagram_clone/features/post/domain/repositories/post_repository.dart';
 import 'package:instagram_clone/features/post/presentation/bloc/post_interactions_cubit.dart';
 import 'package:instagram_clone/features/post/presentation/widgets/post_actions.dart';
@@ -184,6 +185,7 @@ class _Reel extends StatelessWidget {
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             PostHeader(post: post),
+            if (post.groupId != null) GroupPostOrigin(post: post),
             Expanded(
                 child: ColoredBox(
               color: Colors.black,
@@ -207,7 +209,7 @@ class _Reel extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(14, 9, 14, 0),
                   child: Text(description,
                       maxLines: 2, overflow: TextOverflow.ellipsis)),
-            PostActions(post: post),
+            PostActions(post: post, showReactionSummary: false),
           ])),
     );
   }

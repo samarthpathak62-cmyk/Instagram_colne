@@ -1,3 +1,4 @@
+import 'package:instagram_clone/features/post/domain/entities/post_reaction.dart';
 import 'package:instagram_clone/features/post/domain/entities/post_comment.dart';
 import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:dartz/dartz.dart';
@@ -10,6 +11,7 @@ abstract class PostRepository {
     required PostType type,
     required List<XFile> mediaFiles, // List of image files or single video file
     String? description,
+    String? groupId,
   });
 
   Future<Either<Failure, Post?>> findRepost(String postId, String userId);
@@ -26,6 +28,8 @@ abstract class PostRepository {
   Future<Either<Failure, void>> likePost(String postId, String userId);
 
   Future<Either<Failure, void>> unlikePost(String postId, String userId);
+  Future<Either<Failure, void>> setReaction(
+      String postId, PostReaction reaction);
 
   Future<Either<Failure, CommentPage>> getComments(String postId,
       {int offset = 0});

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:instagram_clone/features/explore/domain/post_topics.dart';
 import 'package:instagram_clone/features/explore/presentation/screens/search_screen.dart';
 import 'package:instagram_clone/features/post/domain/entities/post.dart';
+import 'package:instagram_clone/features/groups/presentation/group_post_origin.dart';
 import 'package:instagram_clone/features/post/presentation/bloc/post_interactions_cubit.dart';
 import 'package:instagram_clone/features/post/presentation/widgets/post_actions.dart';
 import 'package:instagram_clone/features/post/presentation/widgets/post_header.dart';
@@ -12,8 +13,15 @@ import 'package:instagram_clone/features/post/presentation/widgets/video_player_
 class PostCard extends StatelessWidget {
   final Post post;
   final bool inDetail;
+  final bool showGroupOrigin;
+  final bool canModerate;
 
-  const PostCard({super.key, required this.post, this.inDetail = false});
+  const PostCard(
+      {super.key,
+      required this.post,
+      this.inDetail = false,
+      this.showGroupOrigin = true,
+      this.canModerate = false});
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +57,12 @@ class PostCard extends StatelessWidget {
                       letterSpacing: 1.15)),
             ]),
           ),
-        PostHeader(post: post, showOpenPost: !inDetail),
+        if (showGroupOrigin && post.groupId != null)
+          Padding(
+              padding: const EdgeInsetsDirectional.only(start: 4),
+              child: GroupPostOrigin(post: post)),
+        PostHeader(
+            post: post, showOpenPost: !inDetail, canModerate: canModerate),
         if (text.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(15, 3, 15, 13),

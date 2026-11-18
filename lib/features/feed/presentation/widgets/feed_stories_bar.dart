@@ -8,7 +8,7 @@ import 'package:instagram_clone/features/story/domain/entities/story.dart';
 import 'package:instagram_clone/features/story/presentation/bloc/story_bloc.dart';
 import 'package:instagram_clone/features/story/presentation/screens/create_story_screen.dart';
 import 'package:instagram_clone/features/story/presentation/screens/story_view_screen.dart';
-import 'package:instagram_clone/features/story/presentation/widgets/story_circles_widget.dart';
+import 'package:instagram_clone/features/story/presentation/widgets/story_strip.dart';
 
 class FeedStoriesBar extends StatefulWidget {
   const FeedStoriesBar({super.key});
@@ -42,7 +42,7 @@ class _FeedStoriesBarState extends State<FeedStoriesBar> {
           builder: (context, state) {
             final stories =
                 state is StoriesLoaded ? state.stories : const <Story>[];
-            return StoryCirclesWidget(
+            return StoryStrip(
               stories: stories,
               ownAvatar: auth.user.profileImageUrl,
               ownName: auth.user.name ?? auth.user.username,

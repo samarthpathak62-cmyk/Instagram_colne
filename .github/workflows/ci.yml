@@ -81,7 +81,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Verify installed APK, Following and post shares against PostgREST
+      - name: Verify legacy clients, groups, reactions and shares against PostgREST
         env:
           POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
         run: |

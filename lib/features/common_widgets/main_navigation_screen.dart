@@ -10,6 +10,7 @@ import 'package:instagram_clone/features/common_widgets/app_bar.dart';
 import 'package:instagram_clone/features/common_widgets/veyro_brand.dart';
 import 'package:instagram_clone/features/explore/presentation/screens/search_screen.dart';
 import 'package:instagram_clone/features/feed/presentation/screens/feed_screen.dart';
+import 'package:instagram_clone/features/groups/presentation/groups_screen.dart';
 import 'package:instagram_clone/features/post/presentation/screens/create_post_screen.dart';
 import 'package:instagram_clone/features/post/presentation/screens/video_explore_tab.dart';
 import 'package:instagram_clone/features/profile/presentation/screens/profile_screen.dart';
@@ -22,7 +23,12 @@ class MainNavigationScreen extends StatefulWidget {
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  static const _home = 0, _explore = 1, _create = 2, _reels = 3, _profile = 4;
+  static const _home = 0,
+      _explore = 1,
+      _reels = 2,
+      _groups = 3,
+      _profile = 4,
+      _create = 5;
   static const _destinations = [
     NavigationDestination(
       icon: Icon(Icons.home_outlined),
@@ -35,14 +41,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       label: 'Explore',
     ),
     NavigationDestination(
-      icon: Icon(Icons.add_box_outlined),
-      selectedIcon: Icon(Icons.add_box_rounded),
-      label: 'Create',
-    ),
-    NavigationDestination(
       icon: Icon(Icons.video_collection_outlined),
       selectedIcon: Icon(Icons.video_collection_rounded),
       label: 'Reels',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.groups_outlined),
+      selectedIcon: Icon(Icons.groups_rounded),
+      label: 'Groups',
     ),
     NavigationDestination(
       icon: Icon(Icons.person_outline_rounded),
@@ -51,12 +57,17 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     ),
   ];
   int _selected = _home;
+  int _previous = _home;
   bool _exploreVisited = false;
+  bool _groupsVisited = false;
+
+  int get _navIndex => _selected == _create ? _previous : _selected;
   FeedComposeMode _composeMode = FeedComposeMode.post;
 
   void _compose([FeedComposeMode mode = FeedComposeMode.post]) {
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
+      if (_selected != _create) _previous = _selected;
       _composeMode = mode;
       _selected = _create;
     });
@@ -68,11 +79,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     setState(() {
       _selected = index;
       if (index == _explore) _exploreVisited = true;
+      if (index == _groups) _groupsVisited = true;
     });
   }
-
-  void _destinationSelected(int index) =>
-      index == _create ? _compose() : _select(index);
 
   void _openMessages(User user) => Navigator.of(context).push(
         MaterialPageRoute<void>(
@@ -99,12 +108,28 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           appBar: CustomAppBar(
             title: wide ? 'Home' : null,
             onMessagesTap: () => _openMessages(auth.user),
+            actions: [
+              if (!wide)
+                IconButton.filledTonal(
+                  tooltip: 'Create a post',
+                  onPressed: _compose,
+                  icon: const Icon(Icons.add_rounded),
+                )
+            ],
           ),
           body: TickerMode(
               enabled: _selected == _home,
-              child: FeedScreen(onCompose: _compose)),
+              child: FeedScreen(
+                  onCompose: _compose, onGroups: () => _select(_groups))),
         ),
         _exploreVisited ? const SearchScreen() : const SizedBox.shrink(),
+        _selected == _reels
+            ? VideoExploreTab(onCreate: () => _compose(FeedComposeMode.reel))
+            : const SizedBox.shrink(),
+        _groupsVisited ? const GroupsScreen() : const SizedBox.shrink(),
+        _selected == _profile
+            ? ProfileScreen.withProviders(auth.user.id)
+            : const SizedBox.shrink(),
         IndexedStack(
           index: _composeMode.index,
           sizing: StackFit.expand,
@@ -119,18 +144,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     if (_selected == _create && _composeMode == mode)
                       _select(mode == FeedComposeMode.reel ? _reels : _home);
                   },
-                  onClose: () =>
-                      _select(mode == FeedComposeMode.reel ? _reels : _home),
+                  onClose: () => _select(_previous),
                 ),
               ),
           ],
         ),
-        _selected == _reels
-            ? VideoExploreTab(onCreate: () => _compose(FeedComposeMode.reel))
-            : const SizedBox.shrink(),
-        _selected == _profile
-            ? ProfileScreen.withProviders(auth.user.id)
-            : const SizedBox.shrink(),
       ],
     );
     return Scaffold(
@@ -161,8 +179,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 border: Border(top: BorderSide(color: colors.outlineVariant)),
               ),
               child: NavigationBar(
-                selectedIndex: _selected,
-                onDestinationSelected: _destinationSelected,
+                selectedIndex: _navIndex,
+                onDestinationSelected: _select,
                 destinations: _destinations,
               ),
             ),
@@ -184,14 +202,24 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 child: VeyroWordmark(size: 27),
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 6, 14, 15),
+              child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _compose,
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Create a post'),
+                  )),
+            ),
             const Divider(indent: 16, endIndent: 16),
             Expanded(
               child: NavigationRail(
                 extended: true,
                 minExtendedWidth: 208,
                 backgroundColor: colors.surfaceContainerLow,
-                selectedIndex: _selected,
-                onDestinationSelected: _destinationSelected,
+                selectedIndex: _navIndex,
+                onDestinationSelected: _select,
                 useIndicator: true,
                 indicatorColor: colors.primaryContainer,
                 selectedIconTheme:

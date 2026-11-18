@@ -1,3 +1,4 @@
+import 'package:instagram_clone/features/post/domain/entities/post_reaction.dart';
 import 'package:instagram_clone/features/post/data/models/post_comment_model.dart';
 import 'package:instagram_clone/features/post/domain/entities/post_comment.dart';
 import 'package:image_picker/image_picker.dart' show XFile;
@@ -32,6 +33,7 @@ class PostRemoteDataSourceImpl implements PostRemoteDataSource {
     required PostType type,
     required List<XFile> mediaFiles,
     String? description,
+    String? groupId,
   }) async {
     try {
       final text = description?.trim() ?? '';
@@ -62,6 +64,7 @@ class PostRemoteDataSourceImpl implements PostRemoteDataSource {
           .from(SupabaseConstants.postsTable)
           .insert({
             'author_id': authorId,
+            if (groupId != null) 'group_id': groupId,
             'type': type.name,
             'media_urls': mediaUrls,
             'description': text.isEmpty ? null : text,
@@ -70,7 +73,10 @@ class PostRemoteDataSourceImpl implements PostRemoteDataSource {
           .single();
       return PostModel.fromJson(post);
     } on PostgrestException catch (error) {
-      throw ServerException(message: 'Could not create post: ${error.message}');
+      throw ServerException(
+          message: groupId != null && error.code == '42501'
+              ? 'Join the group before publishing here.'
+              : 'Could not publish this post. Try again.');
     } on StorageException catch (error) {
       throw ServerException(
           message: 'Could not upload media: ${error.message}');
@@ -153,15 +159,19 @@ class PostRemoteDataSourceImpl implements PostRemoteDataSource {
   }
 
   @override
-  Future<void> likePost(String postId, String userId) async {
+  Future<void> likePost(String postId, String userId) =>
+      setReaction(postId, PostReaction.like);
+
+  @override
+  Future<void> setReaction(String postId, PostReaction reaction) async {
     try {
-      await supabaseClient
-          .from('likes')
-          .insert({'post_id': postId, 'user_id': userId});
-    } on PostgrestException catch (error) {
-      if (error.code != '23505') {
-        throw ServerException(message: 'Could not like post: ${error.message}');
-      }
+      await supabaseClient.rpc('veyro_react', params: {
+        'p_post_id': postId,
+        'p_reaction': reaction.name,
+      });
+    } on PostgrestException {
+      throw ServerException(
+          message: 'Could not change your reaction. Try again.');
     }
   }
 
@@ -270,7 +280,8 @@ class PostRemoteDataSourceImpl implements PostRemoteDataSource {
     final deleted = await supabaseClient
         .from(SupabaseConstants.postsTable)
         .delete()
-        .match({'id': postId, 'author_id': userId}).select('id');
+        .eq('id', postId)
+        .select('id');
     if (deleted.isEmpty)
       throw ServerException(message: 'Could not delete this post.');
   }

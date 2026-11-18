@@ -14,8 +14,13 @@ enum _PostMenu { open, share, edit, delete }
 class PostHeader extends StatelessWidget {
   final Post post;
   final bool showOpenPost;
+  final bool canModerate;
 
-  const PostHeader({super.key, required this.post, this.showOpenPost = true});
+  const PostHeader(
+      {super.key,
+      required this.post,
+      this.showOpenPost = true,
+      this.canModerate = false});
 
   @override
   Widget build(BuildContext context) {
@@ -69,9 +74,11 @@ class PostHeader extends StatelessWidget {
               final confirmed = await showDialog<bool>(
                   context: context,
                   builder: (context) => AlertDialog(
-                        title: const Text('Delete this post?'),
+                        title: Text(canManage
+                            ? 'Delete this post?'
+                            : 'Remove this group post?'),
                         content: const Text(
-                            'This also removes its comments, likes and saves.'),
+                            'This also removes its comments, reactions and saves.'),
                         actions: [
                           TextButton(
                               onPressed: () => Navigator.pop(context, false),
@@ -82,7 +89,8 @@ class PostHeader extends StatelessWidget {
                         ],
                       ));
               if (confirmed == true && context.mounted)
-                await showPostActionError(context, actions.delete(post));
+                await showPostActionError(
+                    context, actions.delete(post, asGroupOwner: canModerate));
           }
         },
         itemBuilder: (_) => [
@@ -94,9 +102,10 @@ class PostHeader extends StatelessWidget {
           if (canManage && post.shareKind != PostShareKind.repost)
             const PopupMenuItem(
                 value: _PostMenu.edit, child: Text('Edit post')),
-          if (canManage)
-            const PopupMenuItem(
-                value: _PostMenu.delete, child: Text('Delete post')),
+          if (canManage || canModerate)
+            PopupMenuItem(
+                value: _PostMenu.delete,
+                child: Text(canManage ? 'Delete post' : 'Remove from group')),
         ],
       ),
     );

@@ -1,3 +1,4 @@
+import 'package:instagram_clone/features/post/domain/entities/post_reaction.dart';
 import 'package:equatable/equatable.dart';
 import 'package:instagram_clone/features/auth/domain/entities/user.dart'; // For author info
 
@@ -25,6 +26,10 @@ class Post extends Equatable {
   final String? mediaUrl; // Single media URL for convenience
   final String? mediaType; // Media type string
 
+  final PostReaction? viewerReaction;
+  final Map<PostReaction, int> reactionCounts;
+  final String? groupId;
+  final String? groupName;
   final PostShareKind? shareKind;
   final String? sharedPostId;
   final Post? sharedPost;
@@ -53,10 +58,17 @@ class Post extends Equatable {
     this.isSavedByCurrentUser = false,
     this.mediaUrl,
     this.mediaType,
+    this.viewerReaction,
+    this.reactionCounts = const {},
+    this.groupId,
+    this.groupName,
     this.shareKind,
     this.sharedPostId,
     this.sharedPost,
   });
+
+  PostReaction? get myReaction =>
+      viewerReaction ?? (isLikedByCurrentUser ? PostReaction.like : null);
 
   // Alias for compatibility
   User? get author => user;
@@ -79,6 +91,10 @@ class Post extends Equatable {
         isSavedByCurrentUser,
         mediaUrl,
         mediaType,
+        viewerReaction,
+        reactionCounts,
+        groupId,
+        groupName,
         shareKind,
         sharedPostId,
         sharedPost,

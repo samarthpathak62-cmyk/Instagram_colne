@@ -15,13 +15,17 @@ class CreatePostScreen extends StatelessWidget {
   final VoidCallback? onClose;
   final bool reelMode;
   final bool photoMode;
+  final String? groupId;
+  final String? groupName;
 
   const CreatePostScreen(
       {super.key,
       this.onCreated,
       this.onClose,
       this.reelMode = false,
-      this.photoMode = false});
+      this.photoMode = false,
+      this.groupId,
+      this.groupName});
 
   @override
   Widget build(BuildContext context) => BlocProvider<PostBloc>(
@@ -30,7 +34,9 @@ class CreatePostScreen extends StatelessWidget {
             onCreated: onCreated,
             onClose: onClose,
             reelMode: reelMode,
-            photoMode: photoMode),
+            photoMode: photoMode,
+            groupId: groupId,
+            groupName: groupName),
       );
 }
 
@@ -39,12 +45,16 @@ class _Composer extends StatefulWidget {
   final VoidCallback? onClose;
   final bool reelMode;
   final bool photoMode;
+  final String? groupId;
+  final String? groupName;
 
   const _Composer(
       {required this.onCreated,
       required this.onClose,
       required this.reelMode,
-      required this.photoMode});
+      required this.photoMode,
+      this.groupId,
+      this.groupName});
 
   @override
   State<_Composer> createState() => _ComposerState();
@@ -149,6 +159,7 @@ class _ComposerState extends State<_Composer> {
           type: _type,
           mediaFiles: List.of(_media),
           description: _text.text.trim(),
+          groupId: widget.groupId,
         ));
   }
 
@@ -185,11 +196,13 @@ class _ComposerState extends State<_Composer> {
                 onPressed: _sending
                     ? null
                     : widget.onClose ?? () => Navigator.of(context).maybePop()),
-            title: Text(widget.reelMode
-                ? 'New reel'
-                : widget.photoMode
-                    ? 'New photo post'
-                    : 'New post'),
+            title: Text(widget.groupId != null
+                ? 'New group post'
+                : widget.reelMode
+                    ? 'New reel'
+                    : widget.photoMode
+                        ? 'New photo post'
+                        : 'New post'),
             actions: [
               Padding(
                   padding: const EdgeInsetsDirectional.only(end: 12),
@@ -207,6 +220,17 @@ class _ComposerState extends State<_Composer> {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                     children: [
+                      if (widget.groupName != null) ...[
+                        ListTile(
+                          leading: Icon(Icons.groups_outlined,
+                              color: context.veyroColors.primary),
+                          title: Text(widget.groupName!,
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                          subtitle:
+                              const Text('Public group • visible on Veyro'),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
                       Card(
                           margin: EdgeInsets.zero,
                           child: Padding(

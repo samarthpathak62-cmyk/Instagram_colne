@@ -1,3 +1,4 @@
+import 'package:instagram_clone/features/post/domain/entities/post_reaction.dart';
 // lib/features/feed/domain/entities/feed_item.dart
 
 import 'package:equatable/equatable.dart'; // For value equality
@@ -19,6 +20,10 @@ class FeedItem extends Equatable {
   final bool isSaved;
   final List<String> mediaUrls;
   final User user; // The user who posted this item
+  final PostReaction? viewerReaction;
+  final Map<PostReaction, int> reactionCounts;
+  final String? groupId;
+  final String? groupName;
   final PostShareKind? shareKind;
   final String? sharedPostId;
   final Post? sharedPost;
@@ -36,6 +41,10 @@ class FeedItem extends Equatable {
     this.isLiked = false,
     this.isSaved = false,
     this.mediaUrls = const [],
+    this.viewerReaction,
+    this.reactionCounts = const {},
+    this.groupId,
+    this.groupName,
     this.shareKind,
     this.sharedPostId,
     this.sharedPost,
@@ -67,6 +76,10 @@ class FeedItem extends Equatable {
       isLiked: isLiked ?? this.isLiked,
       isSaved: isSaved,
       mediaUrls: mediaUrls,
+      viewerReaction: viewerReaction,
+      reactionCounts: reactionCounts,
+      groupId: groupId,
+      groupName: groupName,
       shareKind: shareKind,
       sharedPostId: sharedPostId,
       sharedPost: sharedPost,
@@ -87,6 +100,10 @@ class FeedItem extends Equatable {
         isLiked,
         isSaved,
         mediaUrls,
+        viewerReaction,
+        reactionCounts,
+        groupId,
+        groupName,
         shareKind,
         sharedPostId,
         sharedPost,
@@ -104,6 +121,10 @@ class FeedItem extends Equatable {
       type: PostType.values.firstWhere((type) => type.name == mediaType,
           orElse: () => PostType.image),
       mediaUrls: mediaUrls,
+      viewerReaction: viewerReaction,
+      reactionCounts: reactionCounts,
+      groupId: groupId,
+      groupName: groupName,
       shareKind: shareKind,
       sharedPostId: sharedPostId,
       sharedPost: sharedPost,

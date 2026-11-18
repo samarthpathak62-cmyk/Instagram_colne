@@ -9,7 +9,7 @@ const db = new PGlite();
 
 async function main() {
   await db.exec(fs.readFileSync('test/fixtures/veyro_social_schema.sql', 'utf8'));
-  for (const suffix of ['_veyro_social_actions.sql', '_veyro_following_rest.sql', '_veyro_post_shares.sql']) {
+  for (const suffix of ['_veyro_social_actions.sql', '_veyro_following_rest.sql', '_veyro_post_shares.sql', '_veyro_groups_and_reactions.sql']) {
     const migration = fs.readdirSync(migrationDir).find((name) => name.endsWith(suffix));
     assert.ok(migration, `Missing migration: ${suffix}`);
     await db.exec(`begin;\n${fs.readFileSync(`${migrationDir}/${migration}`, 'utf8')}\ncommit;`);
@@ -68,7 +68,43 @@ async function main() {
   assert.equal((await db.query('delete from public.posts where id = $1 returning id', [post])).rows.length, 0);
   await viewer(alice);
   assert.equal((await db.query('delete from public.posts where id = $1 returning id', [post])).rows.length, 1);
-  console.log('Social schema: text/media writes, Following, comment ownership, private saves and server-generated activity passed.');
+  const newGroup = 'insert into public.veyro_groups (owner_id, name, category) values ($1, $2, $3) returning id';
+  await assert.rejects(db.query(newGroup, [bob, 'Spoofed group', 'general']), /row-level security/);
+  await assert.rejects(db.query(newGroup, [alice, 'x', 'general']), /check constraint/);
+  const group = (await db.query(newGroup, [alice, 'Street Photography', 'creative'])).rows[0].id;
+  const members = 'select user_id from public.veyro_group_members where group_id = $1 order by user_id';
+  assert.deepEqual((await db.query(members, [group])).rows, [{ user_id: alice }]);
+  const leave = 'delete from public.veyro_group_members where group_id = $1 returning user_id';
+  assert.deepEqual((await db.query(leave, [group])).rows, [], 'Owner cannot leave');
+  const publish = "insert into public.posts (author_id, type, description, group_id) values ($1, 'text', 'Group update', $2) returning id";
+  const join = 'insert into public.veyro_group_members (group_id, user_id) values ($1, $2)';
+  await viewer(bob);
+  await assert.rejects(db.query(publish, [bob, group]), /row-level security/);
+  await assert.rejects(db.query(join, [group, other]), /row-level security/);
+  await db.query(join, [group, bob]);
+  await assert.rejects(db.query(join, [group, bob]), /duplicate key/);
+  const groupPost = (await db.query(publish, [bob, group])).rows[0].id;
+  await assert.rejects(db.query('update public.posts set group_id = null where id = $1', [groupPost]), /cannot move/);
+  assert.equal((await db.query("update public.veyro_groups set name = 'Not allowed' where id = $1 returning id", [group])).rows.length, 0);
+  assert.deepEqual((await db.query(leave, [group])).rows, [{ user_id: bob }]);
+  await assert.rejects(db.query(publish, [bob, group]), /row-level security/);
+  await db.query('insert into public.likes (post_id,user_id) values ($1,$2)', [groupPost, bob]);
+  assert.equal((await db.query('select reaction from public.likes where post_id = $1', [groupPost])).rows[0].reaction, 'like');
+  await viewer(other);
+  assert.equal((await db.query('select id from public.posts where group_id = $1', [group])).rows.length, 1, 'Groups are public');
+  assert.equal((await db.query('delete from public.posts where id = $1 returning id', [groupPost])).rows.length, 0);
+  assert.equal((await db.query("update public.likes set reaction = 'sad' where post_id = $1 returning user_id", [groupPost])).rows.length, 0);
+  await db.query("select public.veyro_react($1, 'love')", [groupPost]);
+  await db.query("select public.veyro_react($1, 'wow')", [groupPost]);
+  await assert.rejects(db.query("select public.veyro_react($1, 'nope')", [groupPost]), /check constraint/);
+  const tally = 'select public.veyro_reaction_counts(p) as counts from public.posts p where id = $1';
+  assert.deepEqual((await db.query(tally, [groupPost])).rows[0].counts, { like: 1, wow: 1 });
+  await db.exec("reset role; set role anon; select set_config('request.jwt.claim.sub', '', false)");
+  await assert.rejects(db.query(members, [group]), /permission denied/);
+  await assert.rejects(db.query("select public.veyro_react($1, 'like')", [groupPost]), /permission denied/);
+  await viewer(alice);
+  assert.equal((await db.query('delete from public.posts where id = $1 returning id', [groupPost])).rows.length, 1, 'Group admins can remove group posts');
+  console.log('Social schema: Following, saves, activity, public group membership/ownership and reaction integrity passed.');
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => db.close());

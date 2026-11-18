@@ -32,6 +32,7 @@ class PostBloc extends Bloc<PostEvent, PostState> {
       type: event.type,
       mediaFiles: event.mediaFiles,
       description: event.description,
+      groupId: event.groupId,
     ));
     result.fold(
       (failure) =>

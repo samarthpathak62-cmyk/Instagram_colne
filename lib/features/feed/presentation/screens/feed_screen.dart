@@ -4,7 +4,7 @@ import 'package:instagram_clone/core/theme/veyro_theme.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:instagram_clone/features/common_widgets/loading_indicator.dart';
 import 'package:instagram_clone/features/common_widgets/user_avatar.dart';
-import 'package:instagram_clone/features/common_widgets/veyro_brand.dart';
+import 'package:instagram_clone/features/common_widgets/veyro_community_cover.dart';
 import 'package:instagram_clone/features/explore/domain/post_topics.dart';
 import 'package:instagram_clone/features/explore/presentation/screens/search_screen.dart';
 import 'package:instagram_clone/features/feed/presentation/bloc/feed_bloc.dart';
@@ -18,7 +18,10 @@ enum FeedComposeMode { post, photo, reel }
 class FeedScreen extends StatefulWidget {
   final ValueChanged<FeedComposeMode> onCompose;
 
-  const FeedScreen({super.key, required this.onCompose});
+  final VoidCallback onGroups;
+
+  const FeedScreen(
+      {super.key, required this.onCompose, required this.onGroups});
 
   @override
   State<FeedScreen> createState() => _FeedScreenState();
@@ -158,6 +161,7 @@ class _FeedScreenState extends State<FeedScreen> {
         ]),
       ),
       const FeedStoriesBar(),
+      const SizedBox(height: 14),
       Card(
         margin: const EdgeInsets.only(bottom: 10),
         clipBehavior: Clip.antiAlias,
@@ -307,29 +311,32 @@ class _FeedScreenState extends State<FeedScreen> {
         Card(
           margin: EdgeInsets.zero,
           clipBehavior: Clip.antiAlias,
-          child: VeyroAtmosphere(
-            rings: true,
+          child: VeyroCommunityCover(
             child: Padding(
               padding: const EdgeInsets.all(18),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const VeyroMark(size: 48),
-                    const SizedBox(height: 8),
-                    Text('Your world,\none feed.',
+                    Text('VEYRO COMMUNITIES',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                            color: VeyroTheme.lavender,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.25)),
+                    const SizedBox(height: 10),
+                    Text('Find your\npeople.',
                         style: theme.textTheme.headlineSmall?.copyWith(
                             color: VeyroTheme.frost,
                             height: 1.16,
                             fontWeight: FontWeight.w800)),
                     const SizedBox(height: 9),
-                    Text('Moments worth sharing.\nConversations worth joining.',
+                    Text('Meet people who share your interests.',
                         style: theme.textTheme.bodySmall?.copyWith(
                             color: VeyroTheme.lavender, height: 1.5)),
                     const SizedBox(height: 14),
                     FilledButton.icon(
-                        onPressed: () => widget.onCompose(FeedComposeMode.post),
-                        icon: const Icon(Icons.add_rounded),
-                        label: const Text('Create a post')),
+                        onPressed: widget.onGroups,
+                        icon: const Icon(Icons.groups_outlined),
+                        label: const Text('Browse groups')),
                   ]),
             ),
           ),

@@ -44,6 +44,67 @@ async function request(route, query, { sub = viewer, method = 'GET', value } = {
   return { status: result.status, data: body ? JSON.parse(body) : null };
 }
 
+async function testCommunity() {
+  const createGroup = (owner_id) => request('/veyro_groups', 'select=id,owner_id,name', {
+    method: 'POST', sub: originalAuthor, value: { owner_id, name: 'Aperture Club', category: 'creative' },
+  });
+  assert.equal((await createGroup(viewer)).status, 403);
+  const created = await createGroup(originalAuthor);
+  assert.equal(created.status, 201, JSON.stringify(created.data));
+  const groupId = created.data.id;
+  const memberProjection = 'id,owner_id,name,members:veyro_group_members(count),membership:veyro_group_members(user_id)';
+  const groupQuery = () => new URLSearchParams({ id: `eq.${groupId}`, select: memberProjection, 'membership.user_id': `eq.${viewer}` });
+  const group = (await request('/veyro_groups', groupQuery())).data[0];
+  assert.deepEqual(group.members, [{ count: 1 }]);
+  assert.deepEqual(group.membership, []);
+  const groupPostSelect = `${modernSelect},group_id,group:veyro_groups(name),reaction_counts:veyro_reaction_counts,liked_by_user:likes(user_id,reaction),saved_by_user:saved_posts(id)`;
+  const publish = () => request('/posts', new URLSearchParams({ select: groupPostSelect }), {
+    method: 'POST', value: { author_id: viewer, group_id: groupId, type: 'text', description: 'Hello to Aperture Club', media_urls: [] },
+  });
+  assert.equal((await publish()).status, 403, 'Posting requires membership');
+  const join = (user_id) => request('/veyro_group_members', 'select=group_id,user_id', {
+    method: 'POST', value: { group_id: groupId, user_id },
+  });
+  assert.equal((await join(originalAuthor)).status, 403);
+  assert.equal((await join(viewer)).status, 201);
+  assert.equal((await join(viewer)).status, 409);
+  const myGroups = groupQuery();
+  myGroups.set('select', memberProjection.replace('membership:veyro_group_members(', 'membership:veyro_group_members!inner('));
+  const member = (await request('/veyro_groups', myGroups)).data[0];
+  assert.deepEqual(member.members, [{ count: 2 }]);
+  assert.deepEqual(member.membership, [{ user_id: viewer }]);
+  assert.deepEqual((await request('/veyro_groups', new URLSearchParams({ select: 'name', name: 'ilike.%aperture%' }))).data, [{ name: 'Aperture Club' }]);
+  const published = await publish();
+  assert.equal(published.status, 201, JSON.stringify(published.data));
+  const id = published.data.id;
+  assert.equal(published.data.group.name, 'Aperture Club');
+  const react = (p_reaction, sub) => request('/rpc/veyro_react', '', { method: 'POST', sub, value: { p_post_id: id, p_reaction } });
+  assert.equal((await react('love')).status, 204);
+  assert.equal((await react('wow')).status, 204);
+  assert.equal((await react('like', originalAuthor)).status, 204);
+  assert.equal((await react('invalid')).status, 400);
+  assert.ok([401, 403, 404].includes((await react('sad', null)).status));
+  const postQuery = new URLSearchParams({
+    select: groupPostSelect, group_id: `eq.${groupId}`, 'liked_by_user.user_id': `eq.${viewer}`, 'saved_by_user.user_id': `eq.${viewer}`,
+  });
+  for (const route of ['/posts', '/veyro_following_feed']) {
+    const listing = await request(route, postQuery);
+    assert.equal(listing.status, 200, `${route}: ${JSON.stringify(listing.data)}`);
+    assert.equal(listing.data.length, 1);
+    assert.equal(listing.data[0].group.name, 'Aperture Club');
+    assert.deepEqual(listing.data[0].reaction_counts, { like: 1, wow: 1 });
+    assert.deepEqual(listing.data[0].liked_by_user, [{ user_id: viewer, reaction: 'wow' }]);
+  }
+  assert.equal((await request('/likes', new URLSearchParams({ post_id: `eq.${id}`, user_id: `eq.${viewer}` }), { method: 'DELETE' })).status, 204);
+  assert.deepEqual((await request('/posts', postQuery)).data[0].reaction_counts, { like: 1 });
+  assert.equal((await request('/veyro_group_members', new URLSearchParams({ group_id: `eq.${groupId}`, user_id: `eq.${viewer}` }), { method: 'DELETE' })).status, 204);
+  assert.deepEqual((await request('/veyro_groups', myGroups)).data, []);
+  assert.equal((await publish()).status, 403);
+  assert.equal((await request('/posts', new URLSearchParams({ id: `eq.${id}` }), { method: 'DELETE', sub: originalAuthor })).status, 204);
+  assert.deepEqual((await request('/posts', postQuery)).data, []);
+  console.log('Group create/join/post/leave, moderator removal, nonmember denial, and one reaction per viewer passed real PostgREST.');
+}
+
 async function main() {
   // Deliberately use the installed APK's exact shape, including its embedded
   // filters, as well as the replacement table-shaped endpoint in new builds.
@@ -100,6 +161,7 @@ async function main() {
   assert.equal(after.source, null);
   console.log('Quote, repost, ownership, undo and original deletion passed real PostgREST.');
   console.log('Private viewer flags, pagination and both Following endpoints passed real PostgREST.');
+  await testCommunity();
 }
 
 main().catch((error) => {

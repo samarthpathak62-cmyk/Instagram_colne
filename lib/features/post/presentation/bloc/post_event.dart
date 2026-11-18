@@ -13,16 +13,18 @@ class CreateNewPost extends PostEvent {
   final PostType type;
   final List<XFile> mediaFiles;
   final String? description;
+  final String? groupId;
 
   const CreateNewPost({
     required this.authorId,
     required this.type,
     required this.mediaFiles,
     this.description,
+    this.groupId,
   });
 
   @override
-  List<Object?> get props => [authorId, type, mediaFiles, description];
+  List<Object?> get props => [authorId, type, mediaFiles, description, groupId];
 }
 
 // Event to load posts for a specific user's profile

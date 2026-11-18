@@ -26,12 +26,15 @@ import '../../features/notifications/di/notification_injection.dart'
 import '../../features/settings/di/settings_injection.dart'
     as settings_injection;
 import '../../features/feed/di/feed_injection.dart' as feed_injection;
+import '../../features/groups/data/group_repository.dart';
 
 final sl = GetIt.instance;
 
 Future<void> init() async {
   // Register Supabase client
   sl.registerLazySingleton<SupabaseClient>(() => Supabase.instance.client);
+
+  sl.registerLazySingleton(() => GroupRepository(sl<SupabaseClient>()));
 
   // Register all features
   auth_injection.initAuth(sl);

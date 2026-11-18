@@ -51,11 +51,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         ...actions,
         if (showDefaultActions) ...[
-          IconButton(
-            tooltip: 'Search',
-            icon: const Icon(Icons.search_rounded),
-            onPressed: () => open(const SearchScreen()),
-          ),
+          if (!isTight || onMessagesTap == null)
+            IconButton(
+              tooltip: 'Search',
+              icon: const Icon(Icons.search_rounded),
+              onPressed: () => open(const SearchScreen()),
+            ),
           if (onMessagesTap != null)
             IconButton(
               tooltip: 'Messages',

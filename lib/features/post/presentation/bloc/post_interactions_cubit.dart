@@ -3,10 +3,12 @@ import 'dart:math' as math;
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:instagram_clone/features/post/domain/entities/post.dart';
+import 'package:instagram_clone/features/post/domain/entities/post_reaction.dart';
 import 'package:instagram_clone/features/post/domain/repositories/post_repository.dart';
 
 class PostInteraction extends Equatable {
   final bool? liked;
+  final PostReaction? reaction;
   final bool? saved;
   final int? commentCount;
   final String? description;
@@ -17,6 +19,7 @@ class PostInteraction extends Equatable {
 
   const PostInteraction({
     this.liked,
+    this.reaction,
     this.saved,
     this.commentCount,
     this.description,
@@ -26,19 +29,41 @@ class PostInteraction extends Equatable {
     this.deleted = false,
   });
 
-  bool isLiked(Post post) => liked ?? post.isLikedByCurrentUser;
+  PostReaction? selectedReaction(Post post) => liked == null
+      ? post.myReaction
+      : liked == true
+          ? reaction ?? PostReaction.like
+          : null;
+  bool isLiked(Post post) => selectedReaction(post) != null;
+  Map<PostReaction, int> tally(Post post) {
+    final amounts = <PostReaction, int>{...post.reactionCounts};
+    if (amounts.isEmpty && post.likeCount > 0)
+      amounts[PostReaction.like] = post.likeCount;
+    final current = selectedReaction(post);
+    final before = post.myReaction;
+    if (current != before) {
+      if (before != null)
+        amounts.update(before, (count) => count - 1, ifAbsent: () => 0);
+      if (current != null)
+        amounts.update(current, (count) => count + 1, ifAbsent: () => 1);
+    }
+    amounts.removeWhere((_, count) => count <= 0);
+    return amounts;
+  }
+
   bool isSaved(Post post) => saved ?? post.isSavedByCurrentUser;
   int likes(Post post) => math.max(
       0,
       post.likeCount +
           (isLiked(post) ? 1 : 0) -
-          (post.isLikedByCurrentUser ? 1 : 0));
+          (post.myReaction != null ? 1 : 0));
   int comments(Post post) => commentCount ?? post.commentCount;
   String text(Post post) =>
       description ?? post.description ?? post.caption ?? '';
 
   PostInteraction copyWith(
           {bool? liked,
+          PostReaction? reaction,
           bool? saved,
           int? commentCount,
           String? description,
@@ -48,6 +73,7 @@ class PostInteraction extends Equatable {
           bool? deleted}) =>
       PostInteraction(
         liked: liked ?? this.liked,
+        reaction: reaction ?? this.reaction,
         saved: saved ?? this.saved,
         commentCount: commentCount ?? this.commentCount,
         description: description ?? this.description,
@@ -60,6 +86,7 @@ class PostInteraction extends Equatable {
   @override
   List<Object?> get props => [
         liked,
+        reaction,
         saved,
         commentCount,
         description,
@@ -85,18 +112,30 @@ class PostInteractionsCubit extends Cubit<Map<String, PostInteraction>> {
     if (!isClosed) emit(Map.unmodifiable({...state, id: change(forPost(id))}));
   }
 
-  Future<String?> toggleLike(Post post, {bool likeOnly = false}) async {
+  Future<String?> toggleLike(Post post, {bool likeOnly = false}) {
+    final selected = forPost(post.id).selectedReaction(post);
+    if (likeOnly && selected != null) return Future.value();
+    return setReaction(post, selected == null ? PostReaction.like : null);
+  }
+
+  Future<String?> setReaction(Post post, PostReaction? next) async {
     final current = forPost(post.id);
-    final wasLiked = current.isLiked(post);
-    if (current.liking || current.deleted || (likeOnly && wasLiked))
-      return null;
-    _patch(post.id, (value) => value.copyWith(liked: !wasLiked, liking: true));
-    final result = await (wasLiked
+    final previous = current.selectedReaction(post);
+    if (current.liking || current.deleted || previous == next) return null;
+    _patch(
+        post.id,
+        (value) =>
+            value.copyWith(liked: next != null, reaction: next, liking: true));
+    final result = await (next == null
         ? repository.unlikePost(post.id, userId)
-        : repository.likePost(post.id, userId));
+        : next == PostReaction.like
+            ? repository.likePost(post.id, userId)
+            : repository.setReaction(post.id, next));
     return result.fold((failure) {
       _patch(
-          post.id, (value) => value.copyWith(liked: wasLiked, liking: false));
+          post.id,
+          (value) => value.copyWith(
+              liked: previous != null, reaction: previous, liking: false));
       return failure.message;
     }, (_) {
       _patch(post.id, (value) => value.copyWith(liking: false));
@@ -147,8 +186,11 @@ class PostInteractionsCubit extends Cubit<Map<String, PostInteraction>> {
     return error;
   }
 
-  Future<String?> delete(Post post) async {
-    if (post.authorId != userId) return 'Only the author can delete this post.';
+  Future<String?> delete(Post post, {bool asGroupOwner = false}) async {
+    if (post.authorId != userId && !(asGroupOwner && post.groupId != null)) {
+      return 'Only the author or a group admin can remove this post.';
+    }
+    // Group moderation is independently checked by the database's row policy.
     final current = forPost(post.id);
     if (current.editing || current.deleted) return null;
     _patch(post.id, (value) => value.copyWith(editing: true));

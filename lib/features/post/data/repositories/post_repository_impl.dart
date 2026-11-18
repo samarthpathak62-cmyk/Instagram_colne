@@ -1,3 +1,4 @@
+import 'package:instagram_clone/features/post/domain/entities/post_reaction.dart';
 import 'package:instagram_clone/features/post/domain/entities/post_comment.dart';
 import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:dartz/dartz.dart';
@@ -77,12 +78,14 @@ class PostRepositoryImpl implements PostRepository {
     required PostType type,
     required List<XFile> mediaFiles,
     String? description,
+    String? groupId,
   }) async {
     return await _handlePostOperation<Post>(() => remoteDataSource.createPost(
           authorId: authorId,
           type: type,
           mediaFiles: mediaFiles,
           description: description,
+          groupId: groupId,
         ));
   }
 
@@ -113,6 +116,12 @@ class PostRepositoryImpl implements PostRepository {
     return await _handleVoidOperation(
         () => remoteDataSource.likePost(postId, userId));
   }
+
+  @override
+  Future<Either<Failure, void>> setReaction(
+          String postId, PostReaction reaction) =>
+      _handleVoidOperation(
+          () => remoteDataSource.setReaction(postId, reaction));
 
   @override
   Future<Either<Failure, void>> unlikePost(String postId, String userId) async {
