@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:instagram_clone/core/error/exceptions.dart';
 import 'package:instagram_clone/core/error/failures.dart';
 import 'package:instagram_clone/features/feed/data/datasources/feed_remote_datasource_impl.dart';
@@ -95,6 +97,63 @@ void main() {
             description: '   '),
         throwsA(isA<ServerException>()));
     expect(requests, 1);
+  });
+
+  test('photo and reel files use the owner folder and attach public media URLs',
+      () async {
+    final paths = <String>[];
+    final client = _client(MockClient((request) async {
+      expect(request.method, 'POST');
+      if (request.url.path.startsWith('/storage/v1/object/post-media/')) {
+        final asset = request.url.path.replaceFirst('/storage/v1/object/', '');
+        expect(asset, startsWith('post-media/$_viewer/'));
+        paths.add(asset);
+        return http.Response(jsonEncode({'Key': asset}), 200,
+            headers: {'content-type': 'application/json'});
+      }
+      expect(request.url.path, '/rest/v1/posts');
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      final urls = body['media_urls'] as List;
+      expect(urls,
+          ['https://example.invalid/storage/v1/object/public/${paths.last}']);
+      return http.Response(jsonEncode({..._row(), ...body}), 201,
+          headers: {'content-type': 'application/json'});
+    }));
+    addTearDown(client.dispose);
+    String b64(Object value) =>
+        base64Url.encode(utf8.encode(jsonEncode(value))).replaceAll('=', '');
+    final exp = DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600;
+    await client.auth.recoverSession(jsonEncode({
+      'access_token':
+          '${b64({'alg': 'HS256'})}.${b64({'sub': _viewer, 'exp': exp})}.test',
+      'expires_in': 3600,
+      'token_type': 'bearer',
+      'refresh_token': 'fixture',
+      'user': {
+        'id': _viewer,
+        'app_metadata': {},
+        'user_metadata': {},
+        'created_at': '2026-11-18T06:00:00Z',
+        'aud': 'authenticated'
+      },
+    }));
+    final remote = PostRemoteDataSourceImpl(supabaseClient: client);
+    for (final pair in [
+      (PostType.image, 'photo.png'),
+      (PostType.video, 'reel.mp4')
+    ]) {
+      final result = await remote.createPost(
+          authorId: _viewer,
+          type: pair.$1,
+          mediaFiles: [
+            XFile.fromData(Uint8List.fromList([1, 2, 3]), name: pair.$2)
+          ],
+          description: 'A media post');
+      expect(result.type, pair.$1);
+    }
+    expect(paths.length, 2);
+    expect(paths.first, endsWith('.png'));
+    expect(paths.last, endsWith('.mp4'));
   });
 
   test('following feed calls the server filter and still projects text posts',

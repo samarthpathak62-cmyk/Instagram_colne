@@ -31,6 +31,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   bool _sending = false;
   final ScrollController _scrollController = ScrollController();
   String? _lastMessageId;
+  List<Message>? _visibleMessages;
 
   @override
   void initState() {
@@ -118,8 +119,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       setState(() => _sending = false);
                       ScaffoldMessenger.of(context)
                           .showSnackBar(SnackBar(content: Text(state.message)));
-                    } else if (state is MessagesLoaded &&
-                        state.messages.isNotEmpty) {
+                    } else if (state is MessagesLoaded) {
+                      _visibleMessages = state.messages;
+                      if (state.messages.isEmpty) return;
                       final last = state.messages.last;
                       if (last.id == _lastMessageId) return;
                       _lastMessageId = last.id;
@@ -135,21 +137,20 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   buildWhen: (_, state) =>
                       state is MessagesLoading ||
                       state is MessagesLoaded ||
-                      (state is ChatError && _lastMessageId == null),
+                      state is ChatError,
                   builder: (context, state) {
-                    if (state is MessagesLoading) {
-                      return const Center(child: CircularProgressIndicator());
-                    } else if (state is MessagesLoaded) {
+                    if (state is MessagesLoaded)
                       return _buildMessagesList(state.messages);
-                    } else if (state is ChatError) {
+                    if (_visibleMessages != null)
+                      return _buildMessagesList(_visibleMessages!);
+                    if (state is ChatError) {
                       return Center(
                           child: TextButton(
                               onPressed: _loadMessages,
                               child: const Text(
                                   'Could not load messages. Retry')));
-                    } else {
-                      return _buildMessagesList([]);
                     }
+                    return const Center(child: CircularProgressIndicator());
                   },
                 ),
               ),
