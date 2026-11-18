@@ -370,6 +370,8 @@ function controls(page) {
       if (name === 'Back' || name === 'Close comments') await page.waitForTimeout(320);
       return;
     }
+    // The picker requires a real browser gesture after the route settles.
+    await page.waitForTimeout(320);
     const box = await element.boundingBox();
     assert.ok(box, `visible bounds for ${name}`);
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);

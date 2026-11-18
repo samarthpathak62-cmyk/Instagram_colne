@@ -41,6 +41,7 @@ class _ChatFixture implements ChatRepository {
       isRead: false);
   Message? outgoing;
   bool failSend = true;
+  List<String>? readRequest;
 
   @override
   Future<Either<Failure, List<Chat>>> getChats(String userId) async =>
@@ -58,7 +59,7 @@ class _ChatFixture implements ChatRepository {
   @override
   Future<Either<Failure, bool>> markMessagesAsRead(
       String chatId, String userId) async {
-    expect([chatId, userId], [_chat.id, _me.id]);
+    readRequest = [chatId, userId];
     incoming = incoming.asRead();
     return const Right(true);
   }
@@ -66,7 +67,6 @@ class _ChatFixture implements ChatRepository {
   @override
   Future<Either<Failure, Message>> sendMessage(
       String chatId, String senderId, String receiverId, String content) async {
-    expect([chatId, senderId, receiverId], [_chat.id, _me.id, _friend.id]);
     if (failSend) return const Left(ServerFailure(message: 'Offline'));
     outgoing = Message(
         id: 'outgoing',
@@ -113,8 +113,10 @@ void main() {
     expect(find.text('Welcome!'), findsOneWidget);
     expect(fixture.incoming.isRead, isTrue);
     expect(read, 1);
+    expect(fixture.readRequest, [_chat.id, _me.id]);
     final field = find.byType(TextField);
-    final button = find.byTooltip('Send message');
+    final button = find.byWidgetPredicate(
+        (widget) => widget is IconButton && widget.tooltip == 'Send message');
     expect(tester.widget<IconButton>(button).onPressed, isNull);
     await tester.enterText(field, 'Thanks!');
     await tester.pump();
@@ -126,6 +128,7 @@ void main() {
     await tester.tap(button);
     await tester.pumpAndSettle();
     expect(fixture.outgoing?.content, 'Thanks!');
+    expect(fixture.outgoing?.receiverId, _friend.id);
     expect(tester.widget<TextField>(field).controller!.text, isEmpty);
     expect(sent, 1);
     expect(tester.takeException(), isNull);

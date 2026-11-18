@@ -147,24 +147,25 @@ async function testMessagingAndActivity() {
   assert.equal(readSecond.status, 200, JSON.stringify(readSecond.data));
   assert.deepEqual((await request('/chats', embed)).data[0].unread, [], 'Outgoing unread replies must not badge the sender');
 
-  const comment = await request('/comments', 'select=id', { method: 'POST', value: {
-    post_id: followedPost, user_id: viewer, content: 'A fixture activity alert',
+  const comment = await request('/comments', 'select=id', { method: 'POST', sub: originalAuthor, value: {
+    post_id: ownPost, user_id: originalAuthor, content: 'A fixture activity alert',
   } });
   assert.equal(comment.status, 201, JSON.stringify(comment.data));
   const activityQuery = new URLSearchParams({
     select: 'id,user_id,actor_id,type,resource_id,is_read,actor:users!notifications_actor_id_fkey(id,username)',
-    user_id: `eq.${originalAuthor}`, resource_id: `eq.${followedPost}`, type: 'eq.comment',
+    user_id: `eq.${viewer}`, resource_id: `eq.${ownPost}`, type: 'eq.comment',
   });
-  const activity = await request('/notifications', activityQuery, { sub: originalAuthor });
+  const activity = await request('/notifications', activityQuery);
   assert.equal(activity.status, 200, JSON.stringify(activity.data));
-  assert.equal(activity.data[0].actor.username, 'bob');
+  assert.equal(activity.data[0].actor.username, 'alice');
   assert.equal(activity.data[0].is_read, false);
   assert.deepEqual((await request('/notifications', activityQuery, { sub: outsider })).data, []);
   const mark = await request('/notifications', `id=eq.${activity.data[0].id}&select=id,is_read`, {
-    sub: originalAuthor, method: 'PATCH', value: { is_read: true },
+    method: 'PATCH', value: { is_read: true },
   });
   assert.equal(mark.status, 200, JSON.stringify(mark.data));
   assert.equal(mark.data.is_read, true);
+  console.log('DM previews, participant-only history, recipient unread state, and private activity passed real PostgREST.');
 }
 
 async function main() {
