@@ -88,8 +88,14 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       content: event.content,
     ));
     result.fold(
-      (failure) => emit(ChatError(message: failure.message)),
-      (message) => _addMessage(message, emit),
+      (failure) {
+        emit(MessageSendFailed(failure.message));
+        _emitMessages(event.chatId, emit);
+      },
+      (message) {
+        emit(MessageSent(message: message));
+        _addMessage(message, emit);
+      },
     );
   }
 

@@ -1,347 +1,315 @@
-import 'package:instagram_clone/core/media/picked_media_preview.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:instagram_clone/features/post/domain/entities/post.dart';
-import 'package:instagram_clone/features/feed/presentation/bloc/feed_bloc.dart';
-import 'package:instagram_clone/features/feed/presentation/bloc/feed_event.dart';
-import 'package:instagram_clone/features/post/presentation/bloc/post_bloc.dart';
 import 'package:instagram_clone/core/di/injection_container.dart' as di;
-import 'package:video_player/video_player.dart';
+import 'package:instagram_clone/core/media/picked_media_preview.dart';
 import 'package:instagram_clone/core/theme/veyro_theme.dart';
+import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:instagram_clone/features/feed/presentation/bloc/feed_bloc.dart';
+import 'package:instagram_clone/features/post/domain/entities/post.dart';
+import 'package:instagram_clone/features/post/presentation/bloc/post_bloc.dart';
+import 'package:video_player/video_player.dart';
 
 class CreatePostScreen extends StatelessWidget {
-  final VoidCallback? onCreated;
+  final ValueChanged<Post>? onCreated;
   final VoidCallback? onClose;
+  final bool reelMode;
 
-  const CreatePostScreen({super.key, this.onCreated, this.onClose});
+  const CreatePostScreen(
+      {super.key, this.onCreated, this.onClose, this.reelMode = false});
 
   @override
-  Widget build(BuildContext context) {
-    return BlocProvider<PostBloc>(
-      create: (_) => di.sl<PostBloc>(),
-      child: _CreatePostScreenContent(onCreated: onCreated, onClose: onClose),
-    );
-  }
+  Widget build(BuildContext context) => BlocProvider<PostBloc>(
+        create: (_) => di.sl<PostBloc>(),
+        child: _Composer(
+            onCreated: onCreated, onClose: onClose, reelMode: reelMode),
+      );
 }
 
-class _CreatePostScreenContent extends StatefulWidget {
-  final VoidCallback? onCreated;
+class _Composer extends StatefulWidget {
+  final ValueChanged<Post>? onCreated;
   final VoidCallback? onClose;
+  final bool reelMode;
 
-  const _CreatePostScreenContent({this.onCreated, this.onClose});
+  const _Composer(
+      {required this.onCreated, required this.onClose, required this.reelMode});
 
   @override
-  State<_CreatePostScreenContent> createState() =>
-      _CreatePostScreenContentState();
+  State<_Composer> createState() => _ComposerState();
 }
 
-class _CreatePostScreenContentState extends State<_CreatePostScreenContent> {
-  final _descriptionController = TextEditingController();
-  final ImagePicker _picker = ImagePicker();
-  final PageController _pageController = PageController();
-
-  List<XFile> _selectedMedia = [];
-  PostType _postType = PostType.image;
-  VideoPlayerController? _videoController;
-  bool _isUploading = false;
-  int _currentMediaIndex = 0;
+class _ComposerState extends State<_Composer> {
+  final _text = TextEditingController();
+  final _picker = ImagePicker();
+  List<XFile> _media = const [];
+  PostType _type = PostType.text;
+  VideoPlayerController? _video;
+  bool _videoFailed = false;
+  bool _picking = false;
+  bool _sending = false;
+  String? _error;
 
   @override
   void dispose() {
-    _descriptionController.dispose();
-    _videoController?.dispose();
-    _pageController.dispose();
+    _text.dispose();
+    _video?.dispose();
     super.dispose();
   }
 
-  Future<void> _pickMedia({required bool isVideo}) async {
-    if (isVideo) {
-      final XFile? video = await _picker.pickVideo(source: ImageSource.gallery);
-      if (video != null && mounted) {
-        setState(() {
-          _selectedMedia = [video];
-          _postType = PostType.video;
-          _currentMediaIndex = 0;
-          _initializeVideoPlayer(video);
-        });
-      }
-    } else {
-      final List<XFile> images = await _picker.pickMultiImage();
-      if (images.isNotEmpty && mounted) {
-        setState(() {
-          _selectedMedia = images;
-          _postType = PostType.image;
-          _currentMediaIndex = 0;
-          _videoController?.dispose();
-          _videoController = null;
-        });
-      }
-    }
-  }
-
-  void _initializeVideoPlayer(XFile file) {
-    _videoController?.dispose();
-    _videoController = pickedVideoController(file)
-      ..initialize().then((_) {
-        if (!mounted) return;
-        setState(() {});
-        _videoController?.play();
-        _videoController?.setLooping(true);
-      });
-  }
-
-  void _uploadPost() {
-    if (_selectedMedia.isEmpty) {
-      _showSnackBar('Please select an image or video first.', isError: true);
-      return;
-    }
-
-    final currentUserState = context.read<AuthBloc>().state;
-    if (currentUserState is Authenticated) {
-      final userId = currentUserState.user.id;
-      context.read<PostBloc>().add(CreateNewPost(
-            authorId: userId,
-            type: _postType,
-            mediaFiles: List<XFile>.of(_selectedMedia),
-            description: _descriptionController.text.trim(),
-          ));
-    }
-  }
-
-  void _resetState() {
+  Future<void> _pick({bool video = false}) async {
+    if (_picking || _sending) return;
+    FocusScope.of(context).unfocus();
     setState(() {
-      _selectedMedia.clear();
-      _descriptionController.clear();
-      _videoController?.dispose();
-      _videoController = null;
-      _isUploading = false;
-      _currentMediaIndex = 0;
+      _picking = true;
+      _error = null;
     });
+    try {
+      final file =
+          video ? await _picker.pickVideo(source: ImageSource.gallery) : null;
+      final files =
+          video ? [if (file != null) file] : await _picker.pickMultiImage();
+      if (!mounted || files.isEmpty) return;
+      if (files.length > 8)
+        throw const FormatException('Select up to eight photos.');
+      for (final file in files) {
+        final size = await file.length();
+        if (size == 0 || size > 50 * 1024 * 1024)
+          throw const FormatException(
+              'Each file needs to be between 1 byte and 50 MB.');
+      }
+      if (!mounted) return;
+      _clearMedia();
+      setState(() {
+        _media = files;
+        _type = video ? PostType.video : PostType.image;
+      });
+      if (video) _previewVideo(files.single);
+    } on FormatException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } catch (_) {
+      if (mounted)
+        setState(
+            () => _error = 'Could not pick this media. Try a different file.');
+    } finally {
+      if (mounted) setState(() => _picking = false);
+    }
   }
 
-  void _showSnackBar(String message, {bool isError = false}) {
-    final colors = context.veyroColors;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      backgroundColor: isError ? colors.errorContainer : null,
-      content: Text(
-        message,
-        style: isError ? TextStyle(color: colors.onErrorContainer) : null,
-      ),
-    ));
+  Future<void> _previewVideo(XFile file) async {
+    final video = pickedVideoController(file);
+    _video = video;
+    try {
+      await video.initialize();
+      if (mounted && _video == video) setState(() {});
+    } catch (_) {
+      if (mounted && _video == video) setState(() => _videoFailed = true);
+    }
+  }
+
+  void _clearMedia() {
+    _video?.dispose();
+    _video = null;
+    _videoFailed = false;
+    _media = const [];
+    _type = PostType.text;
+  }
+
+  bool _canPublish(String text) =>
+      !_sending &&
+      !_picking &&
+      (widget.reelMode
+          ? _type == PostType.video
+          : _media.isNotEmpty || text.trim().isNotEmpty);
+
+  void _publish() {
+    if (!_canPublish(_text.text)) return;
+    final auth = context.read<AuthBloc>().state;
+    if (auth is! Authenticated) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+    context.read<PostBloc>().add(CreateNewPost(
+          authorId: auth.user.id,
+          type: _type,
+          mediaFiles: List.of(_media),
+          description: _text.text.trim(),
+        ));
   }
 
   @override
-  Widget build(BuildContext context) {
-    return BlocListener<PostBloc, PostState>(
-      listener: (context, state) {
-        if (state is PostUploading) {
-          setState(() => _isUploading = true);
-        } else if (state is PostUploadSuccess) {
-          _showSnackBar('Post created successfully!');
-          _resetState();
-          context.read<FeedBloc>().add(const RefreshFeedEvent());
-          widget.onCreated?.call();
-        } else if (state is PostOperationFailure) {
-          _showSnackBar('Failed to create post: ${state.message}',
-              isError: true);
-          setState(() => _isUploading = false);
-        }
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            tooltip: 'Close composer',
-            icon: const Icon(Icons.close_rounded),
-            onPressed: _isUploading
-                ? null
-                : widget.onClose ?? () => Navigator.of(context).maybePop(),
-          ),
-          title: const Text('New post'),
-          bottom: const PreferredSize(
-            preferredSize: Size.fromHeight(1),
-            child: Divider(),
-          ),
-          actions: [
-            Padding(
-              padding: const EdgeInsetsDirectional.only(end: 12),
-              child: FilledButton(
-                onPressed:
-                    _isUploading || _selectedMedia.isEmpty ? null : _uploadPost,
-                child: const Text('Share'),
-              ),
-            ),
-          ],
-        ),
-        body: _isUploading
-            ? const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 14),
-                    Text('Sharing your post…'),
-                  ],
-                ),
-              )
-            : Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 640),
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-                    children: [
-                      _buildMediaPreview(),
-                      if (_selectedMedia.length > 1) _buildMediaIndicator(),
-                      const SizedBox(height: 14),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 8,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: () => _pickMedia(isVideo: false),
-                            icon: const Icon(Icons.photo_library_outlined,
-                                size: 19),
-                            label: const Text('Photos'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: () => _pickMedia(isVideo: true),
-                            icon: const Icon(Icons.videocam_outlined, size: 19),
-                            label: const Text('Video'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 22),
-                      TextField(
-                        controller: _descriptionController,
-                        decoration: const InputDecoration(
-                          labelText: 'Caption',
-                          hintText: 'Write a caption…',
-                          alignLabelWithHint: true,
-                        ),
-                        minLines: 2,
-                        maxLines: 6,
-                        keyboardType: TextInputType.multiline,
-                        textCapitalization: TextCapitalization.sentences,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-      ),
-    );
-  }
-
-  Widget _buildMediaPreview() {
-    final colors = context.veyroColors;
-    if (_selectedMedia.isEmpty) {
-      return Card(
-        margin: EdgeInsets.zero,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: _showMediaSelectionDialog,
-          child: Padding(
-            padding: const EdgeInsets.all(30),
-            child: Column(
-              children: [
-                CircleAvatar(
-                  radius: 31,
-                  backgroundColor: colors.primaryContainer,
-                  foregroundColor: colors.onPrimaryContainer,
-                  child:
-                      const Icon(Icons.add_photo_alternate_outlined, size: 31),
-                ),
-                const SizedBox(height: 16),
-                Text('Add media', style: context.veyroText.titleLarge),
-                const SizedBox(height: 7),
-                Text(
-                  'Choose one or more photos, or a video.',
-                  textAlign: TextAlign.center,
-                  style: context.veyroText.bodySmall,
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: ColoredBox(
-        color: colors.surfaceContainer,
-        child: AspectRatio(
-          aspectRatio: 4 / 3,
-          child: _postType == PostType.image
-              ? PageView.builder(
-                  controller: _pageController,
-                  onPageChanged: (index) =>
-                      setState(() => _currentMediaIndex = index),
-                  itemCount: _selectedMedia.length,
-                  itemBuilder: (context, index) => Image(
-                    image: pickedImageProvider(_selectedMedia[index]),
-                    fit: BoxFit.contain,
-                  ),
-                )
-              : _videoController?.value.isInitialized == true
-                  ? Center(
-                      child: AspectRatio(
-                        aspectRatio: _videoController!.value.aspectRatio,
-                        child: VideoPlayer(_videoController!),
-                      ),
-                    )
-                  : const Center(child: CircularProgressIndicator()),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMediaIndicator() => Padding(
-        padding: const EdgeInsets.only(top: 10),
-        child: Center(
-          child: Text(
-            '${_currentMediaIndex + 1} / ${_selectedMedia.length}',
-            style: context.veyroText.bodySmall,
-          ),
-        ),
-      );
-
-  void _showMediaSelectionDialog() {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Add media', style: context.veyroText.titleLarge),
-              const SizedBox(height: 12),
-              ListTile(
-                leading: Icon(Icons.photo_library_outlined,
-                    color: context.veyroColors.primary),
-                title: const Text('Photos from gallery'),
-                subtitle: const Text('Select one or more photos'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickMedia(isVideo: false);
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.videocam_outlined,
-                    color: context.veyroColors.primary),
-                title: const Text('Video from gallery'),
-                subtitle: const Text('Select a video file'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickMedia(isVideo: true);
-                },
-              ),
+  Widget build(BuildContext context) => BlocListener<PostBloc, PostState>(
+        listener: (context, state) {
+          if (state is PostUploadSuccess) {
+            final wasReel = widget.reelMode;
+            setState(() {
+              _clearMedia();
+              _sending = false;
+              _text.clear();
+            });
+            context.read<FeedCubit>().refresh();
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(wasReel ? 'Reel published' : 'Post published')));
+            if (widget.onCreated != null) {
+              widget.onCreated!(state.newPost);
+            } else {
+              Navigator.of(context).maybePop();
+            }
+          } else if (state is PostOperationFailure) {
+            setState(() {
+              _sending = false;
+              _error = state.message;
+            });
+          }
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+                tooltip: 'Close composer',
+                icon: const Icon(Icons.close_rounded),
+                onPressed: _sending
+                    ? null
+                    : widget.onClose ?? () => Navigator.of(context).maybePop()),
+            title: Text(widget.reelMode ? 'New reel' : 'New post'),
+            actions: [
+              Padding(
+                  padding: const EdgeInsetsDirectional.only(end: 12),
+                  child: ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: _text,
+                    builder: (context, value, _) => FilledButton(
+                        onPressed: _canPublish(value.text) ? _publish : null,
+                        child: const Text('Publish')),
+                  ))
             ],
           ),
+          body: Center(
+              child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 645),
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                    children: [
+                      Card(
+                          margin: EdgeInsets.zero,
+                          child: Padding(
+                              padding: const EdgeInsets.all(18),
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                        widget.reelMode
+                                            ? 'Share a short video'
+                                            : 'What’s on your mind?',
+                                        style: context.veyroText.headlineSmall),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                        widget.reelMode
+                                            ? 'Choose a video up to 50 MB. Add a caption if you like.'
+                                            : 'Write an update, add photos, or share a video.',
+                                        style: context.veyroText.bodyMedium),
+                                    const SizedBox(height: 18),
+                                    TextField(
+                                      controller: _text,
+                                      enabled: !_sending,
+                                      decoration: InputDecoration(
+                                          labelText:
+                                              _media.isEmpty && !widget.reelMode
+                                                  ? 'Post text'
+                                                  : 'Caption (optional)',
+                                          hintText: 'Start writing…',
+                                          alignLabelWithHint: true),
+                                      minLines: 3,
+                                      maxLines: 7,
+                                      maxLength: Post.maxDescriptionLength,
+                                      textCapitalization:
+                                          TextCapitalization.sentences,
+                                    ),
+                                    Wrap(spacing: 8, runSpacing: 8, children: [
+                                      if (!widget.reelMode)
+                                        OutlinedButton.icon(
+                                            onPressed: _picking || _sending
+                                                ? null
+                                                : () => _pick(),
+                                            icon: const Icon(
+                                                Icons.photo_library_outlined,
+                                                size: 19),
+                                            label: const Text('Add photos')),
+                                      OutlinedButton.icon(
+                                          onPressed: _picking || _sending
+                                              ? null
+                                              : () => _pick(video: true),
+                                          icon: const Icon(
+                                              Icons.videocam_outlined,
+                                              size: 19),
+                                          label: const Text('Add video')),
+                                      if (_media.isNotEmpty)
+                                        TextButton.icon(
+                                            onPressed: _picking || _sending
+                                                ? null
+                                                : () => setState(_clearMedia),
+                                            icon: const Icon(
+                                                Icons.close_rounded,
+                                                size: 18),
+                                            label: const Text('Remove media')),
+                                    ]),
+                                    if (_error != null)
+                                      Padding(
+                                          padding:
+                                              const EdgeInsets.only(top: 12),
+                                          child: Text(_error!,
+                                              style: TextStyle(
+                                                  color: context
+                                                      .veyroColors.error))),
+                                    if (_sending || _picking) ...[
+                                      const SizedBox(height: 16),
+                                      const LinearProgressIndicator(),
+                                      const SizedBox(height: 8),
+                                      Text(_sending
+                                          ? 'Publishing…'
+                                          : 'Preparing media…'),
+                                    ],
+                                  ]))),
+                      if (_media.isNotEmpty) ...[
+                        const SizedBox(height: 14),
+                        _preview()
+                      ],
+                    ],
+                  ))),
         ),
-      ),
-    );
+      );
+
+  Widget _preview() {
+    if (_type == PostType.image) {
+      return Wrap(spacing: 6, runSpacing: 6, children: [
+        for (final file in _media)
+          ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image(
+                image: pickedImageProvider(file),
+                width: 100,
+                height: 100,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox.square(
+                    dimension: 100, child: Icon(Icons.broken_image_outlined)),
+              )),
+      ]);
+    }
+    final video = _video;
+    return Card(
+        margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
+        child: AspectRatio(
+          aspectRatio: 16 / 9,
+          child: _videoFailed
+              ? const Center(
+                  child: Text(
+                      'Preview unavailable. MP4 works best across devices.'))
+              : video?.value.isInitialized == true
+                  ? Center(
+                      child: AspectRatio(
+                          aspectRatio: video!.value.aspectRatio,
+                          child: VideoPlayer(video)))
+                  : const Center(child: CircularProgressIndicator()),
+        ));
   }
 }

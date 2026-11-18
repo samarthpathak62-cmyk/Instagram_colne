@@ -1,118 +1,60 @@
-import 'package:instagram_clone/features/post/domain/usecases/like_post.dart';
-import 'package:instagram_clone/features/post/domain/usecases/unlike_post.dart';
-// lib/features/feed/presentation/bloc/feed_bloc.dart
-
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/error/failures.dart'; // Assuming Failure definitions are here
-import '../../domain/usecases/get_feed.dart'; // Assuming GetFeed use case is defined
-import '../../domain/usecases/refresh_feed.dart'; // Assuming RefreshFeed use case is defined
-import '../../../../core/usecase/usecase.dart';
-import '../../domain/entities/feed_item.dart';
-import 'feed_event.dart';
-import 'feed_state.dart';
+import 'package:instagram_clone/features/feed/domain/entities/feed_item.dart';
+import 'package:instagram_clone/features/feed/domain/usecases/get_feed.dart';
+import 'package:instagram_clone/features/feed/presentation/bloc/feed_state.dart';
 
-class FeedBloc extends Bloc<FeedEvent, FeedState> {
+class FeedCubit extends Cubit<FeedState> {
+  static const pageSize = 10;
   final GetFeed _getFeed;
-  final RefreshFeed _refreshFeed;
-  final LikePost _likePost;
-  final UnlikePost _unlikePost;
-  final _pendingLikes = <String>{};
-  bool _fetching = false;
+  int _generation = 0;
+  int _page = 0;
 
-  FeedBloc({
-    required GetFeed getFeed,
-    required RefreshFeed refreshFeed,
-    required LikePost likePost,
-    required UnlikePost unlikePost,
-  })  : _getFeed = getFeed,
-        _refreshFeed = refreshFeed,
-        _likePost = likePost,
-        _unlikePost = unlikePost,
-        super(FeedInitial()) {
-    on<LoadFeed>(_onLoadFeed);
-    on<RefreshFeedEvent>(_onRefreshFeed);
-    on<UpdateFeedPostLikeStatus>(_onUpdateFeedPostLikeStatus);
+  FeedCubit(this._getFeed) : super(const FeedState());
+
+  Future<void> selectTimeline(FeedTimeline timeline) async {
+    if (timeline != state.timeline) await refresh(timeline: timeline);
   }
 
-  Future<void> _onLoadFeed(LoadFeed event, Emitter<FeedState> emit) async {
-    if (_fetching ||
-        (state is FeedLoaded && (state as FeedLoaded).hasReachedMax)) return;
-    _fetching = true;
+  Future<void> refresh({FeedTimeline? timeline}) =>
+      _load(reset: true, timeline: timeline ?? state.timeline);
 
-    final currentState = state;
-    List<FeedItem> oldFeedItems = [];
-    if (currentState is FeedLoaded) {
-      oldFeedItems = currentState.feedItems;
-    }
+  Future<void> loadMore({bool retry = false}) async {
+    if (state.loading || !state.hasMore || (!retry && state.error != null))
+      return;
+    await _load(reset: false, timeline: state.timeline);
+  }
 
-    if (oldFeedItems.isEmpty) emit(FeedLoading());
-
-    final result =
-        await _getFeed(GetFeedParams(page: event.page, limit: event.limit));
-    _fetching = false;
-
+  Future<void> _load(
+      {required bool reset, required FeedTimeline timeline}) async {
+    final request = ++_generation;
+    final existing = reset ? const <FeedItem>[] : state.items;
+    final page = reset ? 0 : _page;
+    emit(FeedState(timeline: timeline, items: existing));
+    final result = await _getFeed(GetFeedParams(
+      page: page,
+      limit: pageSize,
+      following: timeline == FeedTimeline.following,
+    ));
+    if (isClosed || request != _generation) return;
     result.fold(
-      (failure) => emit(FeedError(message: _mapFailureToMessage(failure))),
-      (newFeedItems) {
-        final allFeedItems = oldFeedItems + newFeedItems;
-        emit(FeedLoaded(
-          feedItems: allFeedItems,
-          hasReachedMax: newFeedItems.length < event.limit,
+      (failure) => emit(FeedState(
+          timeline: timeline,
+          items: existing,
+          loading: false,
+          error: failure.message)),
+      (items) {
+        _page = page + 1;
+        final previousIds = existing.map((item) => item.id).toSet();
+        emit(FeedState(
+          timeline: timeline,
+          items: [
+            ...existing,
+            ...items.where((item) => previousIds.add(item.id))
+          ],
+          loading: false,
+          hasMore: items.length == pageSize,
         ));
       },
     );
-  }
-
-  Future<void> _onRefreshFeed(
-      RefreshFeedEvent event, Emitter<FeedState> emit) async {
-    emit(FeedLoading()); // Emit loading state for refresh
-
-    final result = await _refreshFeed(NoParams());
-
-    result.fold(
-      (failure) => emit(FeedError(message: _mapFailureToMessage(failure))),
-      (feedItems) => emit(FeedLoaded(
-          feedItems: feedItems, hasReachedMax: feedItems.length < 10)),
-    );
-  }
-
-  Future<void> _onUpdateFeedPostLikeStatus(
-      UpdateFeedPostLikeStatus event, Emitter<FeedState> emit) async {
-    if (state is! FeedLoaded || !_pendingLikes.add(event.postId)) return;
-    final result = event.isLiked
-        ? await _likePost(
-            LikePostParams(postId: event.postId, userId: event.userId))
-        : await _unlikePost(
-            UnlikePostParams(postId: event.postId, userId: event.userId));
-    _pendingLikes.remove(event.postId);
-    final current = state;
-    if (current is! FeedLoaded) return;
-    result.fold(
-      (failure) => emit(FeedError(message: failure.message)),
-      (_) => emit(current.copyWith(
-          feedItems: current.feedItems.map((item) {
-        return item.id == event.postId
-            ? item.copyWith(
-                isLiked: event.isLiked,
-                likesCount: event.likesCount,
-              )
-            : item;
-      }).toList())),
-    );
-  }
-
-  String _mapFailureToMessage(Failure failure) {
-    switch (failure.runtimeType) {
-      case ServerFailure:
-        return (failure as ServerFailure).message;
-      case CacheFailure:
-        return (failure as CacheFailure).message;
-      case NetworkFailure:
-        return (failure as NetworkFailure).message;
-      case SupabaseFailure:
-        return (failure as SupabaseFailure).message;
-      default:
-        return 'Unexpected error occurred';
-    }
   }
 }

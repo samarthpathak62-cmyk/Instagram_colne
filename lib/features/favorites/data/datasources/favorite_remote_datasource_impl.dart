@@ -15,61 +15,16 @@ class FavoriteRemoteDataSourceImpl implements FavoriteRemoteDataSource {
     try {
       final response = await supabaseClient
           .from(SupabaseConstants.savedPostsTable)
-          .select('*, post:posts(${PostModel.columns})')
+          .select(
+              'id,user_id,post_id,created_at,post:posts(${PostModel.columnsWithViewer})')
+          .eq('post.liked_by_user.user_id', userId)
+          .eq('post.saved_by_user.user_id', userId)
           .eq('user_id', userId)
           .order('created_at', ascending: false);
 
       return response.map(FavoriteModel.fromJson).toList();
     } catch (e) {
       throw ServerException(message: 'Failed to get favorites: $e');
-    }
-  }
-
-  @override
-  Future<String?> getSavedPostId(String userId, String postId) async {
-    try {
-      final response = await supabaseClient
-          .from(SupabaseConstants.savedPostsTable)
-          .select('id')
-          .eq('user_id', userId)
-          .eq('post_id', postId)
-          .maybeSingle();
-
-      return response?['id'] as String?;
-    } catch (e) {
-      throw ServerException(message: 'Failed to check if post is saved: $e');
-    }
-  }
-
-  @override
-  Future<FavoriteModel> savePost(String userId, String postId) async {
-    try {
-      final favoriteData = {
-        'user_id': userId,
-        'post_id': postId,
-      };
-
-      final response = await supabaseClient
-          .from(SupabaseConstants.savedPostsTable)
-          .upsert(favoriteData, onConflict: 'user_id,post_id')
-          .select('*, post:posts(${PostModel.columns})')
-          .single();
-
-      return FavoriteModel.fromJson(response);
-    } catch (e) {
-      throw ServerException(message: 'Failed to save post: $e');
-    }
-  }
-
-  @override
-  Future<void> unsavePost(String favoriteId) async {
-    try {
-      await supabaseClient
-          .from(SupabaseConstants.savedPostsTable)
-          .delete()
-          .eq('id', favoriteId);
-    } catch (e) {
-      throw ServerException(message: 'Failed to unsave post: $e');
     }
   }
 }

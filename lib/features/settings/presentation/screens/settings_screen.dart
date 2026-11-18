@@ -80,7 +80,9 @@ class SettingsScreen extends StatelessWidget {
                     context,
                     'Notifications',
                     SwitchListTile(
-                      title: const Text('Enable notifications'),
+                      title: const Text('In-app activity alerts'),
+                      subtitle: const Text(
+                          'Get new alerts for follows, likes and comments.'),
                       value: settings.notificationsEnabled,
                       onChanged: (value) => bloc.add(
                           UpdateNotificationsEnabledEvent(

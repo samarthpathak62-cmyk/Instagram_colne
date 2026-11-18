@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:instagram_clone/core/constants/app_constants.dart';
@@ -7,6 +8,8 @@ import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:instagram_clone/features/auth/presentation/screens/login_screen.dart';
 import 'package:instagram_clone/features/auth/presentation/screens/splash_screen.dart';
 import 'package:instagram_clone/features/common_widgets/main_navigation_screen.dart';
+import 'package:instagram_clone/features/post/presentation/post_links.dart';
+import 'package:instagram_clone/features/post/presentation/screens/post_detail_screen.dart';
 
 class AppView extends StatelessWidget {
   final ThemeMode themeMode;
@@ -28,7 +31,7 @@ class AppView extends StatelessWidget {
       home: BlocBuilder<AuthBloc, AuthState>(
         builder: (context, state) {
           if (state is Authenticated) {
-            return const MainNavigationScreen();
+            return const _SignedInHome();
           }
           if (state is AuthInitial) {
             return const SplashScreen();
@@ -40,4 +43,29 @@ class AppView extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SignedInHome extends StatefulWidget {
+  const _SignedInHome();
+
+  @override
+  State<_SignedInHome> createState() => _SignedInHomeState();
+}
+
+class _SignedInHomeState extends State<_SignedInHome> {
+  @override
+  void initState() {
+    super.initState();
+    final postId = kIsWeb ? PostLinks.read(Uri.base) : null;
+    if (postId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => PostDetailScreen(postId: postId)));
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => const MainNavigationScreen();
 }

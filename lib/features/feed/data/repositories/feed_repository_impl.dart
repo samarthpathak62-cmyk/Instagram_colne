@@ -15,25 +15,10 @@ class FeedRepositoryImpl implements FeedRepository {
 
   @override
   Future<Either<Failure, List<FeedItem>>> getFeed(
-      {int page = 0, int limit = 10}) async {
+      {int page = 0, int limit = 10, bool following = false}) async {
     try {
-      final result = await remoteDataSource.getFeed(page: page, limit: limit);
-      return Right(result);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(message: e.message));
-    } on SupabaseException catch (e) {
-      return Left(SupabaseFailure(message: e.message, code: e.code));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(message: e.message));
-    } catch (e) {
-      return Left(UnexpectedFailure(message: e.toString()));
-    }
-  }
-
-  @override
-  Future<Either<Failure, List<FeedItem>>> refreshFeed() async {
-    try {
-      final result = await remoteDataSource.refreshFeed();
+      final result = await remoteDataSource.getFeed(
+          page: page, limit: limit, following: following);
       return Right(result);
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message));

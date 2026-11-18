@@ -43,12 +43,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _pickImage() async {
-    final XFile? pickedFile =
-        await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null && mounted) {
-      setState(() {
-        _selectedImage = pickedFile;
-      });
+    try {
+      final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile != null && mounted)
+        setState(() => _selectedImage = pickedFile);
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open the photo picker.')));
     }
   }
 
@@ -202,50 +204,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   return null;
                 }),
                 const SizedBox(height: 8),
-                _buildField(
-                    'Website',
-                    TextEditingController(
-                        text: widget.currentProfile.website ?? ''),
-                    textColor,
-                    enabled: false),
-                const SizedBox(height: 8),
                 _buildField('Bio', _bioController, textColor, maxLines: 2),
                 const SizedBox(height: 8),
-                Divider(color: borderColor),
-                const SizedBox(height: 8),
-                GestureDetector(
-                  onTap: () {},
-                  child: Text('Switch to Professional Account',
-                      style: TextStyle(
-                          color: context.veyroColors.primary,
-                          fontWeight: FontWeight.w500)),
-                ),
-                const SizedBox(height: 16),
-                Text('Private Information',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold, color: textColor)),
-                const SizedBox(height: 8),
-                _buildField(
-                    'Email',
-                    TextEditingController(
-                        text: widget.currentProfile.email ?? ''),
-                    textColor,
-                    enabled: false),
-                const SizedBox(height: 8),
-                _buildField(
-                    'Phone',
-                    TextEditingController(
-                        text: widget.currentProfile.phone ?? ''),
-                    textColor,
-                    enabled: false),
-                const SizedBox(height: 8),
-                _buildField(
-                    'Gender',
-                    TextEditingController(
-                        text: widget.currentProfile.gender ?? ''),
-                    textColor,
-                    enabled: false),
-                const SizedBox(height: 24),
               ],
             ),
           ),

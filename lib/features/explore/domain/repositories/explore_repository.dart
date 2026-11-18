@@ -6,7 +6,7 @@ import 'package:instagram_clone/features/post/domain/entities/post.dart'; // For
 abstract class ExploreRepository {
   // Get posts for the explore grid (e.g., recent public posts)
   Future<Either<Failure, List<Post>>> getExplorePosts(
-      {int limit = 21, int offset = 0});
+      {int limit = 24, int offset = 0, String query = ''});
 
   // Search for users based on a query string
   Future<Either<Failure, List<User>>> searchUsers(String query);

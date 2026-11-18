@@ -7,6 +7,7 @@ import 'package:instagram_clone/features/auth/domain/entities/user.dart';
 import 'package:instagram_clone/features/chat/domain/entities/chat.dart';
 import 'package:instagram_clone/features/chat/presentation/bloc/chat_bloc.dart';
 import 'package:instagram_clone/features/chat/presentation/screens/chat_detail_screen.dart';
+import 'package:instagram_clone/features/chat/presentation/screens/new_message_screen.dart';
 
 class ChatsListScreen extends StatefulWidget {
   final User currentUser;
@@ -38,12 +39,28 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
         .add(SubscribeToChatsEvent(userId: widget.currentUser.id));
   }
 
+  Future<void> _newMessage() async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => NewMessageScreen(currentUser: widget.currentUser)));
+    if (mounted) _loadChats();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n?.messages ?? 'Messages'),
+        actions: [
+          IconButton(
+              tooltip: 'Refresh messages',
+              onPressed: _loadChats,
+              icon: const Icon(Icons.refresh_rounded)),
+          IconButton(
+              tooltip: 'New message',
+              onPressed: _newMessage,
+              icon: const Icon(Icons.edit_square)),
+        ],
       ),
       body: Center(
         child: ConstrainedBox(
@@ -61,6 +78,11 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                 return const Center(child: CircularProgressIndicator());
               } else if (state is ChatsLoaded) {
                 return _buildChatsList(state.chats, l10n);
+              } else if (state is ChatError) {
+                return Center(
+                    child: TextButton(
+                        onPressed: _loadChats,
+                        child: const Text('Could not load chats. Retry')));
               } else {
                 return _buildChatsList([], l10n);
               }
@@ -86,6 +108,10 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
             const SizedBox(height: 14),
             Text(l10n?.noMessages ?? 'No messages',
                 style: context.veyroText.titleMedium),
+            const SizedBox(height: 12),
+            FilledButton(
+                onPressed: _newMessage,
+                child: const Text('Start a conversation')),
           ],
         ),
       );
@@ -130,8 +156,8 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                   ),
                 )
               : null,
-          onTap: () {
-            Navigator.push(
+          onTap: () async {
+            await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => BlocProvider<ChatBloc>(
@@ -141,6 +167,7 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                 ),
               ),
             );
+            if (mounted) _loadChats();
           },
         );
       },

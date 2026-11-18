@@ -7,12 +7,16 @@ import 'package:instagram_clone/features/story/domain/entities/story.dart';
 
 class StoryCirclesWidget extends StatelessWidget {
   final List<Story> stories;
+  final String? ownAvatar;
+  final Set<String> seenItems;
   final VoidCallback? onAddStoryTap;
   final Function(String userId)? onStoryCircleTap;
 
   const StoryCirclesWidget({
     Key? key,
     required this.stories,
+    this.ownAvatar,
+    this.seenItems = const {},
     this.onAddStoryTap,
     this.onStoryCircleTap,
   }) : super(key: key);
@@ -27,13 +31,13 @@ class StoryCirclesWidget extends StatelessWidget {
         itemCount: stories.length +
             (onAddStoryTap != null
                 ? 1
-                : 0), // Add 1 for 'Your Story' if applicable
+                : 0), // Add 1 for 'Add story' if applicable
         itemBuilder: (context, index) {
           if (onAddStoryTap != null && index == 0) {
-            // This is the 'Your Story' item
+            // This is the 'Add story' item
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: GestureDetector(
+              child: InkWell(
                 onTap: onAddStoryTap,
                 child: Column(
                   children: [
@@ -41,8 +45,7 @@ class StoryCirclesWidget extends StatelessWidget {
                       alignment: Alignment.center,
                       children: [
                         UserAvatar(
-                          imageUrl:
-                              null, // Current user's avatar will be here, or a placeholder
+                          imageUrl: ownAvatar,
                           radius: 30,
                         ),
                         Positioned(
@@ -68,7 +71,7 @@ class StoryCirclesWidget extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Your Story',
+                      'Add story',
                       style: Theme.of(context).textTheme.bodySmall,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -83,7 +86,7 @@ class StoryCirclesWidget extends StatelessWidget {
             final story = stories[storyIndex];
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: GestureDetector(
+              child: InkWell(
                 onTap: () => onStoryCircleTap?.call(story.userId),
                 child: Column(
                   children: [
@@ -91,7 +94,8 @@ class StoryCirclesWidget extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: story.isViewed
+                          color: story.items
+                                  .every((item) => seenItems.contains(item.id))
                               ? context.veyroColors.outline
                               : context.veyroColors.primary,
                           width: 3,

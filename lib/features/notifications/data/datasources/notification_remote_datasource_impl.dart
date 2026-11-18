@@ -1,3 +1,4 @@
+import 'package:instagram_clone/core/constants/supabase_constants.dart';
 import 'package:instagram_clone/features/notifications/data/datasources/notification_remote_datasource.dart';
 import 'package:instagram_clone/features/notifications/data/models/notification_model.dart';
 import 'package:instagram_clone/core/error/exceptions.dart';
@@ -25,7 +26,9 @@ class NotificationRemoteDataSourceImpl implements NotificationRemoteDataSource {
     try {
       final response = await supabaseClient
           .from('notifications')
-          .select()
+          .select(
+              'id,user_id,actor_id,type,resource_id,message,is_read,created_at,'
+              'actor:users!notifications_actor_id_fkey(${SupabaseConstants.publicUserColumns})')
           .eq('user_id', userId)
           .order('created_at', ascending: false);
 

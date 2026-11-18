@@ -103,3 +103,10 @@ class NewMessageReceived extends ChatState {
   @override
   List<Object?> get props => [message, allMessages, chatId];
 }
+
+class MessageSendFailed extends ChatState {
+  final String message;
+  const MessageSendFailed(this.message);
+  @override
+  List<Object?> get props => [message];
+}

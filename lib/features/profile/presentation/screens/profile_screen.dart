@@ -1,31 +1,38 @@
-import 'package:instagram_clone/core/theme/veyro_theme.dart';
-import 'package:instagram_clone/features/auth/domain/entities/user.dart';
-import 'package:instagram_clone/features/chat/domain/usecases/get_or_create_chat.dart';
-import 'package:instagram_clone/features/chat/presentation/bloc/chat_bloc.dart';
-import 'package:instagram_clone/features/chat/presentation/screens/chat_detail_screen.dart';
-import 'package:instagram_clone/features/follow/presentation/bloc/follow_bloc.dart';
-import 'package:instagram_clone/features/follow/presentation/widgets/follow_button.dart';
-import 'package:instagram_clone/features/post/presentation/bloc/post_bloc.dart';
-import 'package:instagram_clone/features/profile/presentation/widgets/profile_posts_grid.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:instagram_clone/core/di/injection_container.dart';
+import 'package:instagram_clone/core/theme/veyro_theme.dart';
+import 'package:instagram_clone/features/auth/domain/entities/user.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:instagram_clone/features/profile/presentation/bloc/profile_bloc.dart';
-import 'package:instagram_clone/features/profile/presentation/screens/edit_profile_screen.dart'; // To be created
-import 'package:instagram_clone/features/settings/presentation/screens/settings_screen.dart';
+import 'package:instagram_clone/features/chat/domain/usecases/get_or_create_chat.dart';
+import 'package:instagram_clone/features/chat/presentation/bloc/chat_bloc.dart';
+import 'package:instagram_clone/features/chat/presentation/screens/chat_detail_screen.dart';
 import 'package:instagram_clone/features/common_widgets/app_bar.dart';
-import 'package:cached_network_image/cached_network_image.dart'; // For network images
+import 'package:instagram_clone/features/common_widgets/error_widget.dart';
+import 'package:instagram_clone/features/common_widgets/user_avatar.dart';
+import 'package:instagram_clone/features/follow/presentation/bloc/follow_bloc.dart';
+import 'package:instagram_clone/features/follow/presentation/screens/follow_list_screen.dart';
+import 'package:instagram_clone/features/follow/presentation/widgets/follow_button.dart';
+import 'package:instagram_clone/features/post/domain/entities/post.dart';
+import 'package:instagram_clone/features/post/presentation/bloc/post_bloc.dart';
+import 'package:instagram_clone/features/post/presentation/bloc/post_interactions_cubit.dart';
+import 'package:instagram_clone/features/post/presentation/widgets/post_grid_item.dart';
+import 'package:instagram_clone/features/profile/domain/entities/profile.dart';
+import 'package:instagram_clone/features/profile/presentation/bloc/profile_bloc.dart';
+import 'package:instagram_clone/features/profile/presentation/screens/edit_profile_screen.dart';
+import 'package:instagram_clone/features/settings/presentation/screens/settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  final String userId; // ID of the profile to display
+  final String userId;
 
   const ProfileScreen({required this.userId, super.key});
 
   static Widget withProviders(String userId) => MultiBlocProvider(
         providers: [
-          BlocProvider<ProfileBloc>(create: (_) => sl<ProfileBloc>()),
-          BlocProvider<PostBloc>(
+          BlocProvider(
+              create: (_) =>
+                  sl<ProfileBloc>()..add(LoadProfile(userId: userId))),
+          BlocProvider(
               create: (_) =>
                   sl<PostBloc>()..add(LoadUserPosts(userId: userId))),
         ],
@@ -37,33 +44,24 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // Load the profile when the screen initializes
-    context.read<ProfileBloc>().add(LoadProfile(userId: widget.userId));
-  }
-
   bool _openingChat = false;
+  PostType? _filter;
 
   Future<void> _openChat(User viewer) async {
     if (_openingChat) return;
     setState(() => _openingChat = true);
     final result = await sl<GetOrCreateChat>()(GetOrCreateChatParams(
-      currentUserId: viewer.id,
-      otherUserId: widget.userId,
-    ));
+        currentUserId: viewer.id, otherUserId: widget.userId));
     if (!mounted) return;
     setState(() => _openingChat = false);
     result.fold(
       (failure) => ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(failure.message))),
-      (chat) => Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => BlocProvider<ChatBloc>(
-          create: (_) => sl<ChatBloc>(),
-          child: ChatDetailScreen(chat: chat, currentUser: viewer),
-        ),
-      )),
+      (chat) => Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => BlocProvider(
+                create: (_) => sl<ChatBloc>(),
+                child: ChatDetailScreen(chat: chat, currentUser: viewer),
+              ))),
     );
   }
 
@@ -71,201 +69,226 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final bloc = context.read<ProfileBloc>();
     final state = bloc.state;
     if (state is! ProfileLoaded) return;
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => BlocProvider.value(
-        value: bloc,
-        child: EditProfileScreen(currentProfile: state.profile),
-      ),
-    ));
+    Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => BlocProvider.value(
+              value: bloc,
+              child: EditProfileScreen(currentProfile: state.profile),
+            )));
+  }
+
+  void _reloadProfile() =>
+      context.read<ProfileBloc>().add(LoadProfile(userId: widget.userId));
+  void _reloadPosts() =>
+      context.read<PostBloc>().add(LoadUserPosts(userId: widget.userId));
+
+  Future<void> _refresh() async {
+    final result = context
+        .read<ProfileBloc>()
+        .stream
+        .firstWhere((state) => state is ProfileLoaded || state is ProfileError);
+    _reloadPosts();
+    _reloadProfile();
+    await result;
+  }
+
+  Future<void> _connections(FollowListType type) async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) =>
+            FollowListScreen(userId: widget.userId, initialListType: type)));
+    if (mounted) _reloadProfile();
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthBloc>().state;
     final viewer = auth is Authenticated ? auth.user : null;
-    final isOwnProfile = viewer?.id == widget.userId;
-    final profileState = context.watch<ProfileBloc>().state;
-
+    final isOwn = viewer?.id == widget.userId;
+    final state = context.watch<ProfileBloc>().state;
     return Scaffold(
       appBar: CustomAppBar(
-        title: profileState is ProfileLoaded
-            ? profileState.profile.username
-            : 'Profile',
-        actions: [
-          if (isOwnProfile)
-            IconButton(
-              tooltip: 'Edit profile',
-              icon: const Icon(Icons.edit_outlined),
-              onPressed: _editProfile,
-            ),
-          if (isOwnProfile)
-            IconButton(
-              tooltip: 'Settings',
-              icon: const Icon(Icons.settings_outlined),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => SettingsScreen(userId: widget.userId),
-                  ),
-                );
-              },
-            ),
-          if (isOwnProfile)
-            IconButton(
-              tooltip: 'Log out',
-              icon: const Icon(Icons.logout_rounded),
-              onPressed: () {
-                context.read<AuthBloc>().add(AuthLogoutRequested());
-              },
-            ),
-        ],
+        title:
+            state is ProfileLoaded ? '@${state.profile.username}' : 'Profile',
         showDefaultActions: false,
+        actions: [
+          IconButton(
+              tooltip: 'Refresh profile',
+              onPressed: state is ProfileLoading ? null : _refresh,
+              icon: const Icon(Icons.refresh_rounded)),
+          if (isOwn) ...[
+            IconButton(
+                tooltip: 'Settings',
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                        builder: (_) =>
+                            SettingsScreen(userId: widget.userId)))),
+            IconButton(
+                tooltip: 'Log out',
+                icon: const Icon(Icons.logout_rounded),
+                onPressed: () =>
+                    context.read<AuthBloc>().add(AuthLogoutRequested())),
+          ],
+        ],
       ),
-      body: BlocBuilder<ProfileBloc, ProfileState>(
-        builder: (context, state) {
-          if (state is ProfileLoading) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (state is ProfileLoaded) {
-            final profile = state.profile;
-            return RefreshIndicator(
-              onRefresh: () async {
-                final profileBloc = context.read<ProfileBloc>();
-                final postsBloc = context.read<PostBloc>();
-                profileBloc.add(LoadProfile(userId: widget.userId));
-                postsBloc.add(LoadUserPosts(userId: widget.userId));
-                await profileBloc.stream
-                    .firstWhere((state) => state is! ProfileLoading);
-              },
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 40,
-                          backgroundImage: profile.profileImageUrl != null
-                              ? CachedNetworkImageProvider(
-                                  profile.profileImageUrl!)
-                              : null,
-                          child: profile.profileImageUrl == null
-                              ? const Icon(Icons.person, size: 40)
-                              : null,
-                        ),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              _buildStatColumn('Posts', profile.postCount),
-                              _buildStatColumn(
-                                  'Followers', profile.followerCount),
-                              _buildStatColumn(
-                                  'Following', profile.followingCount),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (profile.fullName != null &&
-                            profile.fullName!.isNotEmpty)
-                          Text(profile.fullName!,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold)),
-                        if (profile.bio != null && profile.bio!.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4.0),
-                            child: Text(profile.bio!),
-                          ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 8.0, horizontal: 16.0),
-                    child: Row(
-                      children: [
-                        if (isOwnProfile)
-                          Expanded(
-                              child: OutlinedButton(
-                                  onPressed: _editProfile,
-                                  child: const Text('Edit Profile'))),
-                        if (!isOwnProfile && viewer != null) ...[
-                          Expanded(
-                              child: BlocProvider<FollowBloc>(
-                            create: (_) => sl<FollowBloc>(),
-                            child: FollowButton(targetUserId: widget.userId),
-                          )),
-                          const SizedBox(width: 8),
-                          Expanded(
-                              child: OutlinedButton(
-                            onPressed:
-                                _openingChat ? null : () => _openChat(viewer),
-                            child: const Text('Message'),
-                          )),
-                        ],
-                      ],
-                    ),
-                  ),
-                  // تبويبات (شبكة، فيديو، إلخ)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: const [
-                        Icon(Icons.grid_on, size: 28),
-                        Icon(Icons.video_collection_outlined, size: 28),
-                        Icon(Icons.person_pin_outlined, size: 28),
-                      ],
-                    ),
-                  ),
-                  Expanded(child: BlocBuilder<PostBloc, PostState>(
-                    builder: (context, state) {
-                      if (state is PostsLoaded)
-                        return ProfilePostsGrid(posts: state.posts);
-                      if (state is PostsLoadFailure)
-                        return Center(child: Text(state.message));
-                      return const Center(child: CircularProgressIndicator());
-                    },
-                  )),
-                ],
-              ),
-            );
-          } else if (state is ProfileError) {
-            return Center(
-                child: Text('Failed to load profile: ${state.message}'));
-          } else {
-            return const Center(child: Text('Loading profile...'));
-          }
-        },
-      ),
+      body: state is ProfileLoaded && viewer != null
+          ? Center(
+              child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 780),
+                  child: _body(state.profile, viewer, isOwn)))
+          : state is ProfileError
+              ? CustomErrorWidget(
+                  message: state.message, onRetry: _reloadProfile)
+              : const Center(child: CircularProgressIndicator()),
     );
   }
 
-  Column _buildStatColumn(String label, int number) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          number.toString(),
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        Container(
-          margin: const EdgeInsets.only(top: 4),
-          child: Text(
-            label,
-            style: context.veyroText.bodySmall?.copyWith(fontSize: 13),
-          ),
-        ),
-      ],
-    );
+  Widget _body(Profile profile, User viewer, bool isOwn) {
+    final postsState = context.watch<PostBloc>().state;
+    final local = context.watch<PostInteractionsCubit>().state;
+    final all = postsState is PostsLoaded
+        ? postsState.posts
+            .where((post) => local[post.id]?.deleted != true)
+            .toList()
+        : const <Post>[];
+    final posts = _filter == null
+        ? all
+        : all.where((post) => post.type == _filter).toList();
+    return RefreshIndicator(
+        onRefresh: _refresh,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+                child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Card(
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(children: [
+                              UserAvatar(
+                                  imageUrl: profile.profileImageUrl,
+                                  radius: 33),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                  child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                    Text(
+                                        profile.fullName?.isNotEmpty == true
+                                            ? profile.fullName!
+                                            : profile.username,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: context.veyroText.titleLarge),
+                                    Text('@${profile.username}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: context.veyroText.bodySmall),
+                                  ])),
+                            ]),
+                            if (profile.bio?.isNotEmpty == true) ...[
+                              const SizedBox(height: 12),
+                              Text(profile.bio!)
+                            ],
+                            const SizedBox(height: 9),
+                            Wrap(
+                                spacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6),
+                                      child: Text(
+                                          '${postsState is PostsLoaded ? all.length : profile.postCount} posts',
+                                          style: context.veyroText.labelLarge)),
+                                  TextButton(
+                                      onPressed: () => _connections(
+                                          FollowListType.followers),
+                                      child: Text(
+                                          '${profile.followerCount} followers')),
+                                  TextButton(
+                                      onPressed: () => _connections(
+                                          FollowListType.following),
+                                      child: Text(
+                                          '${profile.followingCount} following')),
+                                ]),
+                            const SizedBox(height: 6),
+                            Wrap(spacing: 8, runSpacing: 6, children: [
+                              if (isOwn)
+                                OutlinedButton.icon(
+                                    onPressed: _editProfile,
+                                    icon: const Icon(Icons.edit_outlined,
+                                        size: 18),
+                                    label: const Text('Edit Profile'))
+                              else ...[
+                                BlocProvider(
+                                    create: (_) => sl<FollowBloc>(),
+                                    child: FollowButton(
+                                        targetUserId: widget.userId,
+                                        onChanged: _reloadProfile)),
+                                OutlinedButton.icon(
+                                    onPressed: _openingChat
+                                        ? null
+                                        : () => _openChat(viewer),
+                                    icon: const Icon(
+                                        Icons.chat_bubble_outline_rounded,
+                                        size: 18),
+                                    label: const Text('Message')),
+                              ],
+                            ]),
+                          ]))),
+            )),
+            SliverToBoxAdapter(
+                child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: Wrap(spacing: 8, runSpacing: 5, children: [
+                      for (final option in [
+                        null,
+                        PostType.image,
+                        PostType.video,
+                        PostType.text
+                      ])
+                        ChoiceChip(
+                            selected: _filter == option,
+                            onSelected: (_) => setState(() => _filter = option),
+                            label: Text(switch (option) {
+                              null => 'All posts',
+                              PostType.image => 'Photos',
+                              PostType.video => 'Reels',
+                              PostType.text => 'Text',
+                            })),
+                    ]))),
+            if (postsState is PostsLoaded && posts.isNotEmpty)
+              SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                  sliver: SliverGrid.builder(
+                    gridDelegate:
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: 188,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8),
+                    itemCount: posts.length,
+                    itemBuilder: (context, index) => PostGridItem(
+                        key: ValueKey(posts[index].id), post: posts[index]),
+                  ))
+            else
+              SliverToBoxAdapter(
+                  child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: postsState is PostsLoadFailure
+                    ? CustomErrorWidget(
+                        message: postsState.message, onRetry: _reloadPosts)
+                    : postsState is PostsLoaded
+                        ? const Center(
+                            child: Text('No posts to show here yet.'))
+                        : const Center(child: CircularProgressIndicator()),
+              )),
+          ],
+        ));
   }
 }

@@ -16,6 +16,7 @@ class FeedItem extends Equatable {
   final int likesCount;
   final int commentsCount;
   final bool isLiked;
+  final bool isSaved;
   final List<String> mediaUrls;
   final User user; // The user who posted this item
 
@@ -30,6 +31,7 @@ class FeedItem extends Equatable {
     required this.commentsCount,
     required this.user,
     this.isLiked = false,
+    this.isSaved = false,
     this.mediaUrls = const [],
   });
 
@@ -57,6 +59,7 @@ class FeedItem extends Equatable {
       commentsCount: commentsCount ?? this.commentsCount,
       user: user ?? this.user,
       isLiked: isLiked ?? this.isLiked,
+      isSaved: isSaved,
       mediaUrls: mediaUrls,
     );
   }
@@ -73,6 +76,7 @@ class FeedItem extends Equatable {
         commentsCount,
         user,
         isLiked,
+        isSaved,
         mediaUrls,
       ];
 
@@ -85,7 +89,8 @@ class FeedItem extends Equatable {
       id: id,
       authorId: userId,
       user: user,
-      type: mediaType == 'video' ? PostType.video : PostType.image,
+      type: PostType.values.firstWhere((type) => type.name == mediaType,
+          orElse: () => PostType.image),
       mediaUrls: mediaUrls,
       description: caption,
       caption: caption,
@@ -95,6 +100,7 @@ class FeedItem extends Equatable {
       likesCount: likesCount,
       commentsCount: commentsCount,
       isLikedByCurrentUser: isLiked,
+      isSavedByCurrentUser: isSaved,
       mediaUrl: mediaUrl,
       mediaType: mediaType,
     );

@@ -1,9 +1,10 @@
 import 'package:equatable/equatable.dart';
 import 'package:instagram_clone/features/auth/domain/entities/user.dart'; // For author info
 
-enum PostType { image, video }
+enum PostType { image, video, text }
 
 class Post extends Equatable {
+  static const maxDescriptionLength = 500;
   final String id;
   final String authorId;
   final User? user; // Changed from author to user to match code expectations
@@ -18,6 +19,7 @@ class Post extends Equatable {
   final int likesCount; // Added to match code expectations
   final int commentsCount; // Added to match code expectations
   final bool isLikedByCurrentUser; // Specific to the viewing user
+  final bool isSavedByCurrentUser;
   final String? mediaUrl; // Single media URL for convenience
   final String? mediaType; // Media type string
 
@@ -37,6 +39,7 @@ class Post extends Equatable {
     this.likesCount = 0,
     this.commentsCount = 0,
     this.isLikedByCurrentUser = false,
+    this.isSavedByCurrentUser = false,
     this.mediaUrl,
     this.mediaType,
   });
@@ -59,6 +62,7 @@ class Post extends Equatable {
         likesCount,
         commentsCount,
         isLikedByCurrentUser,
+        isSavedByCurrentUser,
         mediaUrl,
         mediaType,
       ];

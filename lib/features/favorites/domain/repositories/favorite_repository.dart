@@ -4,7 +4,4 @@ import 'package:instagram_clone/features/favorites/domain/entities/favorite.dart
 
 abstract class FavoriteRepository {
   Future<Either<Failure, List<Favorite>>> getFavorites(String userId);
-  Future<Either<Failure, String?>> getSavedPostId(String userId, String postId);
-  Future<Either<Failure, Favorite>> savePost(String userId, String postId);
-  Future<Either<Failure, void>> unsavePost(String favoriteId);
 }

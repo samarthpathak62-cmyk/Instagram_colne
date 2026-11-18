@@ -15,6 +15,7 @@ class FeedItemModel extends FeedItem {
     required super.commentsCount,
     required super.user,
     required super.isLiked,
+    required super.isSaved,
     required super.mediaUrls,
   });
 
@@ -29,6 +30,7 @@ class FeedItemModel extends FeedItem {
       createdAt: post.createdAt,
       likesCount: post.likeCount,
       isLiked: post.isLikedByCurrentUser,
+      isSaved: post.isSavedByCurrentUser,
       mediaUrls: post.mediaUrls,
       commentsCount: post.commentCount,
       user: post.author ?? UserModel(id: post.authorId, email: ''),

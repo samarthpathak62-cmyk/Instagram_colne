@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:instagram_clone/core/theme/veyro_theme.dart';
 import 'package:instagram_clone/generated/app_localizations.dart';
+import 'package:instagram_clone/features/post/presentation/post_links.dart';
+import 'package:instagram_clone/features/post/presentation/screens/post_detail_screen.dart';
 import 'package:instagram_clone/features/auth/domain/entities/user.dart';
 import 'package:instagram_clone/features/chat/domain/entities/chat.dart';
 import 'package:instagram_clone/features/chat/domain/entities/message.dart';
@@ -10,11 +12,13 @@ import 'package:instagram_clone/features/chat/presentation/bloc/chat_bloc.dart';
 class ChatDetailScreen extends StatefulWidget {
   final Chat chat;
   final User currentUser;
+  final String? initialMessage;
 
   const ChatDetailScreen({
     Key? key,
     required this.chat,
     required this.currentUser,
+    this.initialMessage,
   }) : super(key: key);
 
   @override
@@ -22,7 +26,9 @@ class ChatDetailScreen extends StatefulWidget {
 }
 
 class _ChatDetailScreenState extends State<ChatDetailScreen> {
-  final TextEditingController _messageController = TextEditingController();
+  late final _messageController =
+      TextEditingController(text: widget.initialMessage);
+  bool _sending = false;
   final ScrollController _scrollController = ScrollController();
   String? _lastMessageId;
 
@@ -59,7 +65,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   void _sendMessage() {
-    if (_messageController.text.trim().isEmpty) return;
+    if (_sending || _messageController.text.trim().isEmpty) return;
+    setState(() => _sending = true);
 
     context.read<ChatBloc>().add(SendMessageEvent(
           chatId: widget.chat.id,
@@ -70,8 +77,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   : widget.chat.user1Id),
           content: _messageController.text.trim(),
         ));
-
-    _messageController.clear();
   }
 
   void _scrollToBottom() {
@@ -91,6 +96,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.chat.otherUser?.username ?? 'Chat'),
+        actions: [
+          IconButton(
+              tooltip: 'Refresh messages',
+              onPressed: _loadMessages,
+              icon: const Icon(Icons.refresh_rounded))
+        ],
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -104,10 +115,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               Expanded(
                 child: BlocConsumer<ChatBloc, ChatState>(
                   listener: (context, state) {
-                    if (state is ChatError) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(state.message)),
-                      );
+                    if (state is MessageSent) {
+                      _messageController.clear();
+                      setState(() => _sending = false);
+                    } else if (state is MessageSendFailed) {
+                      setState(() => _sending = false);
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(SnackBar(content: Text(state.message)));
                     } else if (state is MessagesLoaded &&
                         state.messages.isNotEmpty) {
                       final last = state.messages.last;
@@ -122,11 +136,21 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       });
                     }
                   },
+                  buildWhen: (_, state) =>
+                      state is MessagesLoading ||
+                      state is MessagesLoaded ||
+                      (state is ChatError && _lastMessageId == null),
                   builder: (context, state) {
                     if (state is MessagesLoading) {
                       return const Center(child: CircularProgressIndicator());
                     } else if (state is MessagesLoaded) {
                       return _buildMessagesList(state.messages);
+                    } else if (state is ChatError) {
+                      return Center(
+                          child: TextButton(
+                              onPressed: _loadMessages,
+                              child: const Text(
+                                  'Could not load messages. Retry')));
                     } else {
                       return _buildMessagesList([]);
                     }
@@ -156,6 +180,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       itemBuilder: (context, index) {
         final message = messages[index];
         final isCurrentUser = message.senderId == widget.currentUser.id;
+        final postId = PostLinks.inMessage(message.content);
 
         return Align(
           alignment: isCurrentUser
@@ -180,14 +205,23 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  message.content,
-                  style: TextStyle(
-                    color: isCurrentUser
-                        ? colors.onPrimaryContainer
-                        : colors.onSurface,
+                if (postId != null)
+                  TextButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                            builder: (_) => PostDetailScreen(postId: postId))),
+                    icon: const Icon(Icons.link_rounded),
+                    label: const Text('View shared post'),
+                  )
+                else
+                  Text(
+                    message.content,
+                    style: TextStyle(
+                      color: isCurrentUser
+                          ? colors.onPrimaryContainer
+                          : colors.onSurface,
+                    ),
                   ),
-                ),
                 const SizedBox(height: 4.0),
                 Text(
                   _formatTime(message.timestamp),
@@ -221,6 +255,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             Expanded(
               child: TextField(
                 controller: _messageController,
+                enabled: !_sending,
                 decoration: InputDecoration(hintText: hint),
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => _sendMessage(),
@@ -230,7 +265,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             IconButton.filled(
               tooltip: 'Send message',
               icon: const Icon(Icons.send_rounded, size: 20),
-              onPressed: _sendMessage,
+              onPressed: _sending ? null : _sendMessage,
             ),
           ],
         ),
@@ -239,6 +274,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   String _formatTime(DateTime dateTime) {
+    dateTime = dateTime.toLocal();
     return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 }

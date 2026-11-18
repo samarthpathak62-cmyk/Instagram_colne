@@ -16,7 +16,8 @@ class GetFeed implements UseCase<List<FeedItem>, GetFeedParams> {
 
   @override
   Future<Either<Failure, List<FeedItem>>> call(GetFeedParams params) async {
-    return await repository.getFeed(page: params.page, limit: params.limit);
+    return await repository.getFeed(
+        page: params.page, limit: params.limit, following: params.following);
   }
 }
 
@@ -24,14 +25,16 @@ class GetFeed implements UseCase<List<FeedItem>, GetFeedParams> {
 class GetFeedParams extends Equatable {
   final int page;
   final int limit;
+  final bool following;
 
   const GetFeedParams({
     this.page = 0, // Default to first page
+    this.following = false,
     this.limit = 10, // Default limit per page
   });
 
   @override
-  List<Object?> get props => [page, limit];
+  List<Object?> get props => [page, limit, following];
 
   @override
   bool get stringify => true;

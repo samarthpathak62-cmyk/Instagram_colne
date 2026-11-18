@@ -6,10 +6,9 @@ import 'package:instagram_clone/app.dart';
 import 'package:instagram_clone/core/constants/supabase_constants.dart';
 import 'package:instagram_clone/core/di/injection_container.dart' as di;
 import 'package:instagram_clone/features/feed/presentation/bloc/feed_bloc.dart';
-import 'package:instagram_clone/features/explore/presentation/bloc/explore_bloc.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:instagram_clone/features/notifications/presentation/bloc/notification_bloc.dart';
 import 'package:instagram_clone/features/settings/presentation/bloc/settings_bloc.dart';
+import 'package:instagram_clone/features/post/presentation/bloc/post_interactions_cubit.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 
 Future<void> main() async {
@@ -45,12 +44,12 @@ class MyApp extends StatelessWidget {
           return MultiBlocProvider(
             key: ValueKey(userId),
             providers: [
-              BlocProvider<FeedBloc>(create: (_) => di.sl<FeedBloc>()),
-              BlocProvider<ExploreBloc>(
-                  create: (_) =>
-                      di.sl<ExploreBloc>()..add(const LoadExplorePostsEvent())),
-              BlocProvider<NotificationBloc>(
-                  create: (_) => di.sl<NotificationBloc>()),
+              BlocProvider<PostInteractionsCubit>(
+                create: (_) =>
+                    PostInteractionsCubit(repository: di.sl(), userId: userId),
+              ),
+              BlocProvider<FeedCubit>(
+                  create: (_) => di.sl<FeedCubit>()..refresh()),
               BlocProvider<SettingsBloc>(
                 create: (_) => di.sl<SettingsBloc>()
                   ..add(GetSettingsEvent(userId: userId)),

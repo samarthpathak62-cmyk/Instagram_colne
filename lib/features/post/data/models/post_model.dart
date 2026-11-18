@@ -8,7 +8,8 @@ class PostModel extends Post {
       'id,author_id,type,media_urls,description,caption,created_at,'
       'author:users!posts_author_id_fkey(${SupabaseConstants.publicUserColumns}),'
       'likes(count),comments(count)';
-  static const columnsWithViewer = '$columns,liked_by_user:likes(user_id)';
+  static const columnsWithViewer =
+      '$columns,liked_by_user:likes(user_id),saved_by_user:saved_posts(id)';
 
   const PostModel({
     required super.id,
@@ -24,6 +25,7 @@ class PostModel extends Post {
     super.likesCount,
     super.commentsCount,
     super.isLikedByCurrentUser,
+    super.isSavedByCurrentUser,
     super.mediaUrl,
     super.mediaType,
   });
@@ -54,7 +56,7 @@ class PostModel extends Post {
     // Parse media URLs
     List<String> mediaUrls = [];
     if (json['media_urls'] is List) {
-      mediaUrls = List<String>.from(json['media_urls']);
+      mediaUrls = (json['media_urls'] as List).whereType<String>().toList();
     } else if (json['media_urls'] is String) {
       mediaUrls = [json['media_urls'] as String];
     }
@@ -75,6 +77,8 @@ class PostModel extends Post {
       likesCount: likeCount,
       commentsCount: commentCount,
       isLikedByCurrentUser: isLiked,
+      isSavedByCurrentUser:
+          (json['saved_by_user'] as List?)?.isNotEmpty ?? false,
       mediaUrl: mediaUrls.isNotEmpty ? mediaUrls.first : null,
       mediaType: json['type'] as String?,
     );

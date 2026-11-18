@@ -2,7 +2,4 @@ import 'package:instagram_clone/features/favorites/data/models/favorite_model.da
 
 abstract class FavoriteRemoteDataSource {
   Future<List<FavoriteModel>> getFavorites(String userId);
-  Future<String?> getSavedPostId(String userId, String postId);
-  Future<FavoriteModel> savePost(String userId, String postId);
-  Future<void> unsavePost(String favoriteId);
 }

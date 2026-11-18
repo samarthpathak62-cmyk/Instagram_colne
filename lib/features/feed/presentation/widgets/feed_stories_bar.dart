@@ -8,8 +8,15 @@ import 'package:instagram_clone/features/story/presentation/screens/create_story
 import 'package:instagram_clone/features/story/presentation/screens/story_view_screen.dart';
 import 'package:instagram_clone/features/story/presentation/widgets/story_circles_widget.dart';
 
-class FeedStoriesBar extends StatelessWidget {
+class FeedStoriesBar extends StatefulWidget {
   const FeedStoriesBar({super.key});
+
+  @override
+  State<FeedStoriesBar> createState() => _FeedStoriesBarState();
+}
+
+class _FeedStoriesBarState extends State<FeedStoriesBar> {
+  final _seenItems = <String>{};
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +38,8 @@ class FeedStoriesBar extends StatelessWidget {
               state is StoriesLoaded ? state.stories : const <Story>[];
           return StoryCirclesWidget(
             stories: stories,
+            ownAvatar: auth.user.profileImageUrl,
+            seenItems: _seenItems,
             onAddStoryTap: () async {
               final created =
                   await Navigator.of(context).push<bool>(MaterialPageRoute(
@@ -48,24 +57,18 @@ class FeedStoriesBar extends StatelessWidget {
             onStoryCircleTap: (authorId) {
               final story =
                   stories.firstWhere((story) => story.userId == authorId);
-              final pages = story.items
-                  .map((item) => Story(
-                        id: item.id,
-                        userId: story.userId,
-                        author: story.author,
-                        username: story.username,
-                        userProfileImageUrl: story.userProfileImageUrl,
-                        items: [item],
-                        mediaUrl: item.mediaUrl,
-                        mediaType: item.mediaType.name,
-                        timestamp: item.createdAt,
-                        lastUpdatedAt: item.createdAt,
-                      ))
-                  .toList();
-              if (pages.isEmpty) return;
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => StoryViewScreen(stories: pages),
-              ));
+              if (story.items.isEmpty) return;
+              final firstUnseen = story.items
+                  .indexWhere((item) => !_seenItems.contains(item.id));
+              Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => StoryViewScreen(
+                        story: story,
+                        initialIndex: firstUnseen == -1 ? 0 : firstUnseen,
+                        onSeen: (id) {
+                          if (mounted && !_seenItems.contains(id))
+                            setState(() => _seenItems.add(id));
+                        },
+                      )));
             },
           );
         },

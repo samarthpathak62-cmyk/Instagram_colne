@@ -44,12 +44,22 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     ),
   ];
   int _selected = 0;
+  int _profileRevision = 0;
+  bool _reelMode = false;
+
+  void _compose({bool reel = false}) {
+    if (_reelMode != reel) setState(() => _reelMode = reel);
+    _select(1);
+  }
 
   void _select(int index) {
     if (_selected == index) return;
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _selected = index);
   }
+
+  void _destinationSelected(int index) =>
+      index == 1 ? _compose() : _select(index);
 
   void _openMessages(User user) => Navigator.of(context).push(
         MaterialPageRoute<void>(
@@ -77,12 +87,23 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             title: wide ? 'Home' : null,
             onMessagesTap: () => _openMessages(auth.user),
           ),
-          body: const FeedScreen(),
+          body: TickerMode(
+              enabled: _selected == 0, child: FeedScreen(onCompose: _compose)),
         ),
         CreatePostScreen(
-            onCreated: () => _select(0), onClose: () => _select(0)),
-        const VideoExploreTab(),
-        ProfileScreen.withProviders(auth.user.id),
+          reelMode: _reelMode,
+          onCreated: (_) {
+            setState(() => _profileRevision++);
+            _select(_reelMode ? 2 : 0);
+          },
+          onClose: () => _select(_reelMode ? 2 : 0),
+        ),
+        _selected == 2
+            ? VideoExploreTab(onCreate: () => _compose(reel: true))
+            : const SizedBox.shrink(),
+        KeyedSubtree(
+            key: ValueKey(_profileRevision),
+            child: ProfileScreen.withProviders(auth.user.id)),
       ],
     );
     return Scaffold(
@@ -114,7 +135,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               ),
               child: NavigationBar(
                 selectedIndex: _selected,
-                onDestinationSelected: _select,
+                onDestinationSelected: _destinationSelected,
                 destinations: _destinations,
               ),
             ),
@@ -143,7 +164,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 minExtendedWidth: 208,
                 backgroundColor: colors.surfaceContainerLow,
                 selectedIndex: _selected,
-                onDestinationSelected: _select,
+                onDestinationSelected: _destinationSelected,
                 useIndicator: true,
                 indicatorColor: colors.primaryContainer,
                 selectedIconTheme:

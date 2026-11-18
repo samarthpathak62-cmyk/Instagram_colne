@@ -1,3 +1,4 @@
+import 'package:instagram_clone/features/post/domain/entities/post_comment.dart';
 import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:dartz/dartz.dart';
 import 'package:instagram_clone/core/error/exceptions.dart';
@@ -98,12 +99,6 @@ class PostRepositoryImpl implements PostRepository {
   }
 
   @override
-  Future<Either<Failure, List<Post>>> getFeedPosts(String currentUserId) async {
-    return await _handlePostOperation<List<Post>>(
-        () => remoteDataSource.getFeedPosts(currentUserId));
-  }
-
-  @override
   Future<Either<Failure, void>> likePost(String postId, String userId) async {
     return await _handleVoidOperation(
         () => remoteDataSource.likePost(postId, userId));
@@ -121,4 +116,38 @@ class PostRepositoryImpl implements PostRepository {
     return await _handlePostOperation<List<Post>>(() =>
         remoteDataSource.getVideoExplorePosts(limit: limit, offset: offset));
   }
+
+  @override
+  Future<Either<Failure, CommentPage>> getComments(String postId,
+          {int offset = 0}) =>
+      _handlePostOperation(
+          () => remoteDataSource.getComments(postId, offset: offset));
+
+  @override
+  Future<Either<Failure, PostComment>> addComment(
+          String postId, String userId, String content) =>
+      _handlePostOperation(
+          () => remoteDataSource.addComment(postId, userId, content));
+
+  @override
+  Future<Either<Failure, void>> deleteComment(
+          String commentId, String userId) =>
+      _handleVoidOperation(
+          () => remoteDataSource.deleteComment(commentId, userId));
+
+  @override
+  Future<Either<Failure, void>> setSaved(
+          String postId, String userId, bool saved) =>
+      _handleVoidOperation(
+          () => remoteDataSource.setSaved(postId, userId, saved));
+
+  @override
+  Future<Either<Failure, void>> editPost(
+          String postId, String userId, String description) =>
+      _handleVoidOperation(
+          () => remoteDataSource.editPost(postId, userId, description));
+
+  @override
+  Future<Either<Failure, void>> deletePost(String postId, String userId) =>
+      _handleVoidOperation(() => remoteDataSource.deletePost(postId, userId));
 }
