@@ -3,6 +3,7 @@ name: Android release
 on:
   workflow_dispatch:
   push:
+    branches: [arena/26108c72-instagram-colne]
     tags:
       - "v*"
 
@@ -42,10 +43,34 @@ jobs:
         run: flutter test --no-pub
 
       - name: Build release APK
-        run: flutter build apk --release --no-pub
+        shell: bash
+        run: |
+          if flutter build apk --release --no-pub > "$RUNNER_TEMP/gradle-build.log" 2>&1; then
+            cat "$RUNNER_TEMP/gradle-build.log"
+          else
+            cat "$RUNNER_TEMP/gradle-build.log"
+            chunk=0
+            while IFS= read -r line; do
+              printf '::notice title=gradle-log %04d::%s\n' "$chunk" "$line"
+              chunk=$((chunk + 1))
+            done < <(tail -n 250 "$RUNNER_TEMP/gradle-build.log" | gzip -c | base64 -w0 | fold -w 3500 | awk '1')
+            exit 1
+          fi
 
       - name: Build release App Bundle
-        run: flutter build appbundle --release --no-pub
+        shell: bash
+        run: |
+          if flutter build appbundle --release --no-pub > "$RUNNER_TEMP/gradle-build.log" 2>&1; then
+            cat "$RUNNER_TEMP/gradle-build.log"
+          else
+            cat "$RUNNER_TEMP/gradle-build.log"
+            chunk=0
+            while IFS= read -r line; do
+              printf '::notice title=gradle-log %04d::%s\n' "$chunk" "$line"
+              chunk=$((chunk + 1))
+            done < <(tail -n 250 "$RUNNER_TEMP/gradle-build.log" | gzip -c | base64 -w0 | fold -w 3500 | awk '1')
+            exit 1
+          fi
 
       - name: Upload Android release files
         uses: actions/upload-artifact@v6
