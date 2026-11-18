@@ -69,7 +69,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
-    final subTextColor = isDark ? Colors.white70 : Colors.black87;
     final borderColor = isDark ? Colors.white12 : Colors.black12;
     return Scaffold(
       backgroundColor: isDark ? Colors.black : Colors.white,
