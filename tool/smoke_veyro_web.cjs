@@ -475,7 +475,7 @@ async function testSocial(page, state, name) {
     await changed('Delete post', 'posts', 'DELETE');
     assert.ok(!state.posts.some((post) => post.description.includes('Edited.')));
     await press('Latest');
-    await press('Notifications');
+    await press(/^Notifications\b/);
     await changed('Mark all as read', 'notifications', 'PATCH');
     assert.ok(state.notifications.every((item) => item.is_read));
     await press(/veyro_friend followed you/);
@@ -679,8 +679,10 @@ async function testQuickFlows(page, state, name) {
   const nextActivity = page.waitForResponse(responseFor('notifications', 'GET'), { timeout: 6500 });
   const activity = state.receiveActivity();
   assert.ok((await nextActivity).ok(), 'activity socket prompted a refresh');
+  const unread = state.notifications.filter((item) => !item.is_read).length;
+  await waitFor(new RegExp(`^Notifications ${unread} unread$`));
   await capture(page, `${name}-unread-badges`);
-  await press('Notifications');
+  await press(/^Notifications\b/);
   await waitFor('Mark all as read');
   await capture(page, `${name}-activity`);
   await changed(/veyro_friend commented on your post/, 'notifications', 'PATCH');
@@ -693,8 +695,10 @@ async function testQuickFlows(page, state, name) {
   await press('Back');
   await waitFor('Refresh feed');
 
+  await waitFor('Notifications'); // Marking read cleared the home badge.
   const incoming = state.receiveMessage('A fresh DM from the other account.');
-  await press('Messages');
+  await waitFor(/^Messages 1 unread$/);
+  await press(/^Messages\b/);
   await waitFor(/A fresh DM from the other account/);
   await capture(page, `${name}-inbox`);
   await changed(/A fresh DM from the other account/, 'messages', 'PATCH');
@@ -712,6 +716,7 @@ async function testQuickFlows(page, state, name) {
   await press('Clear search');
   await waitFor(new RegExp(text));
   await press('Back');
+  await waitFor('Messages'); // A sent message doesn't badge its sender.
   await waitFor('Refresh feed');
 
   if (!reelFile) return;
