@@ -62,7 +62,19 @@ def main():
         "followers:followers!followers_following_id_fkey(count),"
         "following:followers!followers_follower_id_fkey(count)",
     )
-    rest("Feed and explore post projection", "posts", POST)
+    rest("Legacy feed and explore post projection", "posts", POST)
+    rest(
+        "Posts with group and reaction information",
+        "posts",
+        f"{POST},group_id,group:veyro_groups(name),reaction_counts:veyro_reaction_counts(reaction,total)",
+    )
+    rest("Public groups directory", "veyro_groups", "id,name,category")
+    get(
+        "Group membership details require sign-in",
+        "/rest/v1/veyro_group_members",
+        {"select": "group_id,user_id", "limit": 0},
+        expected=401,
+    )
     rest(
         "Posts with viewer-like embed",
         "posts",
