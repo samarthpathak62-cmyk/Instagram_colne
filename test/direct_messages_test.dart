@@ -124,6 +124,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.widget<TextField>(field).controller!.text, 'Thanks!');
     expect(sent, 0);
+    expect(find.text('Message not sent. Tap send to retry.'), findsOneWidget);
     fixture.failSend = false;
     await tester.tap(button);
     await tester.pumpAndSettle();

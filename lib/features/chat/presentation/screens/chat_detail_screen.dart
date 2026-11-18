@@ -73,6 +73,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   late final Timer _refreshTimer;
   late final AppLifecycleListener _lifecycle;
   bool _sending = false;
+  bool _sendFailed = false;
   bool _current = false;
   List<Message>? _visibleMessages;
 
@@ -146,7 +147,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   void _send() {
     final content = _attachment ?? _text.text.trim();
     if (_sending || content.isEmpty) return;
-    setState(() => _sending = true);
+    setState(() {
+      _sending = true;
+      _sendFailed = false;
+    });
     context.read<ChatBloc>().add(SendMessageEvent(
         chatId: widget.chat.id,
         senderId: widget.currentUser.id,
@@ -166,9 +170,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         if (mounted && _scroll.hasClients) _scroll.jumpTo(0);
       });
     } else if (state is MessageSendFailed) {
-      setState(() => _sending = false);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Message not sent. Tap send to retry.')));
+      setState(() {
+        _sending = false;
+        _sendFailed = true;
+      });
     } else if (state is MessagesLoaded) {
       _visibleMessages = state.messages;
       _markReadIfVisible();
@@ -359,62 +364,81 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Expanded(
-              child: _attachment == null
-                  ? TextField(
-                      controller: _text,
-                      readOnly: _sending,
-                      minLines: 1,
-                      maxLines: 4,
-                      textCapitalization: TextCapitalization.sentences,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _send(),
-                      decoration: InputDecoration(
-                          hintText: hint,
-                          filled: true,
-                          fillColor: colors.surfaceContainerHigh,
-                          contentPadding: const EdgeInsetsDirectional.fromSTEB(
-                              16, 10, 16, 10),
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(24),
-                              borderSide: BorderSide.none),
-                          enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(24),
-                              borderSide: BorderSide.none),
-                          focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(24),
-                              borderSide: BorderSide(color: colors.primary))))
-                  : Material(
-                      color: colors.surfaceContainer,
-                      borderRadius: BorderRadius.circular(17),
-                      child: ListTile(
-                          dense: true,
-                          leading: const Icon(Icons.link_rounded),
-                          title: const Text('Post attached'),
-                          trailing: IconButton(
-                              tooltip: 'Remove shared post',
-                              icon: const Icon(Icons.close_rounded),
-                              onPressed: _sending
-                                  ? null
-                                  : () =>
-                                      setState(() => _attachment = null))))),
-          const SizedBox(width: 8),
-          ValueListenableBuilder<TextEditingValue>(
-              valueListenable: _text,
-              builder: (context, value, _) => IconButton.filled(
-                    tooltip: _sending ? 'Sending message' : 'Send message',
-                    onPressed: _sending ||
-                            (_attachment == null && value.text.trim().isEmpty)
-                        ? null
-                        : _send,
-                    icon: _sending
-                        ? const SizedBox.square(
-                            dimension: 17,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.send_rounded, size: 19),
-                  )),
-        ]),
+        child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_sendFailed)
+                Padding(
+                    padding:
+                        const EdgeInsetsDirectional.only(start: 5, bottom: 7),
+                    child: Semantics(
+                        liveRegion: true,
+                        child: Text('Message not sent. Tap send to retry.',
+                            style: context.veyroText.bodySmall
+                                ?.copyWith(color: colors.error)))),
+              Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                Expanded(
+                    child: _attachment == null
+                        ? TextField(
+                            controller: _text,
+                            readOnly: _sending,
+                            minLines: 1,
+                            maxLines: 4,
+                            textCapitalization: TextCapitalization.sentences,
+                            textInputAction: TextInputAction.send,
+                            onSubmitted: (_) => _send(),
+                            decoration: InputDecoration(
+                                hintText: hint,
+                                filled: true,
+                                fillColor: colors.surfaceContainerHigh,
+                                contentPadding:
+                                    const EdgeInsetsDirectional.fromSTEB(
+                                        16, 10, 16, 10),
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(24),
+                                    borderSide: BorderSide.none),
+                                enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(24),
+                                    borderSide: BorderSide.none),
+                                focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(24),
+                                    borderSide:
+                                        BorderSide(color: colors.primary))))
+                        : Material(
+                            color: colors.surfaceContainer,
+                            borderRadius: BorderRadius.circular(17),
+                            child: ListTile(
+                                dense: true,
+                                leading: const Icon(Icons.link_rounded),
+                                title: const Text('Post attached'),
+                                trailing: IconButton(
+                                    tooltip: 'Remove shared post',
+                                    icon: const Icon(Icons.close_rounded),
+                                    onPressed: _sending
+                                        ? null
+                                        : () => setState(
+                                            () => _attachment = null))))),
+                const SizedBox(width: 8),
+                ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: _text,
+                    builder: (context, value, _) => IconButton.filled(
+                          tooltip:
+                              _sending ? 'Sending message' : 'Send message',
+                          onPressed: _sending ||
+                                  (_attachment == null &&
+                                      value.text.trim().isEmpty)
+                              ? null
+                              : _send,
+                          icon: _sending
+                              ? const SizedBox.square(
+                                  dimension: 17,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(Icons.send_rounded, size: 19),
+                        )),
+              ]),
+            ]),
       ),
     );
   }
