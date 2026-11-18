@@ -37,8 +37,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(selected, SocialSection.groups);
       await tester.tap(find.byTooltip('Messages'));
-      await tester.tap(
-          width >= 1000 ? find.text('Search Veyro') : find.byTooltip('Search'));
+      await tester.tap(width >= 1000
+          ? find.widgetWithText(TextButton, 'Search Veyro')
+          : find.byTooltip('Search'));
       expect(messages, 1);
       expect(search, 1);
       expect(tester.takeException(), isNull);

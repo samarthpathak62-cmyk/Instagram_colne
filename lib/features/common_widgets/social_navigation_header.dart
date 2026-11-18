@@ -63,12 +63,19 @@ class SocialNavigationHeader extends StatelessWidget {
     );
   }
 
-  Widget _identity(BuildContext context) =>
-      Row(mainAxisSize: MainAxisSize.min, children: [
-        const VeyroMark(size: 36),
-        VeyroWordmark(
-            size: 26, showMark: false, color: context.veyroColors.primary),
-      ]);
+  Widget _identity(BuildContext context) => SizedBox(
+        width: 114,
+        child: Row(children: [
+          const VeyroMark(size: 36),
+          Expanded(
+              child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: VeyroWordmark(
+                      size: 26,
+                      showMark: false,
+                      color: context.veyroColors.primary))),
+        ]),
+      );
 
   Widget _desktop(BuildContext context) => Center(
           child: ConstrainedBox(
@@ -145,14 +152,21 @@ class SocialNavigationHeader extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           if (desktop)
-            FilledButton.icon(
-                onPressed: onCompose,
-                icon: const Icon(Icons.add_rounded, size: 19),
-                label: const Text('Create'),
-                style: FilledButton.styleFrom(
-                    minimumSize: const Size(0, 42),
-                    padding: const EdgeInsets.symmetric(horizontal: 13),
-                    shape: const StadiumBorder()))
+            Flexible(
+                child: FilledButton(
+              onPressed: onCompose,
+              style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 42),
+                  padding: const EdgeInsets.symmetric(horizontal: 13),
+                  shape: const StadiumBorder()),
+              child: const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.add_rounded, size: 19),
+                    SizedBox(width: 6),
+                    Text('Create'),
+                  ])),
+            ))
           else ...[
             circle('Create a post', Icons.add_rounded, onCompose,
                 accented: true),
