@@ -87,6 +87,16 @@ class PostRepositoryImpl implements PostRepository {
   }
 
   @override
+  Future<Either<Failure, Post?>> findRepost(String postId, String userId) =>
+      _handlePostOperation(() => remoteDataSource.findRepost(postId, userId));
+
+  @override
+  Future<Either<Failure, Post>> createShare(String postId, String userId,
+          {String? quote}) =>
+      _handlePostOperation(
+          () => remoteDataSource.createShare(postId, userId, quote: quote));
+
+  @override
   Future<Either<Failure, Post>> getPost(String postId) async {
     return await _handlePostOperation<Post>(
         () => remoteDataSource.getPost(postId));

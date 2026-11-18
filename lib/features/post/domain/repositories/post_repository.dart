@@ -12,6 +12,10 @@ abstract class PostRepository {
     String? description,
   });
 
+  Future<Either<Failure, Post?>> findRepost(String postId, String userId);
+  Future<Either<Failure, Post>> createShare(String postId, String userId,
+      {String? quote});
+
   Future<Either<Failure, Post>> getPost(String postId);
 
   Future<Either<Failure, List<Post>>> getUserPosts(String userId);

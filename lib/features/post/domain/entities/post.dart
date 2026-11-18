@@ -3,6 +3,8 @@ import 'package:instagram_clone/features/auth/domain/entities/user.dart'; // For
 
 enum PostType { image, video, text }
 
+enum PostShareKind { repost, quote }
+
 class Post extends Equatable {
   static const maxDescriptionLength = 500;
   final String id;
@@ -23,7 +25,16 @@ class Post extends Equatable {
   final String? mediaUrl; // Single media URL for convenience
   final String? mediaType; // Media type string
 
-  // Add other fields as needed: location, tags, etc.
+  final PostShareKind? shareKind;
+  final String? sharedPostId;
+  final Post? sharedPost;
+
+  // Plain reposts point the next share at the original. Quotes can themselves
+  // be shared, but previews only render one level.
+  String? get shareTargetId =>
+      shareKind == PostShareKind.repost ? sharedPostId : id;
+  Post? get sharePreview =>
+      shareKind == PostShareKind.repost ? sharedPost : this;
 
   const Post({
     required this.id,
@@ -42,6 +53,9 @@ class Post extends Equatable {
     this.isSavedByCurrentUser = false,
     this.mediaUrl,
     this.mediaType,
+    this.shareKind,
+    this.sharedPostId,
+    this.sharedPost,
   });
 
   // Alias for compatibility
@@ -65,5 +79,8 @@ class Post extends Equatable {
         isSavedByCurrentUser,
         mediaUrl,
         mediaType,
+        shareKind,
+        sharedPostId,
+        sharedPost,
       ];
 }

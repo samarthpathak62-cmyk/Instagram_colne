@@ -11,6 +11,9 @@ abstract class PostRemoteDataSource {
     String? description,
   });
 
+  Future<PostModel?> findRepost(String postId, String userId);
+  Future<PostModel> createShare(String postId, String userId, {String? quote});
+
   Future<PostModel> getPost(String postId);
 
   Future<List<PostModel>> getUserPosts(String userId);

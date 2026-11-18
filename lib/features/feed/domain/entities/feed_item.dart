@@ -19,6 +19,9 @@ class FeedItem extends Equatable {
   final bool isSaved;
   final List<String> mediaUrls;
   final User user; // The user who posted this item
+  final PostShareKind? shareKind;
+  final String? sharedPostId;
+  final Post? sharedPost;
 
   const FeedItem({
     required this.id,
@@ -33,6 +36,9 @@ class FeedItem extends Equatable {
     this.isLiked = false,
     this.isSaved = false,
     this.mediaUrls = const [],
+    this.shareKind,
+    this.sharedPostId,
+    this.sharedPost,
   });
 
   // Copy with method for immutable updates
@@ -61,6 +67,9 @@ class FeedItem extends Equatable {
       isLiked: isLiked ?? this.isLiked,
       isSaved: isSaved,
       mediaUrls: mediaUrls,
+      shareKind: shareKind,
+      sharedPostId: sharedPostId,
+      sharedPost: sharedPost,
     );
   }
 
@@ -78,6 +87,9 @@ class FeedItem extends Equatable {
         isLiked,
         isSaved,
         mediaUrls,
+        shareKind,
+        sharedPostId,
+        sharedPost,
       ];
 
   @override
@@ -92,6 +104,9 @@ class FeedItem extends Equatable {
       type: PostType.values.firstWhere((type) => type.name == mediaType,
           orElse: () => PostType.image),
       mediaUrls: mediaUrls,
+      shareKind: shareKind,
+      sharedPostId: sharedPostId,
+      sharedPost: sharedPost,
       description: caption,
       caption: caption,
       createdAt: createdAt,

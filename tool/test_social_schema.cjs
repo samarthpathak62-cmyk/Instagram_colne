@@ -9,7 +9,7 @@ const db = new PGlite();
 
 async function main() {
   await db.exec(fs.readFileSync('test/fixtures/veyro_social_schema.sql', 'utf8'));
-  for (const suffix of ['_veyro_social_actions.sql', '_veyro_following_rest.sql']) {
+  for (const suffix of ['_veyro_social_actions.sql', '_veyro_following_rest.sql', '_veyro_post_shares.sql']) {
     const migration = fs.readdirSync(migrationDir).find((name) => name.endsWith(suffix));
     assert.ok(migration, `Missing migration: ${suffix}`);
     await db.exec(`begin;\n${fs.readFileSync(`${migrationDir}/${migration}`, 'utf8')}\ncommit;`);

@@ -61,7 +61,7 @@ jobs:
           NODE_PATH="$RUNNER_TEMP/veyro-sql/node_modules" node tool/test_social_schema.cjs
 
   test-postgrest:
-    name: Following on PostgREST
+    name: Live API contract in PostgREST
     runs-on: ubuntu-latest
     env:
       VEYRO_TEST_JWT_SECRET: local-only-veyro-postgrest-fixture-secret
@@ -81,7 +81,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Verify the old APK and the new Following endpoint against PostgREST
+      - name: Verify installed APK, Following and post shares against PostgREST
         env:
           POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
         run: |

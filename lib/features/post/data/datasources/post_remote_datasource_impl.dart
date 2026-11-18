@@ -80,6 +80,55 @@ class PostRemoteDataSourceImpl implements PostRemoteDataSource {
   }
 
   @override
+  Future<PostModel?> findRepost(String postId, String userId) async {
+    try {
+      final row = await _postsForViewer()
+          .eq('share_kind', 'repost')
+          .eq('shared_post_id', postId)
+          .eq('author_id', userId)
+          .maybeSingle();
+      return row == null ? null : PostModel.fromJson(row);
+    } on PostgrestException {
+      throw ServerException(message: 'Could not check this repost. Try again.');
+    }
+  }
+
+  @override
+  Future<PostModel> createShare(String postId, String userId,
+      {String? quote}) async {
+    final text = quote?.trim();
+    if (text != null &&
+        (text.isEmpty || text.runes.length > Post.maxDescriptionLength)) {
+      throw ServerException(message: 'Write 1–500 characters to quote a post.');
+    }
+    try {
+      final row = await supabaseClient
+          .from(SupabaseConstants.postsTable)
+          .insert({
+            'author_id': userId,
+            'type': PostType.text.name,
+            'description': text ?? 'Reposted a post on Veyro.',
+            'media_urls': <String>[],
+            'shared_post_id': postId,
+            'share_kind': text == null ? 'repost' : 'quote',
+          })
+          .select(PostModel.columns)
+          .single();
+      return PostModel.fromJson(row);
+    } on PostgrestException catch (error) {
+      // Another device could have reposted while this menu was open.
+      if (text == null && error.code == '23505') {
+        final existing = await findRepost(postId, userId);
+        if (existing != null) return existing;
+      }
+      throw ServerException(
+          message: error.code == '23503'
+              ? 'The original post is no longer available.'
+              : 'Could not share this post. Try again.');
+    }
+  }
+
+  @override
   Future<PostModel> getPost(String postId) async {
     try {
       final post = await _postsForViewer().eq('id', postId).single();

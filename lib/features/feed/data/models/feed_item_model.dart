@@ -17,6 +17,9 @@ class FeedItemModel extends FeedItem {
     required super.isLiked,
     required super.isSaved,
     required super.mediaUrls,
+    super.shareKind,
+    super.sharedPostId,
+    super.sharedPost,
   });
 
   factory FeedItemModel.fromJson(Map<String, dynamic> json) {
@@ -32,6 +35,9 @@ class FeedItemModel extends FeedItem {
       isLiked: post.isLikedByCurrentUser,
       isSaved: post.isSavedByCurrentUser,
       mediaUrls: post.mediaUrls,
+      shareKind: post.shareKind,
+      sharedPostId: post.sharedPostId,
+      sharedPost: post.sharedPost,
       commentsCount: post.commentCount,
       user: post.author ?? UserModel(id: post.authorId, email: ''),
     );

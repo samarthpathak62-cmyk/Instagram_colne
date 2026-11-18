@@ -4,9 +4,11 @@ import 'package:instagram_clone/features/post/domain/entities/post.dart';
 
 class PostModel extends Post {
   // Shared PostgREST projection for the feed, explore, favorites and detail views.
+  static const _previewColumns =
+      'id,author_id,type,media_urls,description,caption,created_at,share_kind,'
+      'author:users!posts_author_id_fkey(${SupabaseConstants.publicUserColumns})';
   static const columns =
-      'id,author_id,type,media_urls,description,caption,created_at,'
-      'author:users!posts_author_id_fkey(${SupabaseConstants.publicUserColumns}),'
+      '$_previewColumns,shared_post_id,source:veyro_shared_post($_previewColumns),'
       'likes(count),comments(count)';
   static const columnsWithViewer =
       '$columns,liked_by_user:likes(user_id),saved_by_user:saved_posts(id)';
@@ -28,6 +30,9 @@ class PostModel extends Post {
     super.isSavedByCurrentUser,
     super.mediaUrl,
     super.mediaType,
+    super.shareKind,
+    super.sharedPostId,
+    super.sharedPost,
   });
 
   factory PostModel.fromJson(Map<String, dynamic> json) {
@@ -42,6 +47,7 @@ class PostModel extends Post {
     final likeData = json['likes'] as List?;
     final commentData = json['comments'] as List?;
     final authorData = json['author'] as Map<String, dynamic>?;
+    final source = json['source'] as Map<String, dynamic>?;
     final likedByUserList = json['liked_by_user'] as List?;
 
     final likeCount = (likeData != null && likeData.isNotEmpty)
@@ -81,6 +87,13 @@ class PostModel extends Post {
           (json['saved_by_user'] as List?)?.isNotEmpty ?? false,
       mediaUrl: mediaUrls.isNotEmpty ? mediaUrls.first : null,
       mediaType: json['type'] as String?,
+      shareKind: switch (json['share_kind']) {
+        'repost' => PostShareKind.repost,
+        'quote' => PostShareKind.quote,
+        _ => null,
+      },
+      sharedPostId: json['shared_post_id'] as String?,
+      sharedPost: source == null ? null : PostModel.fromJson(source),
     );
   }
 
