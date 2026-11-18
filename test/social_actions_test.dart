@@ -152,7 +152,9 @@ void main() {
           authorId: _viewer,
           type: pair.$1,
           mediaFiles: [
-            XFile.fromData(Uint8List.fromList([1, 2, 3]), name: pair.$2)
+            // Dart IO derives the name from the path; the web uses name.
+            XFile.fromData(Uint8List.fromList([1, 2, 3]),
+                path: pair.$2, name: pair.$2)
           ],
           description: 'A media post');
       expect(result.type, pair.$1);
