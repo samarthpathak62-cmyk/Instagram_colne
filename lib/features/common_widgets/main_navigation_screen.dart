@@ -170,7 +170,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             ),
             const Padding(
               padding: EdgeInsets.fromLTRB(12, 8, 12, 22),
-              child: VeyroTagline(),
+              child: FittedBox(fit: BoxFit.scaleDown, child: VeyroTagline()),
             ),
           ],
         ),

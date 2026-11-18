@@ -58,26 +58,7 @@ class VeyroAuthLayout extends StatelessWidget {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(27),
                           child: wide
-                              ? IntrinsicHeight(
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      const Expanded(
-                                        flex: 11,
-                                        child: _BrandPanel(),
-                                      ),
-                                      VerticalDivider(
-                                        width: 1,
-                                        thickness: 1,
-                                        color: colors.outlineVariant,
-                                      ),
-                                      Expanded(
-                                          flex: 10,
-                                          child: _panel(context, true)),
-                                    ],
-                                  ),
-                                )
+                              ? _wideFrame(context)
                               : Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -98,6 +79,39 @@ class VeyroAuthLayout extends StatelessWidget {
       ),
     );
   }
+
+  // The form sets the height. The artwork fits that space instead of asking
+  // a text field or an expanding render box to estimate its intrinsic height.
+  Widget _wideFrame(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final artWidth = (constraints.maxWidth - 1) * 11 / 21;
+          return Stack(
+            children: [
+              PositionedDirectional(
+                start: 0,
+                width: artWidth,
+                top: 0,
+                bottom: 0,
+                child: const _BrandPanel(),
+              ),
+              PositionedDirectional(
+                start: artWidth,
+                width: 1,
+                top: 0,
+                bottom: 0,
+                child: ColoredBox(color: context.veyroColors.outlineVariant),
+              ),
+              Padding(
+                padding: EdgeInsetsDirectional.only(start: artWidth + 1),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 518),
+                  child: _panel(context, true),
+                ),
+              ),
+            ],
+          );
+        },
+      );
 
   Widget _panel(BuildContext context, bool wide) => ColoredBox(
         color: context.veyroColors.surfaceContainerLow,
@@ -181,33 +195,34 @@ class _BrandPanel extends StatelessWidget {
   Widget build(BuildContext context) => VeyroAtmosphere(
         rings: true,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 34, vertical: 31),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Center(child: VeyroMark(size: 228)),
-              const Center(
-                  child: VeyroWordmark(
-                      size: 64, showMark: false, color: VeyroTheme.frost)),
-              const SizedBox(height: 14),
-              const VeyroTagline(color: VeyroTheme.lavender),
-              const SizedBox(height: 34),
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 290),
-                  child: Text(
-                    AppConstants.appDescription,
-                    style: context.veyroText.bodyMedium?.copyWith(
-                      color: const Color(0xFFD5C6E8),
-                      fontSize: 15,
-                      height: 1.6,
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 25),
+          child: Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: SizedBox(
+                width: 320,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const VeyroMark(size: 228),
+                    const VeyroWordmark(
+                        size: 64, showMark: false, color: VeyroTheme.frost),
+                    const SizedBox(height: 14),
+                    const VeyroTagline(color: VeyroTheme.lavender),
+                    const SizedBox(height: 34),
+                    Text(
+                      AppConstants.appDescription,
+                      style: context.veyroText.bodyMedium?.copyWith(
+                        color: const Color(0xFFD5C6E8),
+                        fontSize: 15,
+                        height: 1.6,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
       );

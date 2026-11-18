@@ -172,6 +172,7 @@ class _FeedScreenState extends State<FeedScreen> {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 27),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const VeyroMark(size: 110),
                 Text(
@@ -189,13 +190,15 @@ class _FeedScreenState extends State<FeedScreen> {
                   style: TextStyle(color: Color(0xFFD5C6E8), height: 1.55),
                 ),
                 const SizedBox(height: 22),
-                FilledButton.icon(
-                  onPressed: () =>
-                      Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => const SearchScreen(),
-                  )),
-                  icon: const Icon(Icons.search_rounded, size: 19),
-                  label: const Text('Find people'),
+                Center(
+                  child: FilledButton.icon(
+                    onPressed: () =>
+                        Navigator.of(context).push(MaterialPageRoute<void>(
+                      builder: (_) => const SearchScreen(),
+                    )),
+                    icon: const Icon(Icons.search_rounded, size: 19),
+                    label: const Text('Find people'),
+                  ),
                 ),
               ],
             ),

@@ -88,6 +88,8 @@ async function openApp(page) {
 async function capture(page, filename) {
   if (!screenshots) return;
   fs.mkdirSync(screenshots, { recursive: true });
+  // Flutter route transitions run in the canvas, not as CSS animations.
+  await page.waitForTimeout(400);
   await page.screenshot({ path: path.join(screenshots, `${filename}.png`), animations: 'disabled' });
 }
 
