@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -12,6 +14,8 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _logoAnimationController;
   late AnimationController _textAnimationController;
   late AnimationController _loadingAnimationController;
+  Timer? _textAnimationTimer;
+  Timer? _loadingAnimationTimer;
 
   late Animation<double> _logoFadeAnimation;
   late Animation<double> _logoScaleAnimation;
@@ -113,25 +117,20 @@ class _SplashScreenState extends State<SplashScreen>
       curve: Curves.elasticOut,
     ));
 
-    // Start animations with delays
-    _startAnimations();
-  }
-
-  void _startAnimations() async {
-    // Start logo animation immediately
+    // Auth may finish before either delay. Cancel these when the splash exits.
     _logoAnimationController.forward();
-
-    // Start text animation after 500ms
-    await Future.delayed(const Duration(milliseconds: 500));
-    _textAnimationController.forward();
-
-    // Start loading animation after 1200ms
-    await Future.delayed(const Duration(milliseconds: 700));
-    _loadingAnimationController.forward();
+    _textAnimationTimer = Timer(const Duration(milliseconds: 500), () {
+      _textAnimationController.forward();
+    });
+    _loadingAnimationTimer = Timer(const Duration(milliseconds: 1200), () {
+      _loadingAnimationController.forward();
+    });
   }
 
   @override
   void dispose() {
+    _textAnimationTimer?.cancel();
+    _loadingAnimationTimer?.cancel();
     _logoAnimationController.dispose();
     _textAnimationController.dispose();
     _loadingAnimationController.dispose();
@@ -330,7 +329,7 @@ class _SplashScreenState extends State<SplashScreen>
                     parent: _loadingAnimationController,
                     curve: Interval(
                       delay,
-                      0.8 + delay,
+                      0.6 + delay,
                       curve: Curves.easeInOut,
                     ),
                   ));

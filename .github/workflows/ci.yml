@@ -160,6 +160,7 @@ jobs:
                 });
                 return response.status;
               }, { url, key });
+              await page.waitForTimeout(900); // Catch delayed startup callbacks after navigation.
               if (status !== 200 || errors.length || !loginVisible) {
                 const sourceMapPath = 'build/web/main.dart.js.map';
                 if (fs.existsSync(sourceMapPath)) {

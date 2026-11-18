@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -10,6 +11,7 @@ import 'package:instagram_clone/features/auth/domain/usecases/get_current_user.d
 import 'package:instagram_clone/features/auth/domain/usecases/login_user.dart';
 import 'package:instagram_clone/features/auth/domain/usecases/signup_user.dart';
 import 'package:instagram_clone/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:instagram_clone/features/auth/presentation/screens/splash_screen.dart';
 import 'package:instagram_clone/features/feed/data/models/feed_item_model.dart';
 import 'package:instagram_clone/features/post/data/models/post_model.dart';
 import 'package:instagram_clone/features/post/domain/entities/post.dart';
@@ -17,6 +19,15 @@ import 'package:instagram_clone/features/profile/data/models/profile_model.dart'
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 void main() {
+  testWidgets('auth startup can leave the splash before its animations begin',
+      (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: SplashScreen()));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+    await tester.pump(const Duration(seconds: 2));
+    expect(tester.takeException(), isNull);
+  });
+
   test('public Veyro posts parse without an author email or viewer like', () {
     final row = <String, dynamic>{
       'id': 'post-1',
